@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
+/* ── Base CSS variables ── */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #242424;
 }
 
+/* ── Theme tokens → Tailwind utility classes ── */
 @theme inline {
+  /* Base */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Fonts – CSS vars injected by next/font/local in layout.tsx */
+  --font-heading: var(--font-sharp-grotesque);
+  --font-body:    var(--font-haas-grot);
+
+  /* ── CancerBuddy Color Palette ── */
+
+  /* Primary */
+  --color-cb-yellow:     #FEE948;
+  --color-cb-yellow-600: #DAC534;
+  --color-cb-yellow-700: #B6A224;
+  --color-cb-yellow-800: #79680D;
+  --color-cb-black:      #242424;
+  --color-cb-white:      #ffffff;
+
+  /* Secondary */
+  --color-cb-bone:       #FEF9CA;
+  --color-cb-bone-300:   #FEFCDF;
+  --color-cb-purple:     #DBC9FA;
+  --color-cb-blue:       #A1E8FF;
+  --color-cb-green:      #5BE660;
+
+  /* Neutral */
+  --color-cb-gray-100:   #F2F2F2;
+  --color-cb-gray-200:   #E5E5E5;
+  --color-cb-gray-300:   #CCCCCC;
+  --color-cb-gray-400:   #B2B2B2;
+  --color-cb-gray-500:   #929292;
+  --color-cb-gray-600:   #737373;
+  --color-cb-gray-700:   #505050;
+  --color-cb-gray-800:   #3A3A3A;
+
+  /* Semantic */
+  --color-cb-danger:     #FF5977;
+  --color-cb-success:    #83E86D;
+  --color-cb-info:       #7986FC;
+  --color-cb-warning:    #FCDC0C;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ── Global defaults ── */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── CSS entrance animations ─────────────────────────────────────────────
+   Used on the landing page and login page for polished load-in.
+   animation-fill-mode: both  → element stays in end state, and the
+   "from" keyframe applies immediately (before the delay fires).
+────────────────────────────────────────────────────────────────────────── */
+
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Focus ring ──
+   General fallback for buttons, links, etc. Form fields handle their own
+   focus state via box-shadow + border-color (see Input.tsx fieldBorder). */
+:focus-visible {
+  outline: 2px solid #242424;
+  outline-offset: 3px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+/* ── Selection colour — branded yellow highlight ── */
+::selection {
+  background: rgba(254, 233, 72, 0.6);
+  color: #242424;
 }
