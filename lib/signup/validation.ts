@@ -89,7 +89,11 @@ export const credentialsSchema = z
         /[a-z]/,
         "Add at least one lowercase letter (a–z) to strengthen your password.",
       )
-      .regex(/\d/, "Add at least one number (0–9) to strengthen your password."),
+      .regex(/\d/, "Add at least one number (0–9) to strengthen your password.")
+      .regex(
+        /[!?¿@#$%^&*_]/,
+        "Add at least one special character (for example !, $, or &), matching the mobile app.",
+      ),
     confirmPassword: z
       .string()
       .min(1, "Please re-enter your password to confirm it."),

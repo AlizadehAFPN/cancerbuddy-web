@@ -9,12 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.922.0",
     "@hookform/resolvers": "^5.2.2",
+    "aws-amplify": "^5.3.33",
+    "lucide-react": "^1.14.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.74.0",
-    "zod": "^4.3.6"
+    "sonner": "^2.0.7",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

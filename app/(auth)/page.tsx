@@ -180,6 +180,16 @@ export default function LandingPage() {
                     Bone Marrow Cancer Foundation
                   </span>
                 </p>
+
+                <p className="mt-3 text-sm text-cb-gray-600 font-body">
+                  Want to support others?{" "}
+                  <Link
+                    href="/hosts-register"
+                    className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors"
+                  >
+                    Register as a host →
+                  </Link>
+                </p>
               </div>
 
               {/* ── Right: Visual ───────────────────────────── */}

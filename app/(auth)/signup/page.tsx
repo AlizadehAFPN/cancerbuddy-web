@@ -23,6 +23,8 @@ import {
   saveDraft,
 } from "@/lib/signup/storage";
 import { defaultSignupService } from "@/lib/signup/service";
+import { createStepBackResolver } from "@/lib/navigation/stepBackResolver";
+import { SIGNUP_BACK_FALLBACK } from "@/lib/navigation/signupBackTargets";
 import { SignupShell } from "./_components/SignupShell";
 import { StepPrivacy } from "./_components/StepPrivacy";
 import { StepProfile } from "./_components/StepProfile";
@@ -73,6 +75,11 @@ export default function SignupPage() {
   const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
   const [done, setDone] = useState(false);
   const [privacyError, setPrivacyError] = useState<string | undefined>(undefined);
+
+  const signupBackRef = useRef(
+    createStepBackResolver<SignupStep>(SIGNUP_BACK_FALLBACK),
+  );
+  const signupBack = signupBackRef.current;
 
   /* ── Hydrate draft on mount ──────────────── */
   const hydrated = useRef(false);
@@ -188,6 +195,19 @@ export default function SignupPage() {
     setStep(next);
   }, []);
 
+  const goBackInSignupFlow = useCallback(() => {
+    if (done) {
+      router.push("/");
+      return;
+    }
+    if (step === "privacy") {
+      router.push("/");
+      return;
+    }
+    const target = signupBack.resolve(step);
+    if (target) goToStep(target);
+  }, [done, step, router, goToStep, signupBack]);
+
   const handlePrivacyContinue = useCallback(async () => {
     const ok = await validateStep("privacy");
     if (ok) goToStep("profile");
@@ -273,14 +293,13 @@ export default function SignupPage() {
     }
   }, [methods, resendSecondsLeft]);
 
-  /* Side-effect: when /login finishes, the auth provider would push to /dashboard.
-     For now we keep the success card on-screen; if the user clicks "Go to sign in"
-     in StepOtp, we route via Link. router is kept as a hook for future use. */
-  void router;
-
   return (
     <FormProvider {...methods}>
-      <SignupShell step={step} hideProgress={done}>
+      <SignupShell
+        step={step}
+        hideProgress={done}
+        onFlowBack={done ? undefined : goBackInSignupFlow}
+      >
         {!done && step === "privacy" ? (
           <StepPrivacy
             accepted={methods.watch("privacyAccepted")}
@@ -296,14 +315,14 @@ export default function SignupPage() {
         ) : null}
 
         {!done && step === "profile" ? (
-          <StepProfile onBack={() => goToStep("privacy")} onContinue={handleProfileContinue} />
+          <StepProfile onBack={goBackInSignupFlow} onContinue={handleProfileContinue} />
         ) : null}
 
         {!done && step === "credentials" ? (
           <StepCredentials
             submitting={submitting}
             serverError={serverError}
-            onBack={() => goToStep("profile")}
+            onBack={goBackInSignupFlow}
             onContinue={handleCredentialsContinue}
           />
         ) : null}

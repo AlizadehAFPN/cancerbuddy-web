@@ -39,13 +39,23 @@ interface Props {
   hideProgress?: boolean;
   /** Form content rendered inside the right panel. */
   children: ReactNode;
+  /**
+   * When set, header "Back" steps backward inside the signup wizard.
+   * When unset, Back navigates home (`/`).
+   */
+  onFlowBack?: () => void;
 }
 
 /**
  * Two-panel layout: left brand panel, right form panel.
  * The document does not scroll — only the form column scrolls between header and footer.
  */
-export function SignupShell({ step, hideProgress, children }: Props) {
+export function SignupShell({
+  step,
+  hideProgress,
+  children,
+  onFlowBack,
+}: Props) {
   const visibleSteps = SIGNUP_STEPS;
   const stepIndex = visibleSteps.indexOf(
     step === "done" ? "otp" : (step as (typeof visibleSteps)[number]),
@@ -120,13 +130,24 @@ export function SignupShell({ step, hideProgress, children }: Props) {
         <header
           className={`h-14 sm:h-16 shrink-0 flex items-center justify-between gap-3 ${shellPad} border-b border-cb-gray-100/80 bg-white`}
         >
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-cb-gray-600 hover:text-cb-black transition-colors shrink-0"
-          >
-            <ArrowLeftIcon />
-            Back
-          </Link>
+          {onFlowBack ? (
+            <button
+              type="button"
+              onClick={onFlowBack}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-cb-gray-600 hover:text-cb-black transition-colors shrink-0"
+            >
+              <ArrowLeftIcon />
+              Back
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-cb-gray-600 hover:text-cb-black transition-colors shrink-0"
+            >
+              <ArrowLeftIcon />
+              Back
+            </Link>
+          )}
 
           <Link href="/" className="lg:hidden shrink-0" aria-label="CancerBuddy home">
             <Image

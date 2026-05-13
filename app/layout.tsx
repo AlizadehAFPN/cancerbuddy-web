@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { Toaster } from "@/components/ui";
 import "./globals.css";
 
 /* ── Brand fonts (sourced from the CancerBuddy mobile app) ── */
@@ -70,6 +71,7 @@ export default function RootLayout({
     >
       <body className="flex flex-col min-h-full font-body bg-background text-foreground">
         {children}
+        <Toaster />
       </body>
     </html>
   );
