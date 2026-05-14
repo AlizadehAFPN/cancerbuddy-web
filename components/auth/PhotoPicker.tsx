@@ -13,6 +13,7 @@ import {
 } from "@/lib/host-signup/constants";
 import { validatePhotoFile } from "@/lib/host-signup/validation";
 import { PhotoCropper } from "./PhotoCropper";
+import { t } from "@/lib/i18n";
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
 
@@ -233,13 +234,13 @@ export function PhotoPicker({ file, onChange, error, id }: Props) {
             <CameraIcon className="h-5 w-5" />
           </span>
           <p className="font-heading text-[13.5px] font-semibold leading-snug text-cb-black">
-            {dragOver ? "Drop to upload" : "Choose a photo"}
+            {dragOver ? t("forms.dropToUpload") : t("forms.choosePhoto")}
           </p>
           <p
             id={id ? `${id}-desc` : undefined}
             className="px-4 font-body text-[11px] leading-snug text-cb-gray-500"
           >
-            Drag &amp; drop or click — JPG/PNG/WebP, max {MAX_MB} MB
+            {t("forms.photoPickerHint", { max: MAX_MB })}
           </p>
         </div>
 
@@ -272,7 +273,7 @@ export function PhotoPicker({ file, onChange, error, id }: Props) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={previewUrl}
-          alt="Selected photo preview"
+          alt={t("forms.selectedPhotoAlt")}
           className="h-full w-full object-cover"
         />
       </div>
@@ -288,7 +289,7 @@ export function PhotoPicker({ file, onChange, error, id }: Props) {
           className="inline-flex items-center gap-1.5 rounded-full border border-cb-gray-200 bg-white px-3.5 py-1.5 font-body text-[13px] font-medium text-cb-black transition-colors hover:bg-cb-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2"
         >
           <ReplaceIcon className="h-[14px] w-[14px]" />
-          Replace
+          {t("forms.replace")}
         </button>
         <button
           type="button"
@@ -296,7 +297,7 @@ export function PhotoPicker({ file, onChange, error, id }: Props) {
           className="inline-flex items-center gap-1.5 rounded-full border border-cb-gray-200 bg-white px-3.5 py-1.5 font-body text-[13px] font-medium text-cb-danger transition-colors hover:bg-cb-danger/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2"
         >
           <TrashIcon className="h-[14px] w-[14px]" />
-          Remove
+          {t("forms.remove")}
         </button>
       </div>
 

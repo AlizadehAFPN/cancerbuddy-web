@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 /**
  * Normalizes thrown values from Cognito, AppSync/fetch, and plain `Error`
  * into a single string safe to show in the UI.
@@ -8,7 +10,7 @@ export function userFacingErrorMessage(
   err: unknown,
   fallback: string,
 ): string {
-  const fb = fallback.trim() || "Something went wrong. Please try again.";
+  const fb = fallback.trim() || t("errors.fallback");
 
   if (err == null) return fb;
 

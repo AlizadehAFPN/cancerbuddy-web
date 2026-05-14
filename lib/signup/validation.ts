@@ -8,6 +8,7 @@ import {
   PASSWORD_MIN_LENGTH,
   PRONOUN_OPTIONS,
 } from "./constants";
+import { t } from "@/lib/i18n";
 
 /**
  * One Zod schema per signup step. The controller validates per-step before
@@ -20,7 +21,7 @@ export const privacySchema = z.object({
     .boolean()
     .refine(
       (v) => v === true,
-      "Please accept all three policies to continue.",
+      t("validation.privacy.mustAccept"),
     ),
 });
 
@@ -29,30 +30,30 @@ export const profileSchema = z
     firstName: z
       .string()
       .trim()
-      .min(1, "First name is required — please enter it.")
-      .max(60, "That name is a bit long. Please keep it under 60 characters."),
+      .min(1, t("validation.profile.firstNameRequired"))
+      .max(60, t("validation.profile.firstNameTooLong")),
     lastName: z
       .string()
       .trim()
-      .min(1, "Last name is required — please enter it.")
-      .max(60, "That name is a bit long. Please keep it under 60 characters."),
+      .min(1, t("validation.profile.lastNameRequired"))
+      .max(60, t("validation.profile.lastNameTooLong")),
     birthMonth: z.preprocess(
       (v) => (v === "" || v == null ? undefined : Number(v)),
       z
-        .number({ error: "Please select your birth month." })
+        .number({ error: t("validation.profile.birthMonthRequired") })
         .int()
-        .min(1, "Please select a valid month.")
-        .max(12, "Please select a valid month."),
+        .min(1, t("validation.profile.birthMonthInvalid"))
+        .max(12, t("validation.profile.birthMonthInvalid")),
     ),
     birthYear: z.preprocess(
       (v) => (v === "" || v == null ? undefined : Number(v)),
       z
-        .number({ error: "Please select your birth year." })
+        .number({ error: t("validation.profile.birthYearRequired") })
         .int()
-        .min(MIN_BIRTH_YEAR, `Please enter a birth year after ${MIN_BIRTH_YEAR}.`)
+        .min(MIN_BIRTH_YEAR, t("validation.profile.birthYearTooEarly", { min: MIN_BIRTH_YEAR }))
         .max(
           MAX_BIRTH_YEAR,
-          `You must be at least ${MIN_AGE} years old to sign up.`,
+          t("validation.profile.birthYearTooLate", { minAge: MIN_AGE }),
         ),
     ),
     pronouns: z
@@ -70,37 +71,37 @@ export const credentialsSchema = z
   .object({
     email: z
       .string()
-      .min(1, "Email address is required.")
+      .min(1, t("validation.credentials.emailRequired"))
       .regex(
         EMAIL_REGEX,
-        "That doesn't look like a valid email. Try something like name@example.com.",
+        t("validation.credentials.emailInvalid"),
       ),
     password: z
       .string()
       .min(
         PASSWORD_MIN_LENGTH,
-        `Password must be at least ${PASSWORD_MIN_LENGTH} characters long.`,
+        t("validation.credentials.passwordTooShort", { min: PASSWORD_MIN_LENGTH }),
       )
       .regex(
         /[A-Z]/,
-        "Add at least one uppercase letter (A–Z) to strengthen your password.",
+        t("validation.credentials.passwordNoUppercase"),
       )
       .regex(
         /[a-z]/,
-        "Add at least one lowercase letter (a–z) to strengthen your password.",
+        t("validation.credentials.passwordNoLowercase"),
       )
-      .regex(/\d/, "Add at least one number (0–9) to strengthen your password.")
+      .regex(/\d/, t("validation.credentials.passwordNoDigit"))
       .regex(
         /[!?¿@#$%^&*_]/,
-        "Add at least one special character (for example !, $, or &), matching the mobile app.",
+        t("validation.credentials.passwordNoSpecial"),
       ),
     confirmPassword: z
       .string()
-      .min(1, "Please re-enter your password to confirm it."),
+      .min(1, t("validation.credentials.confirmRequired")),
   })
   .refine((d) => d.password === d.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Those passwords don't match. Please retype your password exactly.",
+    message: t("validation.credentials.passwordsDontMatch"),
   });
 
 export const otpSchema = z.object({
@@ -108,7 +109,7 @@ export const otpSchema = z.object({
     .string()
     .regex(
       new RegExp(`^\\d{${OTP_LENGTH}}$`),
-      `Enter the ${OTP_LENGTH}-digit code we sent to your email.`,
+      t("validation.emailOtp.mustMatchLength", { length: OTP_LENGTH }),
     ),
 });
 

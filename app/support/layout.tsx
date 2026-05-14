@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { t } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "Support",
-  description: "Tell us what's going on and we'll get back to you.",
+  title: t("metadata.supportTitle"),
+  description: t("metadata.supportDescription"),
   robots: { index: false, follow: false },
 };
 

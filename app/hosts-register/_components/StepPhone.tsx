@@ -8,6 +8,7 @@ import {
   getCountryByIso2,
 } from "@/lib/host-signup/constants";
 import type { HostRegisterFormValues } from "@/lib/host-signup/validation";
+import { t } from "@/lib/i18n";
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
 
@@ -108,11 +109,10 @@ export function StepPhone({
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
         >
-          Verify your phone
+          {t("hostsRegister.phone.heading")}
         </h1>
         <p className="mt-1 font-body text-[14px] text-cb-gray-500">
-          We&apos;ll text you a one-time code. Your number stays private to your
-          host profile.
+          {t("hostsRegister.phone.sub")}
         </p>
       </div>
 
@@ -121,7 +121,7 @@ export function StepPhone({
       ) : null}
 
       <PhoneInput
-        label="Mobile phone number"
+        label={t("hostsRegister.phone.phoneInputLabel")}
         countryIso2={countryIso2}
         national={national}
         onCountryChange={(iso2) =>
@@ -156,7 +156,7 @@ export function StepPhone({
           <div className="rounded-2xl border border-cb-gray-200/80 bg-cb-gray-100/40 p-3.5">
             <div className="flex items-baseline justify-between gap-3">
               <p className="font-body text-[12.5px] text-cb-gray-600">
-                Enter the {PHONE_OTP_LENGTH}-digit code sent to{" "}
+                {t("hostsRegister.phone.codePromptLead", { length: PHONE_OTP_LENGTH })}{" "}
                 <span className="font-medium text-cb-black">
                   {maskPhone(country?.dial ?? "+", national)}
                 </span>
@@ -169,8 +169,8 @@ export function StepPhone({
                 className="shrink-0 touch-manipulation font-body text-[12.5px] font-medium text-cb-black underline underline-offset-2 transition-colors hover:text-cb-gray-700 disabled:cursor-not-allowed disabled:text-cb-gray-400 disabled:no-underline"
               >
                 {resendSecondsLeft > 0
-                  ? `Resend in ${resendSecondsLeft}s`
-                  : "Resend"}
+                  ? t("hostsRegister.phone.resendIn", { seconds: resendSecondsLeft })
+                  : t("hostsRegister.phone.resend")}
               </button>
             </div>
 
@@ -211,7 +211,7 @@ export function StepPhone({
           disabled={submitting}
           className="touch-manipulation"
         >
-          Back
+          {t("common.back")}
         </Button>
         {codeSent ? (
           <Button
@@ -227,7 +227,9 @@ export function StepPhone({
             className="touch-manipulation"
           >
             <CheckIcon className="h-4 w-4" />
-            {submitting ? "Verifying…" : "Verify & continue"}
+            {submitting
+              ? t("hostsRegister.phone.verifying")
+              : t("hostsRegister.phone.verify")}
           </Button>
         ) : (
           <Button
@@ -240,7 +242,7 @@ export function StepPhone({
             onClick={onSendCode}
             className="touch-manipulation"
           >
-            Send code
+            {t("hostsRegister.phone.sendCode")}
           </Button>
         )}
       </div>

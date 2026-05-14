@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui";
+import { t } from "@/lib/i18n";
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
 
@@ -75,23 +76,26 @@ function ArrowRightIcon() {
 
 /* ── Component ─────────────────────────────────────────────────────────── */
 
+/* Highlight items use i18n keys for copy; the visual accent and icon stay
+   close to the data so a designer can adjust one without touching the
+   translator's catalog. */
 const HIGHLIGHTS = [
   {
     icon: HeartIcon,
-    title: "Show up for someone",
-    body: "Be the trusted voice patients reach for when nobody else gets it.",
+    titleKey: "hostsRegister.intro.highlights.empathyTitle",
+    bodyKey: "hostsRegister.intro.highlights.empathyBody",
     accent: "bg-cb-yellow text-cb-black",
   },
   {
     icon: ConversationIcon,
-    title: "On your schedule",
-    body: "Set your availability and the topics you're comfortable supporting.",
+    titleKey: "hostsRegister.intro.highlights.scheduleTitle",
+    bodyKey: "hostsRegister.intro.highlights.scheduleBody",
     accent: "bg-cb-blue/40 text-cb-gray-800",
   },
   {
     icon: ShieldIcon,
-    title: "Verified & supported",
-    body: "Phone verification keeps the community safe; we provide training.",
+    titleKey: "hostsRegister.intro.highlights.verifiedTitle",
+    bodyKey: "hostsRegister.intro.highlights.verifiedBody",
     accent: "bg-cb-purple/50 text-cb-gray-800",
   },
 ] as const;
@@ -105,24 +109,23 @@ export function StepIntro({ onStart }: Props) {
     <div className="w-full">
       <header className="mb-5">
         <p className="font-body text-[11px] font-semibold uppercase tracking-[0.2em] text-cb-gray-500">
-          Host Application
+          {t("hostsRegister.intro.eyebrow")}
         </p>
         <h1
           className="mt-1.5 font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.6rem, 2.3vw, 2rem)", lineHeight: 1.12 }}
         >
-          Register as host
+          {t("hostsRegister.intro.heading")}
         </h1>
         <p className="mt-2 max-w-[44ch] font-body text-[14px] leading-relaxed text-cb-gray-600">
-          Hosts are the heart of CancerBuddy. Guide newcomers, share what
-          you&apos;ve learned, and offer real, human support.
+          {t("hostsRegister.intro.body")}
         </p>
       </header>
 
       <ul className="mb-5 space-y-2">
-        {HIGHLIGHTS.map(({ icon: Icon, title, body, accent }) => (
+        {HIGHLIGHTS.map(({ icon: Icon, titleKey, bodyKey, accent }) => (
           <li
-            key={title}
+            key={titleKey}
             className="flex items-start gap-3 rounded-2xl border border-cb-gray-200/90 bg-white p-3"
           >
             <span
@@ -136,10 +139,10 @@ export function StepIntro({ onStart }: Props) {
             </span>
             <div className="min-w-0">
               <p className="font-heading text-[14px] font-semibold text-cb-black">
-                {title}
+                {t(titleKey)}
               </p>
               <p className="mt-0.5 font-body text-[13px] leading-snug text-cb-gray-600">
-                {body}
+                {t(bodyKey)}
               </p>
             </div>
           </li>
@@ -147,7 +150,7 @@ export function StepIntro({ onStart }: Props) {
       </ul>
 
       <p className="mb-5 text-center font-body text-[12.5px] text-cb-gray-500">
-        Takes about 4 minutes · you can save progress and finish later.
+        {t("hostsRegister.intro.timeNote")}
       </p>
 
       <div className="flex flex-col gap-3">
@@ -159,10 +162,12 @@ export function StepIntro({ onStart }: Props) {
           onClick={onStart}
           className="touch-manipulation"
         >
-          Start Application
+          {t("hostsRegister.intro.startCta")}
           <ArrowRightIcon />
         </Button>
-        <p className="text-center text-[10px] text-cb-gray-300">v2.1</p>
+        <p className="text-center text-[10px] text-cb-gray-300">
+          {t("hostsRegister.intro.version")}
+        </p>
       </div>
     </div>
   );

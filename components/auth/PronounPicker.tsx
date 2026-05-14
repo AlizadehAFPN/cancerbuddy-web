@@ -7,6 +7,7 @@ import {
   type PronounOption,
 } from "@/lib/signup/constants";
 import { fieldBase, fieldBorder } from "@/components/ui";
+import { t } from "@/lib/i18n";
 
 function ChevronDown({ className }: { className?: string }) {
   return (
@@ -49,9 +50,9 @@ export function PronounPicker({ value, onChange, error, className = "" }: Props)
           htmlFor={selectId}
           className="font-body text-[13px] font-medium text-cb-gray-700"
         >
-          Pronouns
+          {t("pronouns.label")}
         </label>
-        <span className="font-body text-xs text-cb-gray-400">Optional</span>
+        <span className="font-body text-xs text-cb-gray-400">{t("pronouns.optional")}</span>
       </div>
 
       <div className="relative">
@@ -71,7 +72,7 @@ export function PronounPicker({ value, onChange, error, className = "" }: Props)
             value === "" ? "text-cb-gray-400" : "text-cb-black",
           ].join(" ")}
         >
-          <option value="">Choose…</option>
+          <option value="">{t("pronouns.choose")}</option>
           {PRONOUN_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>
               {PRONOUN_LABELS[opt]}

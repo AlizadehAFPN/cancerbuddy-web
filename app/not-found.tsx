@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { t } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "Page not found",
+  title: t("metadata.notFoundTitle"),
 };
 
 export default function NotFound() {
@@ -15,7 +16,7 @@ export default function NotFound() {
         404
       </span>
       <p className="font-heading text-xl text-cb-black max-w-[280px]">
-        We couldn&apos;t find that page.
+        {t("notFound.headline")}
       </p>
       <Link
         href="/"
@@ -26,7 +27,7 @@ export default function NotFound() {
           "transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700",
         ].join(" ")}
       >
-        Go home
+        {t("notFound.goHome")}
       </Link>
     </div>
   );

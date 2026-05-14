@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ClipboardEvent, type KeyboardEvent } from "react";
+import { t } from "@/lib/i18n";
 
 interface Props {
   length?: number;
@@ -90,7 +91,7 @@ export function OtpInput({
     <div
       className="flex gap-2 sm:gap-2.5"
       role="group"
-      aria-label="One-time code"
+      aria-label={t("forms.otpGroupLabel")}
       dir="ltr"
     >
       {Array.from({ length }).map((_, i) => {
@@ -118,7 +119,7 @@ export function OtpInput({
             onKeyDown={(e) => handleKeyDown(i, e)}
             onPaste={handlePaste}
             onFocus={(e) => e.currentTarget.select()}
-            aria-label={`Digit ${i + 1}`}
+            aria-label={t("forms.otpDigitLabel", { index: i + 1 })}
             className={[
               "h-14 w-12 sm:h-16 sm:w-14 rounded-2xl border-[1.5px] bg-white",
               "text-center text-2xl sm:text-[28px] font-heading font-medium tabular-nums",

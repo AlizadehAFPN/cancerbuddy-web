@@ -7,25 +7,26 @@ import {
   SUBJECT_MIN,
   SUPPORT_CATEGORIES,
 } from "./types";
+import { t } from "@/lib/i18n";
 
 export const supportFormSchema = z.object({
   subject: z
     .string()
     .trim()
-    .min(SUBJECT_MIN, "Please add a short subject.")
-    .max(SUBJECT_MAX, "Please keep the subject under 80 characters."),
+    .min(SUBJECT_MIN, t("validation.support.subjectRequired"))
+    .max(SUBJECT_MAX, t("validation.support.subjectTooLong")),
   category: z.enum(SUPPORT_CATEGORIES, {
-    error: "Please pick a category.",
+    error: t("validation.support.categoryRequired"),
   }),
   message: z
     .string()
     .trim()
-    .min(MESSAGE_MIN, "Please share at least a few sentences so we can help.")
-    .max(MESSAGE_MAX, "That's longer than 2,000 characters — please shorten it."),
+    .min(MESSAGE_MIN, t("validation.support.messageTooShort"))
+    .max(MESSAGE_MAX, t("validation.support.messageTooLong")),
   email: z
     .string()
-    .min(1, "Please enter your email.")
-    .email("Please enter a valid email."),
+    .min(1, t("validation.support.emailRequired"))
+    .email(t("validation.support.emailInvalid")),
 });
 
 export type SupportFormValues = z.infer<typeof supportFormSchema>;
@@ -37,10 +38,10 @@ export function validateAttachment(
 ): { ok: true } | { ok: false; message: string } {
   if (!file) return { ok: true };
   if (!file.type.startsWith("image/")) {
-    return { ok: false, message: "Only image files are supported." };
+    return { ok: false, message: t("validation.support.attachmentNotImage") };
   }
   if (file.size > ATTACHMENT_MAX_BYTES) {
-    return { ok: false, message: "That image is over 4 MB. Try a smaller one." };
+    return { ok: false, message: t("validation.support.attachmentTooBig") };
   }
   return { ok: true };
 }

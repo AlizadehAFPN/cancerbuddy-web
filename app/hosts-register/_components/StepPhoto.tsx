@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui";
 import { PhotoPicker } from "@/components/auth";
+import { t } from "@/lib/i18n";
 
 interface Props {
   photo: File | null;
@@ -27,11 +28,10 @@ export function StepPhoto({
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
         >
-          Add a photo
+          {t("hostsRegister.photo.heading")}
         </h1>
         <p className="mt-1 font-body text-[14px] text-cb-gray-500">
-          A clear, friendly photo of yourself helps buddies feel comfortable
-          reaching out.
+          {t("hostsRegister.photo.sub")}
         </p>
       </div>
 
@@ -51,7 +51,7 @@ export function StepPhoto({
           disabled={submitting}
           className="touch-manipulation"
         >
-          Back
+          {t("common.back")}
         </Button>
         <Button
           type="button"
@@ -60,10 +60,10 @@ export function StepPhoto({
           fullWidth
           onClick={onContinue}
           disabled={!photo || submitting}
-          title={!photo ? "Choose a photo to continue." : undefined}
+          title={!photo ? t("hostsRegister.photo.continueDisabledTitle") : undefined}
           className="touch-manipulation"
         >
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>

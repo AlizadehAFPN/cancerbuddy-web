@@ -6,7 +6,8 @@ import {
   CHILD_SAFETY,
   PRIVACY_POLICY,
   TERMS_OF_USE,
-} from "@/lib/legal/content";
+  t,
+} from "@/lib/i18n";
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
 
@@ -152,17 +153,16 @@ export function StepPrivacy({
     <div className="w-full">
       <header className="mb-4">
         <p className="font-body text-[11px] font-semibold uppercase tracking-[0.2em] text-cb-gray-400">
-          Policies
+          {t("hostsRegister.privacy.eyebrow")}
         </p>
         <h1
           className="mt-1.5 font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
         >
-          Before we begin
+          {t("hostsRegister.privacy.heading")}
         </h1>
         <p className="mt-1.5 max-w-[44ch] font-body text-[14px] leading-relaxed text-cb-gray-600">
-          Hosts hold a position of trust. Review each document, then confirm
-          to continue.
+          {t("hostsRegister.privacy.body")}
         </p>
       </header>
 
@@ -198,7 +198,7 @@ export function StepPrivacy({
                   className="flex shrink-0 items-center gap-0.5 font-body text-[13px] font-semibold text-cb-gray-500 transition-colors group-hover:text-cb-black"
                   aria-hidden
                 >
-                  View
+                  {t("hostsRegister.privacy.view")}
                   <ChevronRightIcon />
                 </span>
               </Link>
@@ -238,7 +238,7 @@ export function StepPrivacy({
           {accepted ? <CheckIcon className="h-3 w-3" /> : null}
         </span>
         <span className="font-body text-[13.5px] font-medium leading-snug text-cb-black">
-          I have read and accept all three policies above.
+          {t("hostsRegister.privacy.acceptAll")}
         </span>
       </button>
 
@@ -256,7 +256,7 @@ export function StepPrivacy({
           onClick={onBack}
           className="touch-manipulation"
         >
-          Back
+          {t("common.back")}
         </Button>
         <Button
           type="button"
@@ -267,7 +267,7 @@ export function StepPrivacy({
           disabled={!accepted}
           className="touch-manipulation"
         >
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>

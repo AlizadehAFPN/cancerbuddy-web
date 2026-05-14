@@ -5,17 +5,12 @@ import { Button, Input } from "@/components/ui";
 import { MonthYearPicker, PronounPicker } from "@/components/auth";
 import { type PronounOption } from "@/lib/host-signup/constants";
 import type { HostRegisterFormValues } from "@/lib/host-signup/validation";
+import { t, tList } from "@/lib/i18n";
 
 interface Props {
   onBack: () => void;
   onContinue: () => void;
 }
-
-const MONTH_NAMES = [
-  "January", "February", "March", "April",
-  "May", "June", "July", "August",
-  "September", "October", "November", "December",
-];
 
 /**
  * Step 2 — name, birth month/year, pronouns. Same rules as the regular
@@ -41,6 +36,8 @@ export function StepProfile({ onBack, onContinue }: Props) {
     birthMonth !== "" &&
     birthYear !== "";
 
+  const monthNames = tList("forms.monthNamesLong");
+
   return (
     <div className="w-full">
       <div className="mb-5">
@@ -48,25 +45,25 @@ export function StepProfile({ onBack, onContinue }: Props) {
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
         >
-          Tell us about you
+          {t("hostsRegister.profile.heading")}
         </h1>
         <p className="mt-1 font-body text-[14px] text-cb-gray-500">
-          Buddies see your first name and pronouns on your host profile.
+          {t("hostsRegister.profile.sub")}
         </p>
       </div>
 
       <div className="grid gap-x-4 sm:grid-cols-2">
         <Input
-          label="First name"
-          placeholder="Your first name"
+          label={t("hostsRegister.profile.firstNameLabel")}
+          placeholder={t("hostsRegister.profile.firstNamePlaceholder")}
           autoComplete="given-name"
           autoFocus
           error={errors.firstName?.message}
           {...register("firstName")}
         />
         <Input
-          label="Last name"
-          placeholder="Your last name"
+          label={t("hostsRegister.profile.lastNameLabel")}
+          placeholder={t("hostsRegister.profile.lastNamePlaceholder")}
           autoComplete="family-name"
           error={errors.lastName?.message}
           {...register("lastName")}
@@ -76,7 +73,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
       <div className="mb-5 grid grid-cols-1 items-start gap-x-4 sm:grid-cols-2">
         <MonthYearPicker
           className="!mb-0"
-          label="Date of birth"
+          label={t("hostsRegister.profile.dateOfBirthLabel")}
           month={birthMonth}
           year={birthYear}
           onChange={(m, y) => {
@@ -86,7 +83,10 @@ export function StepProfile({ onBack, onContinue }: Props) {
           error={errors.birthMonth?.message ?? errors.birthYear?.message}
           hint={
             birthMonth !== "" && birthYear !== ""
-              ? `Born ${MONTH_NAMES[Number(birthMonth) - 1]} ${birthYear}`
+              ? t("hostsRegister.profile.bornHint", {
+                  month: monthNames[Number(birthMonth) - 1] ?? "",
+                  year: birthYear,
+                })
               : undefined
           }
         />
@@ -102,7 +102,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
       </div>
 
       <p className="mb-6 mt-0.5 font-body text-[12px] text-cb-gray-400">
-        Pronouns are optional — update any time from your profile.
+        {t("hostsRegister.profile.pronounsHint")}
       </p>
 
       <div className="flex items-center gap-3">
@@ -113,7 +113,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
           onClick={onBack}
           className="touch-manipulation"
         >
-          Back
+          {t("common.back")}
         </Button>
         <Button
           type="button"
@@ -124,12 +124,12 @@ export function StepProfile({ onBack, onContinue }: Props) {
           disabled={!canContinue}
           title={
             !canContinue
-              ? "Please fill in your name, last name, and date of birth."
+              ? t("hostsRegister.profile.continueDisabledTitle")
               : undefined
           }
           className="touch-manipulation"
         >
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>

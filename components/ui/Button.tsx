@@ -1,6 +1,7 @@
 "use client";
 
 import { ButtonHTMLAttributes, forwardRef } from "react";
+import { t } from "@/lib/i18n";
 
 /* ── Types ── */
 
@@ -49,7 +50,7 @@ const sizeStyles: Record<ButtonSize, string> = {
 function Spinner() {
   return (
     <span
-      aria-label="Loading"
+      aria-label={t("forms.loading")}
       className="inline-block rounded-full border-2 border-current border-t-transparent animate-spin"
       style={{ width: "1.1em", height: "1.1em" }}
     />

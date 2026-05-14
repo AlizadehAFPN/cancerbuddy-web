@@ -5,9 +5,17 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   SIGNUP_STEPS,
-  STEP_TITLES,
   type SignupStep,
 } from "@/lib/signup/constants";
+import { t, type MessageKey } from "@/lib/i18n";
+
+/** i18n keys for the live progress label, in flow order. */
+const SIGNUP_STEP_TITLE_KEYS: Record<(typeof SIGNUP_STEPS)[number], MessageKey> = {
+  privacy: "signup.stepTitles.privacy",
+  profile: "signup.stepTitles.profile",
+  credentials: "signup.stepTitles.credentials",
+  otp: "signup.stepTitles.otp",
+};
 
 /* ── Inline icon ── */
 
@@ -72,10 +80,10 @@ export function SignupShell({
         className={`hidden lg:flex flex-col w-[46%] xl:w-[42%] shrink-0 bg-cb-yellow ${shellPad} min-h-0 overflow-hidden`}
       >
         <div className="h-14 sm:h-16 shrink-0 flex items-center">
-          <Link href="/" aria-label="Back to CancerBuddy home">
+          <Link href="/" aria-label={t("common.backToCancerBuddyHome")}>
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={195}
               height={26}
               className="object-contain"
@@ -91,7 +99,7 @@ export function SignupShell({
           >
             <Image
               src="/images/welcome.png"
-              alt="CancerBuddy community"
+              alt={t("common.cancerBuddyCommunityAlt")}
               width={460}
               height={500}
               className="w-full max-h-[min(52vh,500px)] object-contain"
@@ -105,18 +113,23 @@ export function SignupShell({
               animation: "hero-fade-up 0.6s ease-out 0.25s both",
             }}
           >
-            Your support community<br />awaits.
+            {t("signup.tagline").split("\n").map((line, i, arr) => (
+              <span key={i}>
+                {line}
+                {i < arr.length - 1 ? <br /> : null}
+              </span>
+            ))}
           </p>
         </div>
 
         <div className="h-14 sm:h-16 shrink-0 flex items-center gap-3">
           <span className="text-[11px] font-medium text-cb-gray-600 tracking-[0.12em] uppercase">
-            Powered by
+            {t("common.poweredBy")}
           </span>
           <Image
-            src="/images/bm-logo-transparent.png"
-            alt="Bone Marrow Cancer Foundation"
-            width={110}
+            src="/images/BMCF_LOGO_WIDE.svg"
+            alt={t("common.bmcfLogoAlt")}
+            width={88}
             height={30}
             className="object-contain"
           />
@@ -137,7 +150,7 @@ export function SignupShell({
               className="inline-flex items-center gap-1.5 text-sm font-medium text-cb-gray-600 hover:text-cb-black transition-colors shrink-0"
             >
               <ArrowLeftIcon />
-              Back
+              {t("common.back")}
             </button>
           ) : (
             <Link
@@ -145,14 +158,14 @@ export function SignupShell({
               className="inline-flex items-center gap-1.5 text-sm font-medium text-cb-gray-600 hover:text-cb-black transition-colors shrink-0"
             >
               <ArrowLeftIcon />
-              Back
+              {t("common.back")}
             </Link>
           )}
 
-          <Link href="/" className="lg:hidden shrink-0" aria-label="CancerBuddy home">
+          <Link href="/" className="lg:hidden shrink-0" aria-label={t("common.cancerBuddyHome")}>
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={155}
               height={21}
               className="object-contain"
@@ -160,12 +173,12 @@ export function SignupShell({
           </Link>
 
           <p className="text-sm text-cb-gray-500 font-body min-w-0 text-end">
-            Already a member?{" "}
+            {t("signup.alreadyMember")}{" "}
             <Link
               href="/login"
               className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors whitespace-nowrap"
             >
-              Sign in
+              {t("common.signIn")}
             </Link>
           </p>
         </header>
@@ -194,7 +207,10 @@ export function SignupShell({
                 <div className="mb-2 flex items-baseline justify-between gap-2 sm:mb-2.5">
                   <p className="font-body text-sm font-medium text-cb-gray-500">
                     <span className="sr-only">
-                      Step {safeIdx + 1} of {total}.{" "}
+                      {t("signup.stepOfTotal", {
+                        current: safeIdx + 1,
+                        total,
+                      })}{" "}
                     </span>
                     <span aria-hidden className="tabular-nums text-cb-black">
                       {safeIdx + 1}
@@ -208,7 +224,7 @@ export function SignupShell({
                     </span>
                   </p>
                   <p className="min-w-0 truncate text-right font-body text-sm text-cb-gray-600">
-                    {STEP_TITLES[visibleSteps[safeIdx]] ?? ""}
+                    {t(SIGNUP_STEP_TITLE_KEYS[visibleSteps[safeIdx]])}
                   </p>
                 </div>
                 <div className="flex h-1.5 gap-1.5" aria-hidden>
@@ -244,22 +260,22 @@ export function SignupShell({
             href="/privacy"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Privacy Policy
+            {t("common.privacyPolicy")}
           </Link>
           <Link
             href="/terms"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Terms of Service
+            {t("common.termsOfService")}
           </Link>
           <Link
             href="/support"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Support
+            {t("common.support")}
           </Link>
           <span className="ms-auto text-cb-gray-300">
-            © {new Date().getFullYear()} CancerBuddy
+            {t("common.copyright", { year: new Date().getFullYear() })}
           </span>
         </footer>
       </main>

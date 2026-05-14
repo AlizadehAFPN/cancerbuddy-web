@@ -12,7 +12,6 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import type { SignupFormValues } from "./validation";
 
 export type PersistedSignupDraft = Omit<
@@ -30,24 +29,10 @@ interface SignupState {
   clearDraft: () => void;
 }
 
-const STORE_NAME = "cancerbuddy-signup-v2";
+export const useSignupStore = create<SignupState>()((set) => ({
+  draft: null,
+  step: null,
 
-export const useSignupStore = create<SignupState>()(
-  persist(
-    (set) => ({
-      draft: null,
-      step: null,
-
-      setDraft: (values, step) => set({ draft: values, step }),
-      clearDraft: () => set({ draft: null, step: null }),
-    }),
-    {
-      name: STORE_NAME,
-      storage: createJSONStorage(() =>
-        typeof window === "undefined" ? (undefined as unknown as Storage) : window.sessionStorage,
-      ),
-      partialize: (state) => ({ draft: state.draft, step: state.step }),
-      version: 1,
-    },
-  ),
-);
+  setDraft: (values, step) => set({ draft: values, step }),
+  clearDraft: () => set({ draft: null, step: null }),
+}));

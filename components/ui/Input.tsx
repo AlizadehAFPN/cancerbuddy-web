@@ -7,6 +7,7 @@ import {
   useId,
   useState,
 } from "react";
+import { t } from "@/lib/i18n";
 
 /* ── Inline icons ── */
 
@@ -192,7 +193,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               type="button"
               tabIndex={-1}
               onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? t("forms.hidePassword") : t("forms.showPassword")}
               className="absolute end-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-lg text-cb-gray-500 hover:text-cb-black hover:bg-cb-gray-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black"
             >
               {showPassword ? (

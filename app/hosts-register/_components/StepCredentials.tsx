@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { Button, Input, ServerAlert } from "@/components/ui";
 import { PasswordStrengthMeter } from "@/components/auth";
 import type { HostRegisterFormValues } from "@/lib/host-signup/validation";
+import { t } from "@/lib/i18n";
 
 function MailIcon() {
   return (
@@ -74,10 +75,10 @@ export function StepCredentials({
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
         >
-          Set up sign-in
+          {t("hostsRegister.credentials.heading")}
         </h1>
         <p className="mt-1 font-body text-[14px] text-cb-gray-500">
-          Your email and password keep your host account secure.
+          {t("hostsRegister.credentials.sub")}
         </p>
       </div>
 
@@ -86,22 +87,22 @@ export function StepCredentials({
       ) : null}
 
       <Input
-        label="Email address"
-        placeholder="name@example.com"
+        label={t("hostsRegister.credentials.emailLabel")}
+        placeholder={t("hostsRegister.credentials.emailPlaceholder")}
         type="email"
         autoComplete="email"
         autoCapitalize="none"
         spellCheck={false}
         autoFocus
         leftIcon={<MailIcon />}
-        hint={!errors.email ? "We'll send a confirmation code here." : undefined}
+        hint={!errors.email ? t("hostsRegister.credentials.emailHint") : undefined}
         error={errors.email?.message}
         {...register("email")}
       />
 
       <Input
-        label="Password"
-        placeholder="Create a strong password"
+        label={t("hostsRegister.credentials.passwordLabel")}
+        placeholder={t("hostsRegister.credentials.passwordPlaceholder")}
         type="password"
         autoComplete="new-password"
         leftIcon={<LockIcon />}
@@ -113,8 +114,8 @@ export function StepCredentials({
       </div>
 
       <Input
-        label="Confirm password"
-        placeholder="Re-enter your password"
+        label={t("hostsRegister.credentials.confirmPasswordLabel")}
+        placeholder={t("hostsRegister.credentials.confirmPasswordPlaceholder")}
         type="password"
         autoComplete="new-password"
         leftIcon={<LockIcon />}
@@ -131,7 +132,7 @@ export function StepCredentials({
           disabled={submitting}
           className="touch-manipulation"
         >
-          Back
+          {t("common.back")}
         </Button>
         <Button
           type="button"
@@ -143,7 +144,7 @@ export function StepCredentials({
           onClick={onContinue}
           className="touch-manipulation"
         >
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>

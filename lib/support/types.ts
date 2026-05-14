@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 export const SUPPORT_CATEGORIES = [
   "account",
   "billing",
@@ -10,12 +12,12 @@ export const SUPPORT_CATEGORIES = [
 export type SupportCategory = (typeof SUPPORT_CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<SupportCategory, string> = {
-  account: "Account & sign-in",
-  billing: "Billing",
-  content: "Content concern",
-  bug: "Bug report",
-  feature: "Feature request",
-  other: "Other",
+  account: t("support.categories.account"),
+  billing: t("support.categories.billing"),
+  content: t("support.categories.content"),
+  bug: t("support.categories.bug"),
+  feature: t("support.categories.feature"),
+  other: t("support.categories.other"),
 };
 
 export const SUBJECT_MIN = 1;

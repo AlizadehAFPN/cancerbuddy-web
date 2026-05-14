@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { LegalShell } from "@/components/legal/LegalShell";
-import { CHILD_SAFETY, PRIVACY_POLICY, TERMS_OF_USE } from "@/lib/legal/content";
+import { CHILD_SAFETY, PRIVACY_POLICY, TERMS_OF_USE, t } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "Terms of Use",
-  description:
-    "The agreement between you and the Bone Marrow & Cancer Foundation that governs your use of the CancerBuddy™ app.",
+  title: t("metadata.termsTitle"),
+  description: t("metadata.termsDescription"),
 };
 
 export default function TermsPage() {

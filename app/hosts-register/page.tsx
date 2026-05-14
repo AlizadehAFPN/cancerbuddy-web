@@ -26,6 +26,7 @@ import {
   type HostRegisterFormValues,
 } from "@/lib/host-signup/validation";
 import {
+  advanceFurthestHostStep,
   clearHostDraft,
   clearHostSignupSessionPassword,
   loadHostDraft,
@@ -33,10 +34,16 @@ import {
   saveHostDraft,
   stashHostSignupSessionPassword,
 } from "@/lib/host-signup/storage";
+import { useHostSignupStore } from "@/lib/host-signup/store";
 import { defaultHostSignupService } from "@/lib/host-signup/service";
 import { userFacingErrorMessage } from "@/lib/errors/userFacingMessage";
+import { t } from "@/lib/i18n";
 import { createStepBackResolver } from "@/lib/navigation/stepBackResolver";
 import { HOST_REGISTER_BACK_FALLBACK } from "@/lib/navigation/hostRegisterBackTargets";
+import {
+  HOST_FLOW_ORDER,
+  clampToReachableHostStep,
+} from "@/lib/navigation/hostStepGate";
 import { HostRegisterShell } from "./_components/HostRegisterShell";
 import { StepIntro } from "./_components/StepIntro";
 import { StepPrivacy } from "./_components/StepPrivacy";
@@ -54,20 +61,8 @@ import { StepDone } from "./_components/StepDone";
    we never have to persist the step in localStorage — which used to drift
    a step behind via a closed-over `step` value in the watch subscription. */
 
-const ALL_STEPS: readonly HostRegisterStep[] = [
-  "intro",
-  "privacy",
-  "profile",
-  "credentials",
-  "emailOtp",
-  "phone",
-  "photo",
-  "bio",
-  "done",
-] as const;
-
 function isHostRegisterStep(value: string | null): value is HostRegisterStep {
-  return value !== null && (ALL_STEPS as readonly string[]).includes(value);
+  return value !== null && (HOST_FLOW_ORDER as readonly string[]).includes(value);
 }
 
 function stepToHref(step: HostRegisterStep): string {
@@ -94,17 +89,13 @@ const DEFAULT_VALUES: HostRegisterFormValues = {
 /** Maps StartSignup ALREADY_EXISTS → user-facing message. */
 function alreadyExistsMessage(provider: "email" | "google" | "apple"): string {
   if (provider === "google") {
-    return "An account with this email already exists. Please sign in with Google.";
+    return t("hostsRegister.serverError.alreadyExistsGoogle");
   }
   if (provider === "apple") {
-    return "An account with this email already exists. Please sign in with Apple.";
+    return t("hostsRegister.serverError.alreadyExistsApple");
   }
-  return "An account with this email already exists. Try signing in instead.";
+  return t("hostsRegister.serverError.alreadyExistsDefault");
 }
-
-/** Shown on the email OTP step when the pool user exists but is still unconfirmed. */
-const EMAIL_OTP_RESUME_HINT =
-  "You already started registration with this email. Enter the verification code we sent you, or tap Resend code.";
 
 /* ── Inner controller (reads ?step= via useSearchParams) ───────────── */
 
@@ -112,7 +103,29 @@ function HostsRegisterController() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawStep = searchParams.get("step");
-  const step: HostRegisterStep = isHostRegisterStep(rawStep) ? rawStep : "intro";
+  /** Step name as parsed from the URL — may be ahead of what the user has
+   *  earned the right to see (deep-link, manual URL edit, stale bookmark). */
+  const requestedStep: HostRegisterStep = isHostRegisterStep(rawStep)
+    ? rawStep
+    : "intro";
+
+  /* ── Forward-step watermark ──────────────────────────────────────────
+     `furthestStep` is the highest-ranked step the user has legitimately
+     reached via the controller's own navigation (see `goToStep` below).
+     Subscribing through `useHostSignupStore` makes this a real React
+     dependency — the moment we advance the watermark, the controller
+     re-renders and the gate below stops clamping. */
+  const furthestStep = useHostSignupStore((s) => s.furthestStep);
+
+  /** Effective step actually rendered on this tick. When the URL is
+   *  ahead of the watermark we render the watermark instead — no flash
+   *  of the unreachable step's UI — and the effect below corrects the
+   *  address bar so the URL never lies about which screen the user is
+   *  looking at. */
+  const step: HostRegisterStep = clampToReachableHostStep(
+    requestedStep,
+    furthestStep,
+  );
 
   /* react-hook-form is the single source of truth for textual fields. Photo
      lives in component state because File objects can't be persisted nor do
@@ -228,6 +241,19 @@ function HostsRegisterController() {
     }
   }, [step, registrationDone, router]);
 
+  /* ── Forward-step gate: keep URL honest about which step is rendered.
+     `step` was already clamped to `furthestStep` during render, so the
+     UI is safe; this effect just rewrites the address bar so the URL
+     matches the screen the user is on. We use `router.replace` (not
+     `push`) so the bogus URL never goes into history — pressing Back
+     from a deep-linked attempt should land where the user *was*, not
+     loop them through the clamped step. */
+  useEffect(() => {
+    if (requestedStep !== step) {
+      router.replace(stepToHref(step), { scroll: false });
+    }
+  }, [requestedStep, step, router]);
+
   /* ── Per-step validation ───────────────────── */
   const validateStep = useCallback(
     async (
@@ -269,7 +295,7 @@ function HostsRegisterController() {
               const path = issue.path[0] as keyof HostRegisterFormValues;
               methods.setError(path, { type: "manual", message: issue.message });
             }
-            toast.error("Please fill out all required profile fields correctly.");
+            toast.error(t("hostsRegister.serverError.profileFieldErrors"));
             await methods.trigger(HOST_STEP_FIELDS.profile);
             return false;
           }
@@ -287,7 +313,7 @@ function HostsRegisterController() {
               const path = issue.path[0] as keyof HostRegisterFormValues;
               methods.setError(path, { type: "manual", message: issue.message });
             }
-            toast.error("Please fix the errors in your credentials.");
+            toast.error(t("hostsRegister.serverError.credentialFieldErrors"));
             return false;
           }
           methods.clearErrors(HOST_STEP_FIELDS.credentials);
@@ -317,7 +343,7 @@ function HostsRegisterController() {
               const path = issue.path[0] as keyof HostRegisterFormValues;
               methods.setError(path, { type: "manual", message: issue.message });
             }
-            toast.error("Please fix the errors in your phone number.");
+            toast.error(t("hostsRegister.serverError.phoneCheckAndRetry"));
             return false;
           }
           methods.clearErrors(HOST_STEP_FIELDS.phone);
@@ -339,7 +365,7 @@ function HostsRegisterController() {
         }
         case "photo": {
           if (!photo) {
-            const msg = "Please choose a photo to continue.";
+            const msg = t("hostsRegister.photo.continueDisabledTitle");
             setPhotoError(msg);
             toast.error(msg);
             return false;
@@ -370,6 +396,11 @@ function HostsRegisterController() {
    *  the OTP/error clean-up; everything else just navigates. */
   const goToStep = useCallback(
     (next: HostRegisterStep) => {
+      /* Forward navigations are how the user *earns* access to a step,
+         so this is the one and only place the watermark advances. The
+         action is monotonic (it never lowers the watermark), so calling
+         this for a Back navigation is harmless. */
+      advanceFurthestHostStep(next);
       router.push(stepToHref(next), { scroll: false });
     },
     [router],
@@ -426,7 +457,7 @@ function HostsRegisterController() {
         setEmailResendLeft(OTP_RESEND_COOLDOWN_SEC);
         goToStep("emailOtp");
       } else if (result.status === "RESUME_UNCONFIRMED") {
-        setEmailResumeInfo(EMAIL_OTP_RESUME_HINT);
+        setEmailResumeInfo(t("hostsRegister.emailOtp.resumeHint"));
         hostStepBack.clearOverride("photo");
         stashHostSignupSessionPassword(v.password);
         setEmailResendLeft(OTP_RESEND_COOLDOWN_SEC);
@@ -459,7 +490,7 @@ function HostsRegisterController() {
       setServerError(
         userFacingErrorMessage(
           e,
-          "Something went wrong. Please try again.",
+          t("hostsRegister.serverError.somethingWrong"),
         ),
       );
     } finally {
@@ -480,7 +511,7 @@ function HostsRegisterController() {
         "";
       if (!password) {
         setServerError(
-          "Your password is missing (for example after a refresh). Go back to the previous step, re-enter your password, then continue.",
+          t("hostsRegister.serverError.missingPasswordAfterRefresh"),
         );
         return;
       }
@@ -503,15 +534,15 @@ function HostsRegisterController() {
         hostStepBack.clearOverride("photo");
         goToStep("phone");
       } else if (result.status === "CODE_MISMATCH") {
-        setServerError("That code didn't match. Please try again.");
+        setServerError(t("hostsRegister.serverError.codeMismatch"));
       } else {
-        setServerError("That code expired. Please request a new one.");
+        setServerError(t("hostsRegister.serverError.codeExpired"));
       }
     } catch (e) {
       setServerError(
         userFacingErrorMessage(
           e,
-          "Something went wrong. Please try again.",
+          t("hostsRegister.serverError.somethingWrong"),
         ),
       );
     } finally {
@@ -533,7 +564,7 @@ function HostsRegisterController() {
       setServerError(
         userFacingErrorMessage(
           e,
-          "Couldn't resend right now. Please try again in a moment.",
+          t("hostsRegister.serverError.couldntResend"),
         ),
       );
     } finally {
@@ -551,7 +582,7 @@ function HostsRegisterController() {
       const v = methods.getValues();
       const e164 = buildE164(v.phoneCountryIso2, v.phoneNational);
       if (!e164) {
-        setServerError("Please choose a country and enter a valid number.");
+        setServerError(t("hostsRegister.serverError.phoneInvalid"));
         return;
       }
       const result = await defaultHostSignupService.startPhoneVerification({
@@ -562,17 +593,15 @@ function HostsRegisterController() {
         setPhoneResendLeft(PHONE_OTP_RESEND_COOLDOWN_SEC);
         setPhoneCodeSent(true);
       } else if (result.status === "ALREADY_IN_USE") {
-        setServerError(
-          "This phone number is already linked to another account. Please use a different number.",
-        );
+        setServerError(t("hostsRegister.serverError.phoneAlreadyInUse"));
       } else {
-        setServerError("That number doesn't look right. Please check and try again.");
+        setServerError(t("hostsRegister.serverError.phoneCheckAndRetry"));
       }
     } catch (e) {
       setServerError(
         userFacingErrorMessage(
           e,
-          "Something went wrong. Please try again.",
+          t("hostsRegister.serverError.somethingWrong"),
         ),
       );
     } finally {
@@ -590,7 +619,7 @@ function HostsRegisterController() {
       const v = methods.getValues();
       const e164 = buildE164(v.phoneCountryIso2, v.phoneNational);
       if (!e164) {
-        setServerError("Phone number became invalid. Please re-enter it.");
+        setServerError(t("hostsRegister.serverError.phoneBecameInvalid"));
         return;
       }
       const result = await defaultHostSignupService.confirmPhone({
@@ -601,15 +630,15 @@ function HostsRegisterController() {
         hostStepBack.clearOverride("photo");
         goToStep("photo");
       } else if (result.status === "CODE_MISMATCH") {
-        setServerError("That code didn't match. Please try again.");
+        setServerError(t("hostsRegister.serverError.codeMismatch"));
       } else {
-        setServerError("That code expired. Please request a new one.");
+        setServerError(t("hostsRegister.serverError.codeExpired"));
       }
     } catch (e) {
       setServerError(
         userFacingErrorMessage(
           e,
-          "Something went wrong. Please try again.",
+          t("hostsRegister.serverError.somethingWrong"),
         ),
       );
     } finally {
@@ -640,7 +669,7 @@ function HostsRegisterController() {
       setServerError(
         userFacingErrorMessage(
           e,
-          "Couldn't resend right now. Please try again in a moment.",
+          t("hostsRegister.serverError.couldntResend"),
         ),
       );
     } finally {
@@ -657,7 +686,7 @@ function HostsRegisterController() {
     const ok = await validateStep("bio");
     if (!ok) return;
     if (!photo) {
-      setPhotoError("Please go back and choose a photo before applying.");
+      setPhotoError(t("hostsRegister.serverError.photoMissingForApply"));
       hostStepBack.clearOverride("photo");
       goToStep("photo");
       return;
@@ -683,7 +712,7 @@ function HostsRegisterController() {
       setServerError(
         userFacingErrorMessage(
           e,
-          "Couldn't submit your application. Please try again.",
+          t("hostsRegister.serverError.applyFailed"),
         ),
       );
     } finally {

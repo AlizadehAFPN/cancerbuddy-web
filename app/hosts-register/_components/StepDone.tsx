@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
+import { t } from "@/lib/i18n";
 
 function CheckIcon() {
   return (
@@ -68,22 +69,23 @@ export function StepDone({ buddyId }: Props) {
         className="font-heading font-bold text-cb-black tracking-tight"
         style={{ fontSize: "clamp(1.75rem, 2.4vw, 2.25rem)", lineHeight: 1.15 }}
       >
-        Welcome — you&apos;re registered as a Host
+        {t("hostsRegister.done.heading")}
       </h1>
       <p className="mx-auto mt-2 max-w-[min(100%,56ch)] font-body text-cb-gray-500 leading-relaxed">
-        Your host profile is created. Our support team will assign you as a host
-        to a group and after that, you can work as host in the group.
+        {t("hostsRegister.done.bodyAssignment")}
       </p>
       <p className="mx-auto mt-3 max-w-[min(100%,56ch)] font-body text-cb-gray-500 leading-relaxed">
-        You can now sign in to the{" "}
-        <span className="font-medium text-cb-black">CancerBuddy mobile app as a Host</span>{" "}
-        with the same email and password you used here.
+        {t("hostsRegister.done.bodySignInLead")}{" "}
+        <span className="font-medium text-cb-black">
+          {t("hostsRegister.done.bodySignInBold")}
+        </span>{" "}
+        {t("hostsRegister.done.bodySignInTrail")}
       </p>
 
       <div className="mx-auto mt-6 flex max-w-full flex-col gap-3 rounded-2xl border border-cb-gray-200 bg-cb-gray-100/50 px-4 py-3 sm:flex-row sm:items-center">
         <div className="text-start min-w-0 flex-1">
           <p className="font-body text-[11px] font-semibold uppercase tracking-wider text-cb-gray-500">
-            Buddy ID
+            {t("hostsRegister.done.buddyIdLabel")}
           </p>
           {buddyId?.trim() ? (
             <p className="font-heading max-w-[min(100%,52ch)] break-all text-[13px] font-semibold text-cb-black">
@@ -91,10 +93,12 @@ export function StepDone({ buddyId }: Props) {
             </p>
           ) : (
             <p className="font-body max-w-[min(100%,52ch)] text-[13px] leading-snug text-cb-gray-600">
-              We couldn&apos;t load your Buddy ID in the browser. Open the
-              CancerBuddy app, go to{" "}
-              <span className="font-medium text-cb-black">Profile</span>, and
-              you&apos;ll see your Buddy ID there (same account as here).
+              {t("hostsRegister.done.buddyIdMissingLead")}{" "}
+              {t("hostsRegister.done.buddyIdMissingMid")}{" "}
+              <span className="font-medium text-cb-black">
+                {t("hostsRegister.done.buddyIdMissingBold")}
+              </span>
+              {t("hostsRegister.done.buddyIdMissingTrail")}
             </p>
           )}
         </div>
@@ -102,18 +106,20 @@ export function StepDone({ buddyId }: Props) {
           <button
             type="button"
             onClick={copy}
-            aria-label="Copy Buddy ID"
+            aria-label={t("hostsRegister.done.copyAriaLabel")}
             className="inline-flex h-9 shrink-0 touch-manipulation items-center gap-1.5 self-end rounded-lg border border-cb-gray-200 bg-white px-3 font-body text-[13px] font-medium text-cb-black transition-colors hover:bg-cb-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black sm:self-center"
           >
             <CopyIcon className="h-[14px] w-[14px]" />
-            {copied ? "Copied" : "Copy"}
+            {copied ? t("hostsRegister.done.copied") : t("hostsRegister.done.copy")}
           </button>
         ) : null}
       </div>
 
       <p className="mx-auto mt-6 max-w-[40ch] font-body text-[12.5px] text-cb-gray-500">
-        Need help? Reach us at{" "}
-        <span className="font-medium text-cb-black">hosts@cancerbuddy.com</span>
+        {t("hostsRegister.done.needHelpLead")}{" "}
+        <span className="font-medium text-cb-black">
+          {t("hostsRegister.done.hostsEmail")}
+        </span>
         .
       </p>
 
@@ -126,7 +132,7 @@ export function StepDone({ buddyId }: Props) {
           onClick={() => router.push("/login")}
           className="touch-manipulation sm:w-auto"
         >
-          Go to sign in
+          {t("hostsRegister.done.goToSignIn")}
         </Button>
         <Button
           type="button"
@@ -136,7 +142,7 @@ export function StepDone({ buddyId }: Props) {
           onClick={() => router.push("/")}
           className="touch-manipulation sm:w-auto"
         >
-          Back to home
+          {t("hostsRegister.done.backToHome")}
         </Button>
       </div>
     </div>

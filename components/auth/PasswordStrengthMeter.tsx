@@ -1,6 +1,7 @@
 "use client";
 
 import { checkPassword } from "@/lib/signup/validation";
+import { t } from "@/lib/i18n";
 
 /* ── Inline icons ── */
 
@@ -30,10 +31,10 @@ function DotIcon({ className }: { className?: string }) {
 }
 
 const RULES = [
-  { key: "minLength" as const, label: "At least 8 characters" },
-  { key: "uppercase" as const, label: "One uppercase letter" },
-  { key: "lowercase" as const, label: "One lowercase letter" },
-  { key: "number" as const, label: "One number" },
+  { key: "minLength" as const, label: t("forms.passwordRules.minLength") },
+  { key: "uppercase" as const, label: t("forms.passwordRules.uppercase") },
+  { key: "lowercase" as const, label: t("forms.passwordRules.lowercase") },
+  { key: "number" as const, label: t("forms.passwordRules.number") },
 ];
 
 interface Props {
@@ -54,7 +55,7 @@ export function PasswordStrengthMeter({ value }: Props) {
     return (
       <div className="mt-1 flex items-center gap-2 rounded-lg bg-cb-success/15 px-3 py-2 font-body text-sm text-cb-gray-800">
         <CheckIcon className="h-4 w-4 shrink-0 text-cb-success" />
-        Strong password — nice.
+        {t("forms.strongPassword")}
       </div>
     );
   }

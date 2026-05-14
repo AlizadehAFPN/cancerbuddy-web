@@ -16,6 +16,7 @@ import {
   getCountryByIso2,
   type DialCountry,
 } from "@/lib/host-signup/constants";
+import { t } from "@/lib/i18n";
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
 
@@ -248,8 +249,8 @@ export const PhoneInput = forwardRef<HTMLInputElement, Props>(
               aria-controls={listId}
               aria-label={
                 selected
-                  ? `Country: ${selected.name} (${selected.dial})`
-                  : "Choose a country"
+                  ? t("forms.countryAria", { name: selected.name, dial: selected.dial })
+                  : t("forms.chooseCountry")
               }
               onClick={() => {
                 setHighlightIdx(0);
@@ -283,7 +284,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, Props>(
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel-national"
-                placeholder="Mobile number"
+                placeholder={t("forms.mobileNumberPlaceholder")}
                 value={national}
                 onChange={handleNationalChange}
                 autoFocus={autoFocus}
@@ -305,7 +306,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, Props>(
             <div
               ref={panelRef}
               role="dialog"
-              aria-label="Choose country"
+              aria-label={t("forms.chooseCountryDialog")}
               className="absolute z-50 mt-2 w-[min(100%,360px)] rounded-2xl border border-cb-gray-200 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.22),0_4px_16px_-4px_rgba(0,0,0,0.08)]"
             >
               <div className="relative mb-2">
@@ -317,7 +318,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, Props>(
                   type="text"
                   inputMode="search"
                   autoComplete="off"
-                  placeholder="Search country or code"
+                  placeholder={t("forms.countrySearchPlaceholder")}
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value);
@@ -341,7 +342,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, Props>(
               >
                 {filtered.length === 0 ? (
                   <li className="px-3 py-6 text-center font-body text-sm text-cb-gray-500">
-                    No matches. Try a country name or dial code.
+                    {t("forms.countryNoMatches")}
                   </li>
                 ) : (
                   filtered.map((c, idx) => {

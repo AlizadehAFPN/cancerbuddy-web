@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SupportForm } from "./_components/SupportForm";
+import { t } from "@/lib/i18n";
 
 /* ── Inline icon ── */
 
@@ -35,10 +36,10 @@ export default function SupportPage() {
           ════════════════════════════════════════════════ */}
       <aside className="hidden lg:flex flex-col w-[46%] xl:w-[42%] bg-cb-yellow px-12 xl:px-16 sticky top-0 h-screen overflow-hidden">
         <div className="h-16 shrink-0 flex items-center">
-          <Link href="/" aria-label="Back to CancerBuddy home">
+          <Link href="/" aria-label={t("common.backToCancerBuddyHome")}>
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={195}
               height={26}
               className="object-contain"
@@ -56,7 +57,7 @@ export default function SupportPage() {
               animation: "hero-fade-up 0.6s ease-out 0.1s both",
             }}
           >
-            We&apos;re here to help.
+            {t("support.leftHeading")}
           </h2>
           <p
             className="mt-5 font-body text-cb-gray-700 leading-relaxed max-w-md"
@@ -65,20 +66,18 @@ export default function SupportPage() {
               animation: "hero-fade-up 0.6s ease-out 0.2s both",
             }}
           >
-            Real questions, real answers. Tell us what&apos;s happening and a
-            person on our team will get back to you by email — usually within a
-            day.
+            {t("support.leftBody")}
           </p>
         </div>
 
         <div className="h-16 shrink-0 flex items-center gap-3">
           <span className="text-[11px] font-medium text-cb-gray-600 tracking-[0.12em] uppercase">
-            Powered by
+            {t("common.poweredBy")}
           </span>
           <Image
-            src="/images/bm-logo-transparent.png"
-            alt="Bone Marrow Cancer Foundation"
-            width={110}
+            src="/images/BMCF_LOGO_WIDE.svg"
+            alt={t("common.bmcfLogoAlt")}
+            width={88}
             height={30}
             className="object-contain"
           />
@@ -95,13 +94,13 @@ export default function SupportPage() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-cb-gray-600 hover:text-cb-black transition-colors"
           >
             <ArrowLeftIcon />
-            Back
+            {t("common.back")}
           </Link>
 
-          <Link href="/" className="lg:hidden" aria-label="CancerBuddy home">
+          <Link href="/" className="lg:hidden" aria-label={t("common.cancerBuddyHome")}>
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={155}
               height={21}
               className="object-contain"
@@ -113,7 +112,7 @@ export default function SupportPage() {
               href="/login"
               className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors"
             >
-              Sign in
+              {t("common.signIn")}
             </Link>
           </p>
         </div>
@@ -128,10 +127,10 @@ export default function SupportPage() {
                 className="font-heading font-bold text-cb-black tracking-tight"
                 style={{ fontSize: "clamp(1.75rem, 2.5vw, 2.25rem)", lineHeight: 1.1 }}
               >
-                How can we help?
+                {t("support.heading")}
               </h1>
               <p className="mt-2 font-body text-cb-gray-500">
-                Tell us what&apos;s going on and we&apos;ll get back to you.
+                {t("support.sub")}
               </p>
             </div>
 
@@ -144,16 +143,16 @@ export default function SupportPage() {
             href="/privacy"
             className="text-xs text-cb-gray-400 hover:text-cb-gray-600 transition-colors"
           >
-            Privacy Policy
+            {t("common.privacyPolicy")}
           </Link>
           <Link
             href="/terms"
             className="text-xs text-cb-gray-400 hover:text-cb-gray-600 transition-colors"
           >
-            Terms of Service
+            {t("common.termsOfService")}
           </Link>
           <span className="ms-auto text-xs text-cb-gray-300">
-            © {new Date().getFullYear()} CancerBuddy
+            {t("common.copyright", { year: new Date().getFullYear() })}
           </span>
         </div>
       </main>

@@ -23,6 +23,7 @@
 
 import { useHostSignupStore, type PersistedHostDraft } from "./store";
 import type { HostRegisterFormValues } from "./validation";
+import type { HostRegisterStep } from "./constants";
 
 export function loadHostDraft(): {
   values: HostRegisterFormValues;
@@ -100,4 +101,30 @@ export function peekHostSignupSessionPassword(): string | null {
 export function clearHostSignupSessionPassword(): void {
   if (typeof window === "undefined") return;
   useHostSignupStore.getState().clearSessionPassword();
+}
+
+/* ── Forward-step watermark ──────────────────────────────────────────────
+   Tiny wrappers over `useHostSignupStore` so the page doesn't have to
+   import the store directly — keeps the surface symmetric with the other
+   helpers in this module. Mutating helpers no-op on the server. */
+
+/**
+ * Imperative read of the current watermark. Use this from non-React code
+ * (e.g. inside a navigation callback). React components should subscribe
+ * via `useHostSignupStore((s) => s.furthestStep)` so they re-render when
+ * the watermark advances.
+ */
+export function getFurthestHostStep(): HostRegisterStep {
+  if (typeof window === "undefined") return "intro";
+  return useHostSignupStore.getState().furthestStep;
+}
+
+/**
+ * Monotonically advance the watermark. Calls with a step earlier than
+ * the current watermark are silently no-ops — Back navigation must not
+ * regress how far the user has reached.
+ */
+export function advanceFurthestHostStep(step: HostRegisterStep): void {
+  if (typeof window === "undefined") return;
+  useHostSignupStore.getState().advanceFurthestStep(step);
 }

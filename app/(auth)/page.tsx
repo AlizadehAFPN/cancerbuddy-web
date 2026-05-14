@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { t } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "CancerBuddy — Peer Support for Your Cancer Journey",
-  description:
-    "CancerBuddy connects cancer patients, caregivers, and survivors with real people who truly understand — for conversations, shared experiences, and genuine peer support.",
+  title: t("metadata.landingTitle"),
+  description: t("metadata.landingDescription"),
 };
 
 const shellPad = "px-6 sm:px-8 lg:px-12";
@@ -65,12 +65,16 @@ export default function LandingPage() {
       <header className="shrink-0 border-b border-cb-gray-200 bg-white">
         <nav
           className={`mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 sm:h-16 ${shellPad}`}
-          aria-label="Main navigation"
+          aria-label={t("common.mainNavigation")}
         >
-          <Link href="/" aria-label="CancerBuddy home" className="shrink-0">
+          <Link
+            href="/"
+            aria-label={t("common.cancerBuddyHome")}
+            className="shrink-0"
+          >
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={185}
               height={25}
               className="object-contain"
@@ -83,20 +87,20 @@ export default function LandingPage() {
               href="/login"
               className="px-4 py-2 text-sm font-medium text-cb-gray-700 hover:text-cb-black transition-colors rounded-lg hover:bg-cb-gray-100"
             >
-              Sign in
+              {t("common.signIn")}
             </Link>
             <Link
               href="/signup"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-cb-black text-white text-sm font-heading font-medium transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700"
             >
-              Get started
+              {t("common.getStarted")}
               <ArrowRightIcon />
             </Link>
           </div>
 
           <button
             className="sm:hidden shrink-0 p-2 text-cb-black rounded-lg hover:bg-cb-gray-100 transition-colors"
-            aria-label="Open menu"
+            aria-label={t("common.openMenu")}
           >
             <MenuIcon />
           </button>
@@ -127,12 +131,12 @@ export default function LandingPage() {
               >
                 <div className="mb-4 inline-flex items-center gap-2.5 self-start sm:mb-5">
                   <span className=" mt-2 text-[11px] font-medium text-cb-gray-600 tracking-[0.12em] uppercase">
-                    Powered by
+                    {t("common.poweredBy")}
                   </span>
                   <Image
-                    src="/images/bm-logo-transparent.png"
-                    alt="Bone Marrow Cancer Foundation"
-                    width={108}
+                    src="/images/BMCF_LOGO_WIDE.svg"
+                    alt={t("common.bmcfLogoAlt")}
+                    width={88}
                     height={30}
                     className="object-contain"
                   />
@@ -144,7 +148,7 @@ export default function LandingPage() {
                     fontSize: "clamp(1.85rem, 4.5vw + 0.5rem, 3.75rem)",
                   }}
                 >
-                  You are not alone on this journey.
+                  {t("landing.heroHeading")}
                 </h1>
 
                 <p
@@ -153,9 +157,7 @@ export default function LandingPage() {
                     fontSize: "clamp(0.9375rem, 1.1vw + 0.65rem, 1.125rem)",
                   }}
                 >
-                  CancerBuddy connects patients, caregivers, and survivors for
-                  real conversations and genuine peer support — from people who
-                  truly understand.
+                  {t("landing.heroBody")}
                 </p>
 
                 <div className="mt-5 flex flex-wrap gap-3 sm:mt-6 sm:gap-4">
@@ -163,33 +165,33 @@ export default function LandingPage() {
                     href="/signup"
                     className="inline-flex h-12 items-center gap-2 rounded-full bg-cb-black px-6 font-heading text-[0.9375rem] font-medium text-white transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 sm:h-[3.25rem] sm:px-8 sm:text-base"
                   >
-                    Get started — it&apos;s free
+                    {t("landing.ctaPrimary")}
                     <ArrowRightIcon />
                   </Link>
                   <Link
                     href="/login"
                     className="inline-flex h-12 items-center gap-2 rounded-full border-2 border-cb-black bg-transparent px-6 font-heading text-[0.9375rem] font-medium text-cb-black transition-colors hover:bg-black/5 active:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 sm:h-[3.25rem] sm:px-8 sm:text-base"
                   >
-                    Sign in
+                    {t("landing.ctaSecondary")}
                   </Link>
                 </div>
 
                 <p className="mt-4 text-sm text-cb-gray-600 font-body sm:mt-5">
-                  Proudly supported by{" "}
+                  {t("landing.supportedBy")}{" "}
                   <span className="font-medium text-cb-black">
-                    Bone Marrow Cancer Foundation
+                    {t("common.bmcfName")}
                   </span>
                 </p>
 
-                <p className="mt-3 text-sm text-cb-gray-600 font-body">
-                  Want to support others?{" "}
+                {/* <p className="mt-3 text-sm text-cb-gray-600 font-body">
+                  {t("landing.hostInviteLead")}{" "}
                   <Link
                     href="/hosts-register"
                     className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors"
                   >
-                    Register as a host →
+                    {t("landing.hostInviteCta")}
                   </Link>
-                </p>
+                </p> */}
               </div>
 
               {/* ── Right: Visual ───────────────────────────── */}
@@ -200,7 +202,7 @@ export default function LandingPage() {
                 <div className="relative w-full max-w-[min(100%,420px)] lg:max-w-none">
                   <Image
                     src="/images/welcome.png"
-                    alt="CancerBuddy community — illustrated"
+                    alt={t("common.cancerBuddyCommunityIllustratedAlt")}
                     width={540}
                     height={600}
                     priority
@@ -222,7 +224,7 @@ export default function LandingPage() {
         >
           <Image
             src="/images/trademark-logo.png"
-            alt="CancerBuddy"
+            alt={t("common.cancerBuddyAlt")}
             width={150}
             height={20}
             className="object-contain brightness-0 invert"
@@ -232,12 +234,14 @@ export default function LandingPage() {
               href="/privacy"
               className="hover:text-white transition-colors"
             >
-              Privacy
+              {t("common.privacy")}
             </Link>
             <Link href="/terms" className="hover:text-white transition-colors">
-              Terms
+              {t("common.terms")}
             </Link>
-            <span>© {new Date().getFullYear()} CancerBuddy</span>
+            <span>
+              {t("common.copyright", { year: new Date().getFullYear() })}
+            </span>
           </div>
         </div>
       </footer>

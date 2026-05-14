@@ -13,6 +13,7 @@ import {
   otpSchema as emailOtpSchema,
 } from "@/lib/signup/validation";
 import { PRONOUN_OPTIONS } from "@/lib/signup/constants";
+import { t } from "@/lib/i18n";
 
 /**
  * Per-step Zod schemas for the host-application flow.
@@ -48,12 +49,12 @@ export const phoneSchema = z
   .object({
     phoneCountryIso2: z
       .enum(ALLOWED_ISO2_VALUES, {
-        error: "Please choose your country.",
+        error: t("validation.phone.countryRequired"),
       }),
     phoneNational: z
       .string()
       .trim()
-      .min(1, "Phone number is required."),
+      .min(1, t("validation.phone.numberRequired")),
   })
   .superRefine((value, ctx) => {
     const digits = value.phoneNational.replace(/\D/g, "");
@@ -61,7 +62,7 @@ export const phoneSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["phoneNational"],
-        message: "That phone number looks too short. Please check and try again.",
+        message: t("validation.phone.numberTooShort"),
       });
       return;
     }
@@ -69,7 +70,7 @@ export const phoneSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["phoneNational"],
-        message: "That phone number is too long. Please remove any extra digits.",
+        message: t("validation.phone.numberTooLong"),
       });
       return;
     }
@@ -82,7 +83,7 @@ export const phoneOtpSchema = z.object({
     .string()
     .regex(
       new RegExp(`^\\d{${PHONE_OTP_LENGTH}}$`),
-      `Enter the ${PHONE_OTP_LENGTH}-digit code we sent to your phone.`,
+      t("validation.phone.otpMustMatchLength", { length: PHONE_OTP_LENGTH }),
     ),
 });
 
@@ -95,13 +96,13 @@ export const phoneOtpSchema = z.object({
  */
 export function validatePhotoFile(file: File): string | null {
   if (!PHOTO_MIME_TYPES.includes(file.type as (typeof PHOTO_MIME_TYPES)[number])) {
-    return "Please choose a JPG, PNG, or WebP image.";
+    return t("validation.photo.wrongType");
   }
   if (file.size > PHOTO_MAX_BYTES) {
-    return `That image is over ${Math.round(PHOTO_MAX_BYTES / (1024 * 1024))} MB. Please pick a smaller file.`;
+    return t("validation.photo.tooBig", { max: Math.round(PHOTO_MAX_BYTES / (1024 * 1024)) });
   }
   if (file.size === 0) {
-    return "That file appears to be empty. Please try a different photo.";
+    return t("validation.photo.empty");
   }
   return null;
 }
@@ -114,7 +115,7 @@ export const bioSchema = z.object({
     .string()
     .max(
       BIO_MAX_LENGTH,
-      `Your story is over the ${BIO_MAX_LENGTH}-character limit. Please trim it a bit.`,
+      t("validation.bio.tooLong", { max: BIO_MAX_LENGTH }),
     ),
 });
 

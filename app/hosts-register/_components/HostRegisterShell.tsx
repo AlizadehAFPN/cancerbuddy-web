@@ -5,9 +5,23 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   HOST_REGISTER_STEPS,
-  HOST_STEP_TITLES,
   type HostRegisterStep,
 } from "@/lib/host-signup/constants";
+import { t, type MessageKey } from "@/lib/i18n";
+
+/** i18n keys for each step's progress-rail heading. */
+const HOST_STEP_TITLE_KEYS: Record<
+  (typeof HOST_REGISTER_STEPS)[number],
+  MessageKey
+> = {
+  privacy: "hostsRegister.stepTitles.privacy",
+  profile: "hostsRegister.stepTitles.profile",
+  credentials: "hostsRegister.stepTitles.credentials",
+  emailOtp: "hostsRegister.stepTitles.emailOtp",
+  phone: "hostsRegister.stepTitles.phone",
+  photo: "hostsRegister.stepTitles.photo",
+  bio: "hostsRegister.stepTitles.bio",
+};
 
 /* ── Inline icon ── */
 
@@ -75,7 +89,7 @@ export function HostRegisterShell({
     : 0;
   const total = visibleSteps.length;
   const heading = isVisibleStep
-    ? HOST_STEP_TITLES[step as (typeof visibleSteps)[number]]
+    ? t(HOST_STEP_TITLE_KEYS[step as (typeof visibleSteps)[number]])
     : "";
 
   return (
@@ -87,10 +101,10 @@ export function HostRegisterShell({
         className={`hidden lg:flex flex-col w-[46%] xl:w-[42%] shrink-0 bg-cb-yellow ${shellPad} min-h-0 overflow-hidden`}
       >
         <div className="h-16 shrink-0 flex items-center">
-          <Link href="/" aria-label="Back to CancerBuddy home">
+          <Link href="/" aria-label={t("common.backToCancerBuddyHome")}>
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={195}
               height={26}
               className="object-contain"
@@ -106,7 +120,7 @@ export function HostRegisterShell({
           >
             <Image
               src="/images/welcome.png"
-              alt="Become a CancerBuddy host"
+              alt={t("common.becomeAHostAlt")}
               width={460}
               height={500}
               className="w-full max-h-[min(50vh,480px)] object-contain"
@@ -118,27 +132,32 @@ export function HostRegisterShell({
             style={{ animation: "hero-fade-up 0.6s ease-out 0.25s both" }}
           >
             <p className="font-body text-[11px] font-semibold uppercase tracking-[0.2em] text-cb-gray-700">
-              Host Application
+              {t("hostsRegister.leftPanel.eyebrow")}
             </p>
             <p
               className="mt-1.5 font-heading font-bold text-cb-black leading-snug"
               style={{ fontSize: "clamp(1.25rem, 1.9vw, 1.6rem)" }}
             >
-              Lead with empathy.
-              <br />
-              Help someone feel less alone.
+              {t("hostsRegister.leftPanel.tagline").split("\n").map(
+                (line, i, arr) => (
+                  <span key={i}>
+                    {line}
+                    {i < arr.length - 1 ? <br /> : null}
+                  </span>
+                ),
+              )}
             </p>
           </div>
         </div>
 
         <div className="h-16 shrink-0 flex items-center gap-3">
           <span className="text-[11px] font-medium text-cb-gray-600 tracking-[0.12em] uppercase">
-            Powered by
+            {t("common.poweredBy")}
           </span>
           <Image
-            src="/images/bm-logo-transparent.png"
-            alt="Bone Marrow Cancer Foundation"
-            width={110}
+            src="/images/BMCF_LOGO_WIDE.svg"
+            alt={t("common.bmcfLogoAlt")}
+            width={88}
             height={30}
             className="object-contain"
           />
@@ -160,19 +179,19 @@ export function HostRegisterShell({
                 type="button"
                 onClick={onFlowBack}
                 className="-ms-2 inline-flex h-10 min-w-10 touch-manipulation items-center gap-1.5 rounded-full px-2 text-sm font-medium text-cb-gray-700 transition-colors hover:text-cb-black active:bg-cb-gray-100"
-                aria-label="Back"
+                aria-label={t("common.back")}
               >
                 <ArrowLeftIcon />
-                <span className="hidden sm:inline">Back</span>
+                <span className="hidden sm:inline">{t("common.back")}</span>
               </button>
             ) : (
               <Link
                 href="/"
                 className="-ms-2 inline-flex h-10 min-w-10 touch-manipulation items-center gap-1.5 rounded-full px-2 text-sm font-medium text-cb-gray-700 transition-colors hover:text-cb-black active:bg-cb-gray-100"
-                aria-label="Back"
+                aria-label={t("common.back")}
               >
                 <ArrowLeftIcon />
-                <span className="hidden sm:inline">Back</span>
+                <span className="hidden sm:inline">{t("common.back")}</span>
               </Link>
             )}
           </div>
@@ -180,11 +199,11 @@ export function HostRegisterShell({
           <Link
             href="/"
             className="pointer-events-auto shrink-0 lg:hidden"
-            aria-label="CancerBuddy home"
+            aria-label={t("common.cancerBuddyHome")}
           >
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={120}
               height={16}
               className="h-4 w-auto object-contain sm:h-5"
@@ -192,12 +211,12 @@ export function HostRegisterShell({
           </Link>
 
           <p className="min-w-0 shrink-0 text-end font-body text-sm text-cb-gray-500">
-            <span className="hidden sm:inline">Already a member?</span>{" "}
+            <span className="hidden sm:inline">{t("hostsRegister.alreadyMember")}</span>{" "}
             <Link
               href="/login"
               className="font-medium text-cb-black underline-offset-2 transition-colors hover:text-cb-gray-700 hover:underline sm:underline"
             >
-              Sign in
+              {t("common.signIn")}
             </Link>
           </p>
         </header>
@@ -219,7 +238,10 @@ export function HostRegisterShell({
                 <div className="mb-1.5 flex items-baseline justify-between gap-2 sm:mb-2">
                   <p className="font-body text-sm font-medium text-cb-gray-500">
                     <span className="sr-only">
-                      Step {stepIndex + 1} of {total}.{" "}
+                      {t("signup.stepOfTotal", {
+                        current: stepIndex + 1,
+                        total,
+                      })}{" "}
                     </span>
                     <span aria-hidden className="tabular-nums text-cb-black">
                       {stepIndex + 1}
@@ -271,22 +293,22 @@ export function HostRegisterShell({
             href="/privacy"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Privacy Policy
+            {t("common.privacyPolicy")}
           </Link>
           <Link
             href="/terms"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Terms of Service
+            {t("common.termsOfService")}
           </Link>
           <Link
             href="/support"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Support
+            {t("common.support")}
           </Link>
           <span className="ms-auto text-cb-gray-300">
-            © {new Date().getFullYear()} CancerBuddy
+            {t("common.copyright", { year: new Date().getFullYear() })}
           </span>
         </footer>
       </main>

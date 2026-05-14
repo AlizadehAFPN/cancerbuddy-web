@@ -3,14 +3,11 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MAX_BIRTH_YEAR, MIN_BIRTH_YEAR } from "@/lib/signup/constants";
 import { fieldBase, fieldBorder } from "@/components/ui";
+import { t, tList } from "@/lib/i18n";
 
 /* ── Constants ───────────────────────────────────────────────────────── */
 
-const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr",
-  "May", "Jun", "Jul", "Aug",
-  "Sep", "Oct", "Nov", "Dec",
-];
+const MONTH_LABELS = tList("forms.monthNamesShort");
 
 /* ── Icons ── */
 
@@ -132,11 +129,11 @@ export function MonthYearPicker({
 
     const n = Number(raw);
     if (!Number.isFinite(n) || !Number.isInteger(n)) {
-      setJumpError(`Enter a year between ${MIN_BIRTH_YEAR} and ${MAX_BIRTH_YEAR}.`);
+      setJumpError(t("forms.yearInvalidRange", { min: MIN_BIRTH_YEAR, max: MAX_BIRTH_YEAR }));
       return;
     }
     if (n < MIN_BIRTH_YEAR || n > MAX_BIRTH_YEAR) {
-      setJumpError(`Year must be between ${MIN_BIRTH_YEAR} and ${MAX_BIRTH_YEAR}.`);
+      setJumpError(t("forms.yearOutOfRange", { min: MIN_BIRTH_YEAR, max: MAX_BIRTH_YEAR }));
       return;
     }
     setDisplayYear(n);
@@ -196,7 +193,7 @@ export function MonthYearPicker({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={panelId}
-          aria-label={displayValue || "Select birth month and year"}
+          aria-label={displayValue || t("forms.monthYearAria")}
           onClick={handleOpen}
           className={[
             fieldBase,
@@ -205,7 +202,7 @@ export function MonthYearPicker({
             displayValue ? "text-cb-black" : "text-cb-gray-400",
           ].join(" ")}
         >
-          {displayValue || "MM / YYYY"}
+          {displayValue || t("forms.monthYearPlaceholder")}
         </button>
 
         {open ? (
@@ -213,7 +210,7 @@ export function MonthYearPicker({
             ref={panelRef}
             id={panelId}
             role="dialog"
-            aria-label="Select birth month and year"
+            aria-label={t("forms.monthYearDialogAria")}
             className="absolute z-50 mt-2 start-0 min-w-[min(100vw-1.5rem,400px)] max-w-[calc(100vw-1rem)] rounded-2xl border border-cb-gray-200 bg-white p-4 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.22),0_4px_16px_-4px_rgba(0,0,0,0.08)]"
           >
             {/* Jump to year */}
@@ -222,7 +219,7 @@ export function MonthYearPicker({
                 htmlFor={jumpId}
                 className="mb-1.5 block font-body text-[11px] font-semibold uppercase tracking-wider text-cb-gray-500"
               >
-                Go to year
+                {t("forms.goToYearLabel")}
               </label>
               <div className="flex gap-2">
                 <input
@@ -230,7 +227,7 @@ export function MonthYearPicker({
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
-                  placeholder={`${MIN_BIRTH_YEAR}–${MAX_BIRTH_YEAR}`}
+                  placeholder={t("forms.goToYearPlaceholder", { min: MIN_BIRTH_YEAR, max: MAX_BIRTH_YEAR })}
                   value={jumpDraft}
                   onChange={(e) => setJumpDraft(e.target.value)}
                   aria-invalid={jumpError ? true : undefined}
@@ -251,7 +248,7 @@ export function MonthYearPicker({
                   onClick={applyJump}
                   className="h-10 shrink-0 rounded-xl border-[1.5px] border-cb-black bg-cb-black px-4 font-body text-sm font-medium text-white transition-colors hover:bg-cb-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2"
                 >
-                  Go
+                  {t("forms.go")}
                 </button>
               </div>
               {jumpError ? (
@@ -260,7 +257,7 @@ export function MonthYearPicker({
                 </p>
               ) : (
                 <p className="mt-1.5 font-body text-[12px] text-cb-gray-400">
-                  Type a full year (e.g. 1950) and press Enter or Go.
+                  {t("forms.yearHint")}
                 </p>
               )}
             </div>
@@ -272,7 +269,7 @@ export function MonthYearPicker({
                   id={yearListId}
                   className="mb-1.5 font-body text-[11px] font-semibold uppercase tracking-wider text-cb-gray-500"
                 >
-                  Year
+                  {t("forms.yearHeader")}
                 </p>
                 <div
                   ref={yearScrollRef}
@@ -310,9 +307,9 @@ export function MonthYearPicker({
               {/* Months */}
               <div className="min-w-0 flex-1">
                 <p className="mb-1.5 font-body text-[11px] font-semibold uppercase tracking-wider text-cb-gray-500">
-                  Month
+                  {t("forms.monthsHeader")}
                 </p>
-                <div className="grid grid-cols-4 gap-1.5" role="grid" aria-label="Months">
+                <div className="grid grid-cols-4 gap-1.5" role="grid" aria-label={t("forms.monthsGridAria")}>
                   {MONTH_LABELS.map((mlabel, i) => {
                     const m = i + 1;
                     const isSelected =
@@ -326,7 +323,7 @@ export function MonthYearPicker({
                         key={mlabel}
                         type="button"
                         role="gridcell"
-                        aria-label={`${mlabel} ${displayYear}`}
+                        aria-label={t("forms.monthLabelWithYear", { month: mlabel, year: displayYear })}
                         aria-selected={isSelected}
                         onClick={() => selectMonth(m)}
                         className={[
@@ -346,7 +343,7 @@ export function MonthYearPicker({
             </div>
 
             <p className="mt-3 border-t border-cb-gray-100 pt-3 text-center font-body text-[11px] leading-relaxed text-cb-gray-400">
-              Scroll the list or use <span className="font-medium text-cb-gray-500">Go to year</span>, then tap your birth month.
+              {t("forms.monthYearFooter")}
             </p>
           </div>
         ) : null}

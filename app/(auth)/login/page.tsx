@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginFormData } from "@/lib/validations";
 import { Button, Input } from "@/components/ui";
+import { t } from "@/lib/i18n";
 
 /* ── Inline icons ── */
 
@@ -89,7 +90,7 @@ export default function LoginPage() {
       // router.push('/dashboard');
       void data;
     } catch {
-      setServerError("Invalid email or password. Please try again.");
+      setServerError(t("login.invalidCredentials"));
     } finally {
       setLoading(false);
     }
@@ -111,10 +112,10 @@ export default function LoginPage() {
 
         {/* ── Header row — matches the right panel's top bar ── */}
         <div className="h-14 sm:h-16 shrink-0 flex items-center">
-          <Link href="/" aria-label="Back to CancerBuddy home">
+          <Link href="/" aria-label={t("common.backToCancerBuddyHome")}>
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={195}
               height={26}
               className="object-contain"
@@ -131,7 +132,7 @@ export default function LoginPage() {
           >
             <Image
               src="/images/welcome.png"
-              alt="CancerBuddy community"
+              alt={t("common.cancerBuddyCommunityAlt")}
               width={460}
               height={500}
               className="w-full max-h-[min(52vh,500px)] object-contain"
@@ -147,19 +148,26 @@ export default function LoginPage() {
               animation: "hero-fade-up 0.6s ease-out 0.25s both",
             }}
           >
-            Your support community<br />awaits.
+            {/* The tagline contains a hard line-break — keep the literal "\n" by rendering
+                two lines via <br/> so screen readers still get a single sentence. */}
+            {t("login.tagline").split("\n").map((line, i, arr) => (
+              <span key={i}>
+                {line}
+                {i < arr.length - 1 ? <br /> : null}
+              </span>
+            ))}
           </p>
         </div>
 
         {/* ── Footer row ── */}
         <div className="h-14 sm:h-16 shrink-0 flex items-center gap-3">
           <span className="text-[11px] font-medium text-cb-gray-600 tracking-[0.12em] uppercase">
-            Powered by
+            {t("common.poweredBy")}
           </span>
           <Image
-            src="/images/bm-logo-transparent.png"
-            alt="Bone Marrow Cancer Foundation"
-            width={110}
+            src="/images/BMCF_LOGO_WIDE.svg"
+            alt={t("common.bmcfLogoAlt")}
+            width={88}
             height={30}
             className="object-contain"
           />
@@ -179,14 +187,14 @@ export default function LoginPage() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-cb-gray-600 hover:text-cb-black transition-colors shrink-0"
           >
             <ArrowLeftIcon />
-            Back
+            {t("common.back")}
           </Link>
 
           {/* Mobile-only logo */}
-          <Link href="/" className="lg:hidden shrink-0" aria-label="CancerBuddy home">
+          <Link href="/" className="lg:hidden shrink-0" aria-label={t("common.cancerBuddyHome")}>
             <Image
               src="/images/trademark-logo.png"
-              alt="CancerBuddy"
+              alt={t("common.cancerBuddyAlt")}
               width={155}
               height={21}
               className="object-contain"
@@ -195,12 +203,12 @@ export default function LoginPage() {
 
           {/* Sign-up nudge */}
           <p className="text-sm text-cb-gray-500 font-body min-w-0 text-end">
-            No account?{" "}
+            {t("login.noAccount")}{" "}
             <Link
               href="/signup"
               className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors whitespace-nowrap"
             >
-              Get started
+              {t("login.noAccountCta")}
             </Link>
           </p>
         </header>
@@ -225,12 +233,12 @@ export default function LoginPage() {
                   lineHeight: 1.1,
                 }}
               >
-                Welcome back
+                {t("login.heading")}
               </h1>
               <p
                 className="mt-[clamp(0.25rem,0.8vh,0.5rem)] font-body text-cb-gray-500 text-[clamp(0.875rem, min(0.35vw + 0.8rem, 2.5vh), 1rem)] leading-snug"
               >
-                Sign in to your CancerBuddy account
+                {t("login.sub")}
               </p>
             </div>
 
@@ -241,8 +249,8 @@ export default function LoginPage() {
               className="flex min-h-0 shrink flex-col"
             >
               <Input
-                label="Email address"
-                placeholder="you@example.com"
+                label={t("login.emailLabel")}
+                placeholder={t("login.emailPlaceholder")}
                 type="email"
                 autoComplete="email"
                 autoCapitalize="none"
@@ -254,8 +262,8 @@ export default function LoginPage() {
               />
 
               <Input
-                label="Password"
-                placeholder="Your password"
+                label={t("login.passwordLabel")}
+                placeholder={t("login.passwordPlaceholder")}
                 type="password"
                 autoComplete="current-password"
                 leftIcon={<LockIcon />}
@@ -269,7 +277,7 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="self-end -mt-1 mb-[clamp(0.65rem,min(2vh,2.5vw),1.75rem)] text-sm font-body text-cb-gray-600 underline underline-offset-2 hover:text-cb-black transition-colors"
               >
-                Forgot password?
+                {t("login.forgotPassword")}
               </Link>
 
               {/* Server / root error */}
@@ -290,7 +298,7 @@ export default function LoginPage() {
                 fullWidth
                 loading={loading}
               >
-                Sign in
+                {t("login.submit")}
               </Button>
             </form>
 
@@ -298,19 +306,19 @@ export default function LoginPage() {
             <div className="flex shrink-0 items-center gap-3 sm:gap-4">
               <span className="h-px min-w-0 flex-1 bg-cb-gray-200" />
               <span className="shrink-0 text-[11px] text-cb-gray-400 font-body tracking-wider uppercase sm:text-xs">
-                or
+                {t("login.or")}
               </span>
               <span className="h-px min-w-0 flex-1 bg-cb-gray-200" />
             </div>
 
             {/* Sign-up CTA */}
             <p className="shrink-0 text-center text-[clamp(0.8125rem,min(0.2vw + 0.78rem,2.2vh),0.875rem)] text-cb-gray-500 font-body leading-tight">
-              Don&apos;t have an account?{" "}
+              {t("login.bottomCta")}{" "}
               <Link
                 href="/signup"
                 className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors"
               >
-                Create a free account →
+                {t("login.bottomCtaLink")}
               </Link>
             </p>
           </div>
@@ -322,16 +330,16 @@ export default function LoginPage() {
             href="/privacy"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Privacy Policy
+            {t("common.privacyPolicy")}
           </Link>
           <Link
             href="/terms"
             className="hover:text-cb-gray-600 transition-colors"
           >
-            Terms of Service
+            {t("common.termsOfService")}
           </Link>
           <span className="ms-auto text-cb-gray-300">
-            © {new Date().getFullYear()} CancerBuddy
+            {t("common.copyright", { year: new Date().getFullYear() })}
           </span>
         </footer>
 

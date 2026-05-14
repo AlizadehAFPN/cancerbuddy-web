@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { LegalDocument } from "@/lib/legal/content";
 import { LegalDocumentView } from "./LegalDocument";
+import { t } from "@/lib/i18n";
 
 interface Props {
   doc: LegalDocument;
@@ -20,7 +21,7 @@ export function LegalShell({ doc, related = [] }: Props) {
       <section className="bg-cb-yellow border-b border-cb-yellow-600/30">
         <div className="max-w-5xl mx-auto px-6 lg:px-10 py-14 lg:py-20">
           <p className="font-heading text-xs font-medium uppercase tracking-[0.2em] text-cb-black/70">
-            Legal · BMCF CancerBuddy™
+            {t("legal.eyebrow")}
           </p>
           <h1
             className="mt-3 font-heading font-bold text-cb-black tracking-tight leading-[1.05]"
@@ -55,7 +56,7 @@ export function LegalShell({ doc, related = [] }: Props) {
         <section className="bg-cb-bone-300/40 border-t border-cb-gray-200">
           <div className="max-w-5xl mx-auto px-6 lg:px-10 py-12">
             <p className="font-heading text-xs font-medium uppercase tracking-[0.18em] text-cb-gray-500">
-              Continue reading
+              {t("legal.continueReading")}
             </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               {related.map((d) => (
@@ -71,7 +72,7 @@ export function LegalShell({ doc, related = [] }: Props) {
                     {d.summary[0]}
                   </p>
                   <span className="mt-4 inline-flex items-center gap-1.5 font-body text-sm font-medium text-cb-black">
-                    Read
+                    {t("legal.read")}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -99,17 +100,14 @@ function BMCFNote() {
   return (
     <div className="mb-12 flex items-start gap-4 rounded-2xl border border-cb-gray-200 bg-cb-bone-300/30 p-5">
       <Image
-        src="/images/bm-logo-transparent.png"
-        alt="Bone Marrow Cancer Foundation"
-        width={88}
+        src="/images/BMCF_LOGO_WIDE.svg"
+        alt={t("common.bmcfLogoAlt")}
+        width={70}
         height={24}
         className="mt-1 shrink-0 object-contain"
       />
       <p className="font-body text-[14.5px] text-cb-gray-700 leading-relaxed">
-        This app is created by the Bone Marrow & Cancer Foundation (BMCF). The
-        Bone Marrow & Cancer Foundation supports patients, their families and
-        caregivers every step of the way during a cancer diagnosis. No one
-        should ever feel alone.
+        {t("legal.bmcfNote")}
       </p>
     </div>
   );

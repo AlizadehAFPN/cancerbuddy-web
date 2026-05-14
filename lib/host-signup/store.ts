@@ -21,7 +21,8 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import type { HostRegisterStep } from "./constants";
+import { maxHostStep } from "@/lib/navigation/hostStepGate";
 import type { HostRegisterFormValues } from "./validation";
 
 /** Subset of form values that's safe to persist (no password / OTPs). */
@@ -45,6 +46,13 @@ interface HostSignupState {
   phoneSid: string | null;
   /** NOT persisted: raw password, kept in-memory only between credentials → OTP. */
   sessionPassword: string | null;
+  /**
+   * Forward-only watermark: the furthest step the user has legitimately
+   * reached via `goToStep(...)` in this session. Defaults to `"intro"`
+   * (the landing screen) so any URL jump deeper than that is clamped
+   * down until the user actually advances. See `lib/navigation/hostStepGate`.
+   */
+  furthestStep: HostRegisterStep;
 
   /* Actions */
   setDraft: (values: PersistedHostDraft) => void;
@@ -55,76 +63,65 @@ interface HostSignupState {
   clearPhoneSid: () => void;
   setSessionPassword: (password: string) => void;
   clearSessionPassword: () => void;
+  /**
+   * Bump the watermark monotonically — calls with an earlier step are
+   * no-ops, so a Back navigation never *unwinds* progress.
+   */
+  advanceFurthestStep: (step: HostRegisterStep) => void;
   /** Reset everything — called after a successful registration. */
   reset: () => void;
 }
 
-const STORE_NAME = "cancerbuddy-host-signup-v2";
+export const useHostSignupStore = create<HostSignupState>()((set) => ({
+  draft: null,
+  poolUsername: null,
+  phoneSid: null,
+  sessionPassword: null,
+  furthestStep: "intro",
 
-export const useHostSignupStore = create<HostSignupState>()(
-  persist(
-    (set) => ({
+  setDraft: (values) => set({ draft: values }),
+  clearDraft: () => set({ draft: null }),
+
+  setPoolUsername: (email, username) => {
+    const e = email.trim().toLowerCase();
+    const u = username.trim();
+    if (!e || !u) return;
+    set({ poolUsername: { email: e, username: u } });
+  },
+  clearPoolUsername: () => set({ poolUsername: null }),
+
+  setPhoneSid: (sid) => {
+    const s = sid.trim();
+    if (!s) return;
+    set({ phoneSid: s });
+  },
+  clearPhoneSid: () => set({ phoneSid: null }),
+
+  setSessionPassword: (password) => {
+    if (typeof password !== "string" || !password) {
+      set({ sessionPassword: null });
+      return;
+    }
+    set({ sessionPassword: password });
+    installPagehidePasswordWipe();
+  },
+  clearSessionPassword: () => set({ sessionPassword: null }),
+
+  advanceFurthestStep: (step) =>
+    set((s) => {
+      const next = maxHostStep(s.furthestStep, step);
+      return next === s.furthestStep ? s : { furthestStep: next };
+    }),
+
+  reset: () =>
+    set({
       draft: null,
       poolUsername: null,
       phoneSid: null,
       sessionPassword: null,
-
-      setDraft: (values) => set({ draft: values }),
-      clearDraft: () => set({ draft: null }),
-
-      setPoolUsername: (email, username) => {
-        const e = email.trim().toLowerCase();
-        const u = username.trim();
-        if (!e || !u) return;
-        set({ poolUsername: { email: e, username: u } });
-      },
-      clearPoolUsername: () => set({ poolUsername: null }),
-
-      setPhoneSid: (sid) => {
-        const s = sid.trim();
-        if (!s) return;
-        set({ phoneSid: s });
-      },
-      clearPhoneSid: () => set({ phoneSid: null }),
-
-      setSessionPassword: (password) => {
-        if (typeof password !== "string" || !password) {
-          set({ sessionPassword: null });
-          return;
-        }
-        set({ sessionPassword: password });
-        installPagehidePasswordWipe();
-      },
-      clearSessionPassword: () => set({ sessionPassword: null }),
-
-      reset: () =>
-        set({
-          draft: null,
-          poolUsername: null,
-          phoneSid: null,
-          sessionPassword: null,
-        }),
+      furthestStep: "intro",
     }),
-    {
-      name: STORE_NAME,
-      /* `sessionStorage` (not `localStorage`) so the store dies when the
-         user closes the tab. On the server `createJSONStorage` returns
-         `undefined` and Zustand quietly skips persistence — that keeps the
-         module SSR-safe even though every consumer is a client component. */
-      storage: createJSONStorage(() =>
-        typeof window === "undefined" ? (undefined as unknown as Storage) : window.sessionStorage,
-      ),
-      /* Allowlist: anything not in here lives in memory only. The raw
-         `sessionPassword` is intentionally omitted. */
-      partialize: (state) => ({
-        draft: state.draft,
-        poolUsername: state.poolUsername,
-        phoneSid: state.phoneSid,
-      }),
-      version: 1,
-    },
-  ),
-);
+}));
 
 /* ── Pagehide password wipe ──────────────────────────────────────────────
    Defence in depth on top of `partialize`: when the user leaves the page,

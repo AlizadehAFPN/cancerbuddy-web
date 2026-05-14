@@ -6,7 +6,8 @@ import {
   CHILD_SAFETY,
   PRIVACY_POLICY,
   TERMS_OF_USE,
-} from "@/lib/legal/content";
+  t,
+} from "@/lib/i18n";
 
 function CheckIcon({ className }: { className?: string }) {
   return (
@@ -142,14 +143,13 @@ export function StepPrivacy({
     <div className="w-full shrink-0">
       <header className="mb-5 [@media(max-height:700px)]:mb-4">
         <p className="font-body text-[11px] font-semibold uppercase tracking-[0.2em] text-cb-gray-400">
-          Policies
+          {t("signup.privacy.eyebrow")}
         </p>
         <h1 className="mt-2 font-heading text-[1.375rem] font-bold leading-[1.15] tracking-[-0.02em] text-cb-black sm:text-[1.625rem]">
-          Before we begin
+          {t("signup.privacy.heading")}
         </h1>
         <p className="mt-2 max-w-[42ch] font-body text-[14px] leading-relaxed text-cb-gray-600 sm:text-[15px]">
-          Review each document, then confirm below to continue your account
-          setup.
+          {t("signup.privacy.body")}
         </p>
       </header>
 
@@ -186,7 +186,7 @@ export function StepPrivacy({
                   className="flex shrink-0 items-center gap-0.5 font-body text-[13px] font-semibold text-cb-gray-500 transition-colors group-hover:text-cb-black"
                   aria-hidden
                 >
-                  View
+                  {t("signup.privacy.view")}
                   <ChevronRightIcon />
                 </span>
               </Link>
@@ -226,7 +226,7 @@ export function StepPrivacy({
                   onChange={(e) => onAcceptedChange(e.target.checked)}
                 />
                 <span className="block text-center font-body text-[12px] font-medium leading-snug text-cb-black sm:text-[13px] sm:leading-relaxed md:text-[13.5px]">
-                  I have read and accept.
+                  {t("signup.privacy.accept")}
                 </span>
               </div>
             </div>
@@ -242,7 +242,7 @@ export function StepPrivacy({
               disabled={!accepted}
               className="h-full min-h-[3.25rem] w-full flex-1 text-[14px] shadow-[0_2px_8px_rgba(36,36,36,0.12)] transition-shadow hover:shadow-[0_4px_14px_rgba(36,36,36,0.15)] disabled:shadow-none sm:min-h-[3.5rem] sm:text-[15px]"
             >
-              Continue
+              {t("signup.privacy.continue")}
             </Button>
           </div>
         </div>
@@ -256,12 +256,12 @@ export function StepPrivacy({
 
       <div className="mt-5 [@media(max-height:700px)]:mt-4">
         <p className="text-center font-body text-xs leading-relaxed text-cb-gray-500">
-          Need help?{" "}
+          {t("common.needHelp")}{" "}
           <a
-            href="mailto:cancerbuddy@bonemarrow.org"
+            href={`mailto:${t("common.supportEmail")}`}
             className="font-medium text-cb-black underline decoration-cb-gray-300 underline-offset-[3px] transition-colors hover:decoration-cb-black"
           >
-            cancerbuddy@bonemarrow.org
+            {t("common.supportEmail")}
           </a>
         </p>
       </div>

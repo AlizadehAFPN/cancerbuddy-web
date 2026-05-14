@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { LegalShell } from "@/components/legal/LegalShell";
-import { CHILD_SAFETY, PRIVACY_POLICY, TERMS_OF_USE } from "@/lib/legal/content";
+import { CHILD_SAFETY, PRIVACY_POLICY, TERMS_OF_USE, t } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description:
-    "How CancerBuddy™ collects, uses, and protects your information. Source-of-truth content from the Bone Marrow & Cancer Foundation.",
+  title: t("metadata.privacyTitle"),
+  description: t("metadata.privacyDescription"),
 };
 
 export default function PrivacyPage() {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui";
 import { OtpInput } from "@/components/auth";
 import { OTP_LENGTH } from "@/lib/signup/constants";
 import type { SignupFormValues } from "@/lib/signup/validation";
+import { t } from "@/lib/i18n";
 
 /* ── Inline icons ── */
 
@@ -112,14 +113,14 @@ export function StepOtp({
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.75rem, 2.4vw, 2.25rem)", lineHeight: 1.15 }}
         >
-          You&apos;re all set
+          {t("signup.otp.doneHeading")}
         </h1>
         <p className="mx-auto mt-2 max-w-[36ch] font-body text-cb-gray-500">
-          Your account is ready. Sign in to start connecting.
+          {t("signup.otp.doneSub")}
         </p>
         <Link href="/login" className="mt-7 inline-block w-full">
           <Button type="button" variant="primary" size="lg" fullWidth>
-            Go to sign in
+            {t("signup.otp.doneCta")}
           </Button>
         </Link>
       </div>
@@ -140,10 +141,13 @@ export function StepOtp({
             className="font-heading font-bold text-cb-black tracking-tight"
             style={{ fontSize: "clamp(1.6rem, 2.2vw, 2rem)", lineHeight: 1.15 }}
           >
-            Confirm your email
+            {t("signup.otp.heading")}
           </h1>
           <p className="mt-1 font-body text-cb-gray-500">
-            We sent a {OTP_LENGTH}-digit code to {maskEmail(email)}.
+            {t("signup.otp.sub", {
+              length: OTP_LENGTH,
+              email: maskEmail(email),
+            })}
           </p>
         </div>
       </div>
@@ -182,7 +186,7 @@ export function StepOtp({
           disabled={submitting}
           className="font-body text-sm font-medium text-cb-gray-600 transition-colors hover:text-cb-black disabled:opacity-40"
         >
-          ← Change email
+          {t("signup.otp.changeEmail")}
         </button>
         <button
           type="button"
@@ -191,8 +195,8 @@ export function StepOtp({
           className="font-body text-sm font-medium text-cb-black underline underline-offset-2 transition-colors hover:text-cb-gray-700 disabled:cursor-not-allowed disabled:text-cb-gray-400 disabled:no-underline"
         >
           {resendSecondsLeft > 0
-            ? `Resend in ${resendSecondsLeft}s`
-            : "Resend code"}
+            ? t("signup.otp.resendIn", { seconds: resendSecondsLeft })
+            : t("signup.otp.resendCode")}
         </button>
       </div>
 
@@ -209,7 +213,7 @@ export function StepOtp({
         }}
         className="mt-6"
       >
-        {submitting ? "Verifying…" : "Verify"}
+        {submitting ? t("signup.otp.submitting") : t("signup.otp.submit")}
       </Button>
     </div>
   );

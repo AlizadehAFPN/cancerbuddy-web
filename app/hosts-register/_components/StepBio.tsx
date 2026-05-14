@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { Button, Textarea, ServerAlert } from "@/components/ui";
 import { BIO_MAX_LENGTH } from "@/lib/host-signup/constants";
 import type { HostRegisterFormValues } from "@/lib/host-signup/validation";
+import { t } from "@/lib/i18n";
 
 interface Props {
   submitting: boolean;
@@ -38,11 +39,10 @@ export function StepBio({ submitting, serverError, onBack, onApply }: Props) {
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
         >
-          Share your story
+          {t("hostsRegister.bio.heading")}
         </h1>
         <p className="mt-1 font-body text-[14px] text-cb-gray-500">
-          Optional — a short personal statement helps us match you with the
-          right buddies.
+          {t("hostsRegister.bio.sub")}
         </p>
       </div>
 
@@ -51,14 +51,14 @@ export function StepBio({ submitting, serverError, onBack, onApply }: Props) {
       ) : null}
 
       <Textarea
-        label="Your story"
-        placeholder="Tell us a little about you — your background, why you'd like to host, and what kind of support you can offer."
+        label={t("hostsRegister.bio.label")}
+        placeholder={t("hostsRegister.bio.placeholder")}
         rows={7}
         maxLength={BIO_MAX_LENGTH}
         autoFocus
         labelHint={
           <span className={counterTone}>
-            {length} / {BIO_MAX_LENGTH}
+            {t("hostsRegister.bio.counter", { length, max: BIO_MAX_LENGTH })}
           </span>
         }
         error={errors.bio?.message}
@@ -74,7 +74,7 @@ export function StepBio({ submitting, serverError, onBack, onApply }: Props) {
           disabled={submitting}
           className="touch-manipulation"
         >
-          Back
+          {t("common.back")}
         </Button>
         <Button
           type="button"
@@ -84,10 +84,12 @@ export function StepBio({ submitting, serverError, onBack, onApply }: Props) {
           loading={submitting}
           disabled={!canApply}
           onClick={onApply}
-          title={!withinMax ? "Please shorten your story below the limit." : undefined}
+          title={!withinMax ? t("hostsRegister.bio.tooLongTitle") : undefined}
           className="touch-manipulation"
         >
-          {submitting ? "Submitting…" : "Apply"}
+          {submitting
+            ? t("hostsRegister.bio.submitting")
+            : t("hostsRegister.bio.apply")}
         </Button>
       </div>
     </div>

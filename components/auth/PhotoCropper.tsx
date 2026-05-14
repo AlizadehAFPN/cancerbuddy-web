@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui";
+import { t } from "@/lib/i18n";
 
 /* ── Layout constants ──────────────────────────────────────────────────
    Centered card modal. The surface auto-sizes via ResizeObserver on its
@@ -351,7 +352,7 @@ export function PhotoCropper({ source, onApply, onCancel }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Crop your photo"
+      aria-label={t("forms.cropperDialogAria")}
       onClick={handleBackdrop}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
       style={{ animation: "hero-fade-in 0.2s ease-out both" }}
@@ -367,16 +368,16 @@ export function PhotoCropper({ source, onApply, onCancel }: Props) {
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-4 sm:px-6 sm:pt-5">
           <div>
             <h2 className="font-heading text-[18px] font-bold text-cb-black">
-              Position your photo
+              {t("forms.cropperHeading")}
             </h2>
             <p className="mt-0.5 font-body text-[12.5px] text-cb-gray-500">
-              The circle is how your avatar will appear.
+              {t("forms.cropperSub")}
             </p>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Close"
+            aria-label={t("forms.cropperClose")}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cb-gray-500 transition-colors hover:bg-cb-gray-100 hover:text-cb-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black"
           >
             <CloseIcon className="h-4 w-4" />
@@ -476,7 +477,7 @@ export function PhotoCropper({ source, onApply, onCancel }: Props) {
               type="button"
               onClick={() => setZoom((z) => clamp((z > 0 ? z : minZoom) - ZOOM_STEP * 4, minZoom, MAX_ZOOM))}
               disabled={loading || effectiveZoom <= minZoom + 0.001}
-              aria-label="Zoom out"
+              aria-label={t("forms.cropperZoomOut")}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cb-black text-white shadow-sm transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2"
             >
               <MinusIcon className="h-4 w-4" />
@@ -489,14 +490,14 @@ export function PhotoCropper({ source, onApply, onCancel }: Props) {
               value={effectiveZoom}
               onChange={(e) => setZoom(Number(e.target.value))}
               disabled={loading}
-              aria-label="Zoom"
+              aria-label={t("forms.cropperZoom")}
               className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-cb-gray-200 accent-cb-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 disabled:opacity-40"
             />
             <button
               type="button"
               onClick={() => setZoom((z) => clamp((z > 0 ? z : minZoom) + ZOOM_STEP * 4, minZoom, MAX_ZOOM))}
               disabled={loading || effectiveZoom >= MAX_ZOOM - 0.001}
-              aria-label="Zoom in"
+              aria-label={t("forms.cropperZoomIn")}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cb-black text-white shadow-sm transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2"
             >
               <PlusIcon className="h-4 w-4" />
@@ -511,7 +512,7 @@ export function PhotoCropper({ source, onApply, onCancel }: Props) {
               onClick={onCancel}
               disabled={saving}
             >
-              Cancel
+              {t("forms.cropperCancel")}
             </Button>
             <Button
               type="button"
@@ -522,7 +523,7 @@ export function PhotoCropper({ source, onApply, onCancel }: Props) {
               loading={saving}
               disabled={loading || saving}
             >
-              Apply
+              {t("forms.cropperApply")}
             </Button>
           </div>
         </div>

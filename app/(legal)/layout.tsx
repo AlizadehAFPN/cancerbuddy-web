@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LegalBackButton } from "@/components/legal/LegalBackButton";
+import { t } from "@/lib/i18n";
 
 function ArrowLeftIcon() {
   return (
@@ -38,12 +39,12 @@ export default function LegalLayout({
             <LegalBackButton />
             <Link
               href="/"
-              aria-label="CancerBuddy home"
+              aria-label={t("common.cancerBuddyHome")}
               className="shrink-0 min-w-0"
             >
               <Image
                 src="/images/trademark-logo.png"
-                alt="CancerBuddy"
+                alt={t("common.cancerBuddyAlt")}
                 width={170}
                 height={23}
                 className="object-contain"
@@ -57,7 +58,7 @@ export default function LegalLayout({
             className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-cb-gray-600 transition-colors hover:text-cb-black"
           >
             <ArrowLeftIcon />
-            Back home
+            {t("common.backHome")}
           </Link>
         </div>
       </header>
@@ -70,31 +71,31 @@ export default function LegalLayout({
         <div className="max-w-5xl mx-auto px-6 lg:px-10 py-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-[11px] font-medium text-cb-gray-500 tracking-[0.12em] uppercase">
-              Powered by
+              {t("common.poweredBy")}
             </span>
             <Image
-              src="/images/bm-logo-transparent.png"
-              alt="Bone Marrow Cancer Foundation"
-              width={100}
+              src="/images/BMCF_LOGO_WIDE.svg"
+              alt={t("common.bmcfLogoAlt")}
+              width={82}
               height={28}
               className="object-contain"
             />
           </div>
           <nav className="flex items-center gap-6 text-sm text-cb-gray-500">
             <Link href="/privacy" className="hover:text-cb-black transition-colors">
-              Privacy
+              {t("common.privacy")}
             </Link>
             <Link
               href="/child-safety"
               className="hover:text-cb-black transition-colors"
             >
-              Child Safety
+              {t("common.childSafety")}
             </Link>
             <Link href="/terms" className="hover:text-cb-black transition-colors">
-              Terms
+              {t("common.terms")}
             </Link>
             <Link href="/support" className="hover:text-cb-black transition-colors">
-              Support
+              {t("common.support")}
             </Link>
           </nav>
         </div>

@@ -19,6 +19,7 @@ import {
   type SupportFormValues,
 } from "@/lib/support/validation";
 import { defaultSupportService } from "@/lib/support/service";
+import { t } from "@/lib/i18n";
 
 /* ── Inline icons ── */
 
@@ -160,7 +161,7 @@ export function SupportForm() {
         dataBase64: base64,
       });
     } catch {
-      setAttachmentError("Couldn't read that file. Please try a different one.");
+      setAttachmentError(t("support.form.couldntRead"));
     }
   }
 
@@ -176,7 +177,7 @@ export function SupportForm() {
       });
       setResult(ticket);
     } catch {
-      setAttachmentError("Couldn't send. Please try again.");
+      setAttachmentError(t("support.form.couldntSend"));
     } finally {
       setSubmitting(false);
     }
@@ -200,15 +201,15 @@ export function SupportForm() {
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.6rem, 2.2vw, 2rem)", lineHeight: 1.15 }}
         >
-          Message sent
+          {t("support.success.heading")}
         </h2>
         <p className="mx-auto mt-2 max-w-[40ch] font-body text-cb-gray-500">
-          Thanks — we&apos;ll get back to you by email shortly.
+          {t("support.success.sub")}
         </p>
         <div className="mt-6 flex items-center justify-between rounded-xl border border-cb-gray-200 bg-cb-bone-300/30 px-4 py-3 text-start">
           <div>
             <p className="font-heading text-[11px] font-medium uppercase tracking-[0.16em] text-cb-gray-500">
-              Ticket ID
+              {t("support.success.ticketIdLabel")}
             </p>
             <p className="mt-1 font-mono text-sm text-cb-black">
               {result.ticketId}
@@ -227,12 +228,12 @@ export function SupportForm() {
             }}
             className="rounded-lg border-[1.5px] border-cb-gray-300 bg-white px-3 py-1.5 font-body text-sm font-medium text-cb-gray-700 transition-colors hover:border-cb-black hover:text-cb-black"
           >
-            {copied ? "Copied!" : "Copy ID"}
+            {copied ? t("support.success.copied") : t("support.success.copyId")}
           </button>
         </div>
         <div className="mt-6 flex gap-3">
           <Button type="button" variant="secondary" size="lg" fullWidth onClick={startOver}>
-            Send another
+            {t("support.success.sendAnother")}
           </Button>
           <Button
             type="button"
@@ -243,7 +244,7 @@ export function SupportForm() {
               window.location.href = "/";
             }}
           >
-            Back to home
+            {t("support.success.backHome")}
           </Button>
         </div>
       </div>
@@ -253,8 +254,8 @@ export function SupportForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col">
       <Input
-        label="Subject"
-        placeholder="Briefly describe your issue"
+        label={t("support.form.subjectLabel")}
+        placeholder={t("support.form.subjectPlaceholder")}
         autoFocus
         maxLength={SUBJECT_MAX}
         error={errors.subject?.message}
@@ -264,7 +265,7 @@ export function SupportForm() {
       {/* Category picker */}
       <div className="mb-5">
         <label className="mb-1.5 block font-body text-[13px] font-medium text-cb-gray-700">
-          Category
+          {t("support.form.categoryLabel")}
         </label>
         <div className="flex flex-wrap gap-2">
           {SUPPORT_CATEGORIES.map((c) => {
@@ -300,8 +301,8 @@ export function SupportForm() {
       </div>
 
       <Textarea
-        label="Message"
-        placeholder="Share what happened, what you expected, and anything else we should know."
+        label={t("support.form.messageLabel")}
+        placeholder={t("support.form.messagePlaceholder")}
         rows={6}
         maxLength={MESSAGE_MAX + 100}
         error={errors.message?.message}
@@ -309,15 +310,15 @@ export function SupportForm() {
           <span
             className={message.length > MESSAGE_MAX ? "text-cb-danger" : undefined}
           >
-            {message.length} / {MESSAGE_MAX}
+            {t("support.form.messageCounter", { length: message.length, max: MESSAGE_MAX })}
           </span>
         }
         {...register("message")}
       />
 
       <Input
-        label="Reply email"
-        placeholder="you@example.com"
+        label={t("support.form.emailLabel")}
+        placeholder={t("support.form.emailPlaceholder")}
         type="email"
         autoComplete="email"
         autoCapitalize="none"
@@ -330,10 +331,10 @@ export function SupportForm() {
       <div className="mb-7">
         <div className="mb-1.5 flex items-baseline justify-between gap-3">
           <label className="font-body text-[13px] font-medium text-cb-gray-700">
-            Attach a screenshot
+            {t("support.form.attachLabel")}
           </label>
           <span className="font-body text-xs text-cb-gray-400">
-            Optional · single image · up to 4 MB
+            {t("support.form.attachHint")}
           </span>
         </div>
 
@@ -346,7 +347,7 @@ export function SupportForm() {
               <div className="min-w-0">
                 <p className="truncate font-medium">{attachment.fileName}</p>
                 <p className="text-xs text-cb-gray-500">
-                  {(attachment.sizeBytes / 1024).toFixed(0)} KB
+                  {t("support.form.attachmentSizeKb", { kb: (attachment.sizeBytes / 1024).toFixed(0) })}
                 </p>
               </div>
             </div>
@@ -354,7 +355,7 @@ export function SupportForm() {
               type="button"
               onClick={() => setAttachment(null)}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-cb-gray-500 transition-colors hover:bg-cb-gray-100 hover:text-cb-danger"
-              aria-label="Remove attachment"
+              aria-label={t("support.form.removeAttachment")}
             >
               <CloseIcon className="h-4 w-4" />
             </button>
@@ -368,8 +369,8 @@ export function SupportForm() {
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cb-gray-100 text-cb-gray-600 transition-colors group-hover:bg-cb-yellow group-hover:text-cb-black">
               <PaperclipIcon className="h-4 w-4" />
             </span>
-            <span className="font-medium">Choose an image</span>
-            <span className="ms-auto text-xs text-cb-gray-400">PNG, JPG, GIF</span>
+            <span className="font-medium">{t("support.form.chooseImage")}</span>
+            <span className="ms-auto text-xs text-cb-gray-400">{t("support.form.attachFormats")}</span>
           </button>
         )}
 
@@ -398,7 +399,7 @@ export function SupportForm() {
         fullWidth
         loading={submitting}
       >
-        {submitting ? "Sending…" : "Send message"}
+        {submitting ? t("support.form.submitting") : t("support.form.submit")}
       </Button>
     </form>
   );

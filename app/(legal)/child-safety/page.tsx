@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { LegalShell } from "@/components/legal/LegalShell";
-import { CHILD_SAFETY, PRIVACY_POLICY, TERMS_OF_USE } from "@/lib/legal/content";
+import { CHILD_SAFETY, PRIVACY_POLICY, TERMS_OF_USE, t } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "Child Safety Standards",
-  description:
-    "Our commitment to children's safety and wellbeing — COPPA compliance, content age-appropriateness, and CSAM/CSAE policies.",
+  title: t("metadata.childSafetyTitle"),
+  description: t("metadata.childSafetyDescription"),
 };
 
 export default function ChildSafetyPage() {

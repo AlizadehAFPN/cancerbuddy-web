@@ -5,6 +5,7 @@
  */
 
 import { OTP_LENGTH, OTP_RESEND_COOLDOWN_SEC } from "@/lib/signup/constants";
+import { t } from "@/lib/i18n";
 
 export {
   OTP_LENGTH,
@@ -66,13 +67,13 @@ export const HOST_STEP_TITLES: Record<
   (typeof HOST_REGISTER_STEPS)[number],
   string
 > = {
-  privacy: "Before we begin",
-  profile: "Tell us about you",
-  credentials: "Set up sign-in",
-  emailOtp: "Confirm your email",
-  phone: "Verify your phone",
-  photo: "Add a photo",
-  bio: "Share your story",
+  privacy: t("hostsRegister.stepTitles.privacy"),
+  profile: t("hostsRegister.stepTitles.profile"),
+  credentials: t("hostsRegister.stepTitles.credentials"),
+  emailOtp: t("hostsRegister.stepTitles.emailOtp"),
+  phone: t("hostsRegister.stepTitles.phone"),
+  photo: t("hostsRegister.stepTitles.photo"),
+  bio: t("hostsRegister.stepTitles.bio"),
 };
 
 /**
@@ -149,8 +150,5 @@ export function getCountryByIso2(iso2: string): DialCountry | undefined {
 
 /** Shown when Cognito has the email but `signIn` rejects the password (same UX as mobile guidance). */
 export function existingEmailWrongPasswordMessage(): string {
-  return (
-    "An account with this email already exists, but that password does not match. " +
-    "Enter the password you used when you started registration, or use Forgot password when it is available."
-  );
+  return t("hostsRegister.serverError.existingEmailWrongPassword");
 }

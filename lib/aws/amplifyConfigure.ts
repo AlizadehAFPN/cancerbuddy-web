@@ -31,6 +31,15 @@ export function ensureAmplifyConfigured(): void {
       process.env.NEXT_PUBLIC_AWS_APPSYNC_AUTHENTICATION_TYPE ??
       "AMAZON_COGNITO_USER_POOLS",
     aws_appsync_apiKey: process.env.NEXT_PUBLIC_AWS_APPSYNC_API_KEY,
+    Auth: {
+      cookieStorage: {
+        domain: typeof window !== "undefined" ? window.location.hostname : "localhost",
+        path: "/",
+        expires: 365,
+        sameSite: "lax",
+        secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
+      },
+    },
     ...(s3Bucket && s3Region
       ? {
           Storage: {

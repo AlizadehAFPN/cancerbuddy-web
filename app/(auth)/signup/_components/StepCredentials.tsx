@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { Button, Input } from "@/components/ui";
 import { PasswordStrengthMeter } from "@/components/auth";
 import type { SignupFormValues } from "@/lib/signup/validation";
+import { t } from "@/lib/i18n";
 
 /* ── Inline icons ── */
 
@@ -62,10 +63,10 @@ export function StepCredentials({
           className="font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.6rem, 2.2vw, 2rem)", lineHeight: 1.15 }}
         >
-          Set up sign-in
+          {t("signup.credentials.heading")}
         </h1>
         <p className="mt-1 font-body text-cb-gray-500">
-          Your email and password keep your account secure.
+          {t("signup.credentials.sub")}
         </p>
       </div>
 
@@ -79,22 +80,22 @@ export function StepCredentials({
       ) : null}
 
       <Input
-        label="Email address"
-        placeholder="name@example.com"
+        label={t("signup.credentials.emailLabel")}
+        placeholder={t("signup.credentials.emailPlaceholder")}
         type="email"
         autoComplete="email"
         autoCapitalize="none"
         spellCheck={false}
         autoFocus
         leftIcon={<MailIcon />}
-        hint={!errors.email ? "We'll send a confirmation code here." : undefined}
+        hint={!errors.email ? t("signup.credentials.emailHint") : undefined}
         error={errors.email?.message}
         {...register("email")}
       />
 
       <Input
-        label="Password"
-        placeholder="Create a strong password"
+        label={t("signup.credentials.passwordLabel")}
+        placeholder={t("signup.credentials.passwordPlaceholder")}
         type="password"
         autoComplete="new-password"
         leftIcon={<LockIcon />}
@@ -106,8 +107,8 @@ export function StepCredentials({
       </div>
 
       <Input
-        label="Confirm password"
-        placeholder="Re-enter your password"
+        label={t("signup.credentials.confirmPasswordLabel")}
+        placeholder={t("signup.credentials.confirmPasswordPlaceholder")}
         type="password"
         autoComplete="new-password"
         leftIcon={<LockIcon />}
@@ -123,7 +124,7 @@ export function StepCredentials({
           onClick={onBack}
           disabled={submitting}
         >
-          Back
+          {t("common.back")}
         </Button>
         <Button
           type="button"
@@ -134,12 +135,12 @@ export function StepCredentials({
           disabled={!canContinue || submitting}
           title={
             !canContinue
-              ? "Please fill in your email and both password fields."
+              ? t("signup.credentials.continueDisabledTitle")
               : undefined
           }
           onClick={onContinue}
         >
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>

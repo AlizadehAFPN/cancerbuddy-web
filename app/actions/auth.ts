@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { loginSchema, forgotPasswordSchema } from "@/lib/validations";
 import { createSession } from "@/lib/auth";
+import { t } from "@/lib/i18n";
 
 /* ── Shared types ── */
 
@@ -49,7 +50,7 @@ export async function loginAction(
     await createSession("stub-user-id");
   } catch (err) {
     const message =
-      err instanceof Error ? err.message : "Invalid email or password.";
+      err instanceof Error ? err.message : t("login.invalidCredentials");
     return {
       status: "error",
       errors: {},
@@ -82,7 +83,7 @@ export async function forgotPasswordAction(
     //   await Auth.forgotPassword(parsed.data.email);
     void parsed.data.email;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Something went wrong.";
+    const message = err instanceof Error ? err.message : t("errors.fallback");
     return {
       status: "error",
       errors: {},

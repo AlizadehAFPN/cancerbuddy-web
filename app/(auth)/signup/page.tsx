@@ -30,6 +30,7 @@ import { StepPrivacy } from "./_components/StepPrivacy";
 import { StepProfile } from "./_components/StepProfile";
 import { StepCredentials } from "./_components/StepCredentials";
 import { StepOtp } from "./_components/StepOtp";
+import { t } from "@/lib/i18n";
 
 const DEFAULT_VALUES: SignupFormValues = {
   privacyAccepted: false,
@@ -47,12 +48,12 @@ const DEFAULT_VALUES: SignupFormValues = {
 /** Maps StartSignup ALREADY_EXISTS → user-facing message. */
 function alreadyExistsMessage(provider: "email" | "google" | "apple"): string {
   if (provider === "google") {
-    return "An account with this email already exists. Please sign in with Google.";
+    return t("signup.serverError.alreadyExistsGoogle");
   }
   if (provider === "apple") {
-    return "An account with this email already exists. Please sign in with Apple.";
+    return t("signup.serverError.alreadyExistsApple");
   }
-  return "An account with this email already exists. Try signing in instead.";
+  return t("signup.serverError.alreadyExistsDefault");
 }
 
 export default function SignupPage() {
@@ -244,7 +245,7 @@ export default function SignupPage() {
         setServerError(alreadyExistsMessage(result.provider));
       }
     } catch {
-      setServerError("Something went wrong. Please try again.");
+      setServerError(t("signup.serverError.somethingWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -265,12 +266,12 @@ export default function SignupPage() {
         clearDraft();
         setDone(true);
       } else if (result.status === "CODE_MISMATCH") {
-        setServerError("That code didn't match. Please try again.");
+        setServerError(t("signup.serverError.codeMismatch"));
       } else {
-        setServerError("That code expired. Please request a new one.");
+        setServerError(t("signup.serverError.codeExpired"));
       }
     } catch {
-      setServerError("Something went wrong. Please try again.");
+      setServerError(t("signup.serverError.somethingWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -287,7 +288,7 @@ export default function SignupPage() {
       });
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
     } catch {
-      setServerError("Couldn't resend right now. Please try again in a moment.");
+      setServerError(t("signup.serverError.couldntResend"));
     } finally {
       setResending(false);
     }

@@ -6,6 +6,7 @@ import { Button, ServerAlert } from "@/components/ui";
 import { OtpInput } from "@/components/auth";
 import { OTP_LENGTH } from "@/lib/host-signup/constants";
 import type { HostRegisterFormValues } from "@/lib/host-signup/validation";
+import { t } from "@/lib/i18n";
 
 function MailIcon() {
   return (
@@ -79,10 +80,13 @@ export function StepEmailOtp({
             className="font-heading font-bold text-cb-black tracking-tight"
             style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
           >
-            Confirm your email
+            {t("hostsRegister.emailOtp.heading")}
           </h1>
           <p className="mt-1 font-body text-[14px] text-cb-gray-500">
-            We sent a {OTP_LENGTH}-digit code to {maskEmail(email)}.
+            {t("hostsRegister.emailOtp.sub", {
+              length: OTP_LENGTH,
+              email: maskEmail(email),
+            })}
           </p>
           {resumeInfo ? (
             <p
@@ -125,7 +129,7 @@ export function StepEmailOtp({
             disabled={submitting}
             className="touch-manipulation font-body text-sm font-medium text-cb-gray-600 transition-colors hover:text-cb-black disabled:opacity-40"
           >
-            ← Change email
+            {t("hostsRegister.emailOtp.changeEmail")}
           </button>
           <button
             type="button"
@@ -134,8 +138,8 @@ export function StepEmailOtp({
             className="touch-manipulation font-body text-sm font-medium text-cb-black underline underline-offset-2 transition-colors hover:text-cb-gray-700 disabled:cursor-not-allowed disabled:text-cb-gray-400 disabled:no-underline"
           >
             {resendSecondsLeft > 0
-              ? `Resend in ${resendSecondsLeft}s`
-              : "Resend code"}
+              ? t("hostsRegister.emailOtp.resendIn", { seconds: resendSecondsLeft })
+              : t("hostsRegister.emailOtp.resendCode")}
           </button>
         </div>
 
@@ -152,7 +156,9 @@ export function StepEmailOtp({
           }}
           className="touch-manipulation"
         >
-          {submitting ? "Verifying…" : "Verify email"}
+          {submitting
+            ? t("hostsRegister.emailOtp.submitting")
+            : t("hostsRegister.emailOtp.submit")}
         </Button>
       </div>
     </div>

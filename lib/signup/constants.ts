@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 export const MIN_AGE = 13;
 export const MAX_AGE = 120;
 
@@ -20,10 +22,10 @@ export const PRONOUN_OPTIONS = [
 export type PronounOption = (typeof PRONOUN_OPTIONS)[number];
 
 export const PRONOUN_LABELS: Record<PronounOption, string> = {
-  he_him: "He/him",
-  she_her: "She/her",
-  they_them: "They/them",
-  not_say: "I'd rather not disclose",
+  he_him: t("pronouns.he_him"),
+  she_her: t("pronouns.she_her"),
+  they_them: t("pronouns.they_them"),
+  not_say: t("pronouns.not_say"),
 };
 
 export const SIGNUP_DRAFT_STORAGE_KEY = "cancerbuddy-signup-draft";
@@ -39,8 +41,8 @@ export const SIGNUP_STEPS = [
 export type SignupStep = (typeof SIGNUP_STEPS)[number] | "done";
 
 export const STEP_TITLES: Record<(typeof SIGNUP_STEPS)[number], string> = {
-  privacy: "Before we begin",
-  profile: "Tell us a little about you",
-  credentials: "Set up sign-in",
-  otp: "Confirm your email",
+  privacy: t("signup.stepTitles.privacy"),
+  profile: t("signup.stepTitles.profile"),
+  credentials: t("signup.stepTitles.credentials"),
+  otp: t("signup.stepTitles.otp"),
 };

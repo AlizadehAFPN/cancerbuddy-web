@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import { t } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "Register as a Host",
-  description:
-    "Apply to become a CancerBuddy host. Guide newcomers, share what you've learned, and offer real peer support to people navigating a cancer journey.",
+  title: t("metadata.hostsRegisterTitle"),
+  description: t("metadata.hostsRegisterDescription"),
   robots: { index: false, follow: true },
 };
 

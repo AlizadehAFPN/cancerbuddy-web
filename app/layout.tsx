@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui";
+import { t } from "@/lib/i18n";
 import "./globals.css";
 
 /* ── Brand fonts (sourced from the CancerBuddy mobile app) ── */
@@ -43,11 +44,10 @@ const haasGrot = localFont({
 
 export const metadata: Metadata = {
   title: {
-    default: "CancerBuddy",
-    template: "%s | CancerBuddy",
+    default: t("metadata.rootDefaultTitle"),
+    template: t("metadata.rootTitleTemplate"),
   },
-  description:
-    "Connect with others on your cancer journey. Peer support for patients, caregivers, and survivors.",
+  description: t("metadata.rootDescription"),
   metadataBase: new URL("https://cancerbuddy.com"),
 };
 
