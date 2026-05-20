@@ -34,6 +34,8 @@ interface Props {
   hint?: string;
   /** Merged onto root; use e.g. `!mb-0` when sitting in a grid row. */
   className?: string;
+  /** Override the upper bound of the year list (defaults to MAX_BIRTH_YEAR = current year − 13). */
+  overrideMaxYear?: number;
 }
 
 /* ── Component ── */
@@ -46,6 +48,7 @@ export function MonthYearPicker({
   error,
   hint,
   className = "",
+  overrideMaxYear,
 }: Props) {
   const id = useId();
   const triggerId = `myp-${id}`;
@@ -62,17 +65,18 @@ export function MonthYearPicker({
   const [jumpError, setJumpError] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear();
+  const effectiveMaxYear = overrideMaxYear ?? MAX_BIRTH_YEAR;
   const initYear =
     year !== "" ? Number(year) : Math.max(MIN_BIRTH_YEAR, currentYear - 30);
   const [displayYear, setDisplayYear] = useState(initYear);
 
   const yearsDescending = useMemo(() => {
     const out: number[] = [];
-    for (let y = MAX_BIRTH_YEAR; y >= MIN_BIRTH_YEAR; y--) {
+    for (let y = effectiveMaxYear; y >= MIN_BIRTH_YEAR; y--) {
       out.push(y);
     }
     return out;
-  }, []);
+  }, [effectiveMaxYear]);
 
   /* Sync display year when value changes externally */
   useEffect(() => {
@@ -129,11 +133,11 @@ export function MonthYearPicker({
 
     const n = Number(raw);
     if (!Number.isFinite(n) || !Number.isInteger(n)) {
-      setJumpError(t("forms.yearInvalidRange", { min: MIN_BIRTH_YEAR, max: MAX_BIRTH_YEAR }));
+      setJumpError(t("forms.yearInvalidRange", { min: MIN_BIRTH_YEAR, max: effectiveMaxYear }));
       return;
     }
-    if (n < MIN_BIRTH_YEAR || n > MAX_BIRTH_YEAR) {
-      setJumpError(t("forms.yearOutOfRange", { min: MIN_BIRTH_YEAR, max: MAX_BIRTH_YEAR }));
+    if (n < MIN_BIRTH_YEAR || n > effectiveMaxYear) {
+      setJumpError(t("forms.yearOutOfRange", { min: MIN_BIRTH_YEAR, max: effectiveMaxYear }));
       return;
     }
     setDisplayYear(n);
@@ -227,7 +231,7 @@ export function MonthYearPicker({
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
-                  placeholder={t("forms.goToYearPlaceholder", { min: MIN_BIRTH_YEAR, max: MAX_BIRTH_YEAR })}
+                  placeholder={t("forms.goToYearPlaceholder", { min: MIN_BIRTH_YEAR, max: effectiveMaxYear })}
                   value={jumpDraft}
                   onChange={(e) => setJumpDraft(e.target.value)}
                   aria-invalid={jumpError ? true : undefined}

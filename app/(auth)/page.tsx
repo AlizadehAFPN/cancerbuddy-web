@@ -90,7 +90,7 @@ export default function LandingPage() {
               {t("common.signIn")}
             </Link>
             <Link
-              href="/signup"
+              href="/register"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-cb-black text-white text-sm font-heading font-medium transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700"
             >
               {t("common.getStarted")}
@@ -162,7 +162,7 @@ export default function LandingPage() {
 
                 <div className="mt-5 flex flex-wrap gap-3 sm:mt-6 sm:gap-4">
                   <Link
-                    href="/signup"
+                    href="/register"
                     className="inline-flex h-12 items-center gap-2 rounded-full bg-cb-black px-6 font-heading text-[0.9375rem] font-medium text-white transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 sm:h-[3.25rem] sm:px-8 sm:text-base"
                   >
                     {t("landing.ctaPrimary")}
@@ -186,7 +186,7 @@ export default function LandingPage() {
                 {/* <p className="mt-3 text-sm text-cb-gray-600 font-body">
                   {t("landing.hostInviteLead")}{" "}
                   <Link
-                    href="/hosts-register"
+                    href="/become-a-host"
                     className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors"
                   >
                     {t("landing.hostInviteCta")}

@@ -6,7 +6,6 @@ import {
   MIN_BIRTH_YEAR,
   OTP_LENGTH,
   PASSWORD_MIN_LENGTH,
-  PRONOUN_OPTIONS,
 } from "./constants";
 import { t } from "@/lib/i18n";
 
@@ -57,7 +56,7 @@ export const profileSchema = z
         ),
     ),
     pronouns: z
-      .enum(PRONOUN_OPTIONS)
+      .string()
       .optional()
       .or(z.literal("").transform(() => undefined)),
   });
@@ -113,38 +112,6 @@ export const otpSchema = z.object({
     ),
 });
 
-export const signupFormSchema = z.object({
-  privacyAccepted: z.boolean(),
-  firstName: z.string(),
-  lastName: z.string(),
-  birthMonth: z.string(),
-  birthYear: z.string(),
-  pronouns: z.enum(PRONOUN_OPTIONS).or(z.literal("")),
-  email: z.string(),
-  password: z.string(),
-  confirmPassword: z.string(),
-  otp: z.string(),
-});
-
-export type SignupFormValues = z.infer<typeof signupFormSchema>;
-
-/**
- * Field name groups per step — passed to react-hook-form's `trigger()` to
- * validate only the active step's fields when the user clicks Continue.
- */
-export const STEP_FIELDS = {
-  privacy: ["privacyAccepted"] as const,
-  profile: [
-    "firstName",
-    "lastName",
-    "birthMonth",
-    "birthYear",
-    "pronouns",
-  ] as const,
-  credentials: ["email", "password", "confirmPassword"] as const,
-  otp: ["otp"] as const,
-};
-
 /** Lightweight password rule checks for the live strength meter. */
 export interface PasswordChecks {
   minLength: boolean;
@@ -162,13 +129,3 @@ export function checkPassword(value: string): PasswordChecks {
   };
 }
 
-/** Derive approximate age (in years) from a birth year. */
-export function ageFromBirthYear(birthYear: number): number {
-  return new Date().getFullYear() - birthYear;
-}
-
-/** Guard: returns true if age is within the app's accepted range. */
-export function isAgeAcceptable(birthYear: number): boolean {
-  const age = ageFromBirthYear(birthYear);
-  return age >= MIN_AGE && age <= MAX_AGE;
-}

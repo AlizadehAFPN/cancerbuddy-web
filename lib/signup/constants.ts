@@ -1,7 +1,11 @@
 import { t } from "@/lib/i18n";
 
+export const CHILD_MIN_AGE = 8;
 export const MIN_AGE = 13;
 export const MAX_AGE = 120;
+
+/** Latest accepted birth year for minor registration (guardian consent required for 8–12). */
+export const GUARDIAN_MAX_BIRTH_YEAR = new Date().getFullYear() - CHILD_MIN_AGE;
 
 /** Earliest accepted birth year (age ≤ 120). */
 export const MIN_BIRTH_YEAR = new Date().getFullYear() - MAX_AGE;
@@ -28,21 +32,3 @@ export const PRONOUN_LABELS: Record<PronounOption, string> = {
   not_say: t("pronouns.not_say"),
 };
 
-export const SIGNUP_DRAFT_STORAGE_KEY = "cancerbuddy-signup-draft";
-export const SIGNUP_DRAFT_VERSION = 3 as const;
-
-export const SIGNUP_STEPS = [
-  "privacy",
-  "profile",
-  "credentials",
-  "otp",
-] as const;
-
-export type SignupStep = (typeof SIGNUP_STEPS)[number] | "done";
-
-export const STEP_TITLES: Record<(typeof SIGNUP_STEPS)[number], string> = {
-  privacy: t("signup.stepTitles.privacy"),
-  profile: t("signup.stepTitles.profile"),
-  credentials: t("signup.stepTitles.credentials"),
-  otp: t("signup.stepTitles.otp"),
-};

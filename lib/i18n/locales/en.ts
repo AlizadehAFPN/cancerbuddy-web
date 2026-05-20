@@ -74,6 +74,9 @@ const en = {
     hostsRegisterTitle: "Register as a Host",
     hostsRegisterDescription:
       "Apply to become a CancerBuddy host. Guide newcomers, share what you've learned, and offer real peer support to people navigating a cancer journey.",
+    registerTitle: "Create your account",
+    registerDescription:
+      "Join CancerBuddy as a patient, caregiver, or survivor. Connect with people who truly understand your journey.",
     supportTitle: "Support",
     supportDescription: "Tell us what's going on and we'll get back to you.",
     notFoundTitle: "Page not found",
@@ -114,78 +117,31 @@ const en = {
     bottomCta: "Don't have an account?",
     bottomCtaLink: "Create a free account →",
     invalidCredentials: "Invalid email or password. Please try again.",
+
+    /* ── Post-sign-in: onboarding state ── */
+
+    /** Modal shown when sign-in reveals the account is fully registered. */
+    registrationCompleteHeading: "Your registration is complete!",
+    registrationCompleteSub:
+      "Your CancerBuddy account is fully set up. Open the app to connect with patients, caregivers, and survivors who truly understand your journey.",
+    registrationCompleteCta: "Go to dashboard",
+    registrationCompleteClose: "Close",
+
+    /** Inline banner shown when email was never confirmed. */
+    notConfirmedHeading: "Email not confirmed",
+    notConfirmedBody:
+      "Your email address hasn't been verified yet. Complete your registration to activate your account.",
+    notConfirmedCta: "Complete registration →",
+
+    /** Screen-reader announcement when navigating back to registration. */
+    resumingRegistration:
+      "Your registration isn't finished yet — taking you back to where you left off.",
   },
 
-  /* ── Signup (/signup) ─────────────────────────────────────────────── */
+  /* ── Signup (shared progress indicator) ──────────────────────────── */
   signup: {
-    tagline: "Your support community\nawaits.",
-    alreadyMember: "Already a member?",
-    /** Live progress indicator. */
+    /** Live progress indicator used by both host and user register shells. */
     stepOfTotal: "Step {current} of {total}.",
-    stepTitles: {
-      privacy: "Before we begin",
-      profile: "Tell us a little about you",
-      credentials: "Set up sign-in",
-      otp: "Confirm your email",
-    },
-    privacy: {
-      eyebrow: "Policies",
-      heading: "Before we begin",
-      body: "Review each document, then confirm below to continue your account setup.",
-      view: "View",
-      accept: "I have read and accept.",
-      continue: "Continue",
-    },
-    profile: {
-      heading: "Tell us a little about you",
-      sub: "Just enough to personalise your experience.",
-      firstNameLabel: "First name",
-      firstNamePlaceholder: "Your first name",
-      lastNameLabel: "Last name",
-      lastNamePlaceholder: "Your last name",
-      dateOfBirthLabel: "Date of birth",
-      bornHint: "Born {month} {year}",
-      pronounsHint: "Pronouns are optional — you can always update this later.",
-      continueDisabledTitle:
-        "Please fill in your name, last name, and date of birth.",
-    },
-    credentials: {
-      heading: "Set up sign-in",
-      sub: "Your email and password keep your account secure.",
-      emailLabel: "Email address",
-      emailPlaceholder: "name@example.com",
-      emailHint: "We'll send a confirmation code here.",
-      passwordLabel: "Password",
-      passwordPlaceholder: "Create a strong password",
-      confirmPasswordLabel: "Confirm password",
-      confirmPasswordPlaceholder: "Re-enter your password",
-      continueDisabledTitle:
-        "Please fill in your email and both password fields.",
-    },
-    otp: {
-      heading: "Confirm your email",
-      sub: "We sent a {length}-digit code to {email}.",
-      changeEmail: "← Change email",
-      resendIn: "Resend in {seconds}s",
-      resendCode: "Resend code",
-      submit: "Verify",
-      submitting: "Verifying…",
-      doneHeading: "You're all set",
-      doneSub: "Your account is ready. Sign in to start connecting.",
-      doneCta: "Go to sign in",
-    },
-    serverError: {
-      somethingWrong: "Something went wrong. Please try again.",
-      couldntResend: "Couldn't resend right now. Please try again in a moment.",
-      codeMismatch: "That code didn't match. Please try again.",
-      codeExpired: "That code expired. Please request a new one.",
-      alreadyExistsGoogle:
-        "An account with this email already exists. Please sign in with Google.",
-      alreadyExistsApple:
-        "An account with this email already exists. Please sign in with Apple.",
-      alreadyExistsDefault:
-        "An account with this email already exists. Try signing in instead.",
-    },
   },
 
   /* ── Hosts register (/hosts-register) ─────────────────────────────── */
@@ -343,6 +299,312 @@ const en = {
       photoMissingForApply:
         "Please go back and choose a photo before applying.",
       applyFailed: "Couldn't submit your application. Please try again.",
+    },
+  },
+
+  /* ── User register (/register) ────────────────────────────────────────
+     Mirrors the mobile app's enrollment flow: privacy → profile → email →
+     email-OTP → phone → phone-OTP → verified splash. Phase 2+ adds the
+     role-aware screens that follow phone verification on mobile. */
+  register: {
+    alreadyMember: "Already a member?",
+    leftPanel: {
+      eyebrow: "Create Your Account",
+      tagline: "You're not alone\non this journey.",
+    },
+    stepTitles: {
+      privacy: "Before we begin",
+      profile: "About you",
+      tooYoung: "Age restriction",
+      guardian: "Guardian consent",
+      guardianOtp: "Guardian verification",
+      credentials: "Set up sign-in",
+      emailOtp: "Confirm your email",
+      phone: "Verify your phone",
+      verifiedSuccessfully: "Phone verified",
+      userRole: "Your role",
+      cgRelationship: "Relationship",
+      cgPatientAge: "Patient's age",
+      diagnosis: "Diagnosis",
+      medicalCenter: "Medical center",
+      address: "Location",
+      createProfile: "Create profile",
+      profilePic: "Profile photo",
+      about: "About",
+      interests: "Interests",
+      languages: "Languages",
+      photos: "Photos",
+      loading: "Setting up",
+      allSet: "All set",
+    },
+    intro: {
+      eyebrow: "Create Your Account",
+      heading: "Welcome to CancerBuddy",
+      body: "Connect with patients, caregivers, and survivors who truly understand your journey. We'll guide you through a few quick steps to set up your account.",
+      timeNote: "Takes about 5 minutes · you can save progress and continue later.",
+      version: "v1.0",
+      highlights: {
+        connectTitle: "Real peer support",
+        connectBody:
+          "Meet people walking the same path — patients, caregivers, and survivors.",
+        privateTitle: "Private & secure",
+        privateBody:
+          "Your information is encrypted and only shared with the people you choose.",
+        flexibleTitle: "On your terms",
+        flexibleBody:
+          "Skip anything you'd rather not share — you can fill it in later from your profile.",
+      },
+      startCta: "Get started",
+    },
+    privacy: {
+      eyebrow: "Policies",
+      heading: "Before we begin",
+      body: "Review each document, then confirm to continue setting up your account.",
+      view: "View",
+      acceptAll: "I have read and accept all three policies above.",
+    },
+    profile: {
+      heading: "About you",
+      sub: "We use your name and date of birth to personalise your experience and connect you with relevant peer groups.",
+      firstNameLabel: "First name",
+      firstNamePlaceholder: "Your first name",
+      lastNameLabel: "Last name",
+      lastNamePlaceholder: "Your last name",
+      dateOfBirthLabel: "Date of birth",
+      bornHint: "Born {month} {year}",
+      pronounsHint:
+        "Pronouns are optional — you can always update this from your profile.",
+      continueDisabledTitle:
+        "Please fill in your name, last name, and date of birth.",
+    },
+    tooYoung: {
+      heading: "We're sorry",
+      body: "CancerBuddy requires users to be at least 8 years old. Please come back when you're a little older.",
+      backCta: "Go back",
+    },
+    guardian: {
+      heading: "Guardian consent required",
+      sub: "Since you're under 13, a parent or guardian must give their consent before you can create an account.",
+      fullNameLabel: "Guardian's full name",
+      fullNamePlaceholder: "Enter guardian's full name",
+      emailLabel: "Guardian's email address",
+      emailPlaceholder: "guardian@example.com",
+      consentLabel: "I consent to my child creating a CancerBuddy account",
+      supervisionLabel: "I agree to supervise my child's use of the platform",
+      sendCta: "Send verification code",
+      sending: "Sending…",
+    },
+    guardianOtp: {
+      heading: "Verify your guardian",
+      sub: "We sent a {length}-digit code to {email}. Ask your parent or guardian to share it with you.",
+      resendIn: "Resend in {seconds}s",
+      resendCode: "Resend code",
+      verify: "Verify & continue",
+      verifying: "Verifying…",
+    },
+    credentials: {
+      heading: "Set up sign-in",
+      sub: "Your email and password keep your account secure.",
+      emailLabel: "Email address",
+      emailPlaceholder: "name@example.com",
+      emailHint: "We'll send a confirmation code here.",
+      passwordLabel: "Password",
+      passwordPlaceholder: "Create a strong password",
+      confirmPasswordLabel: "Confirm password",
+      confirmPasswordPlaceholder: "Re-enter your password",
+    },
+    emailOtp: {
+      heading: "Confirm your email",
+      sub: "We sent a {length}-digit code to {email}.",
+      resumeHint:
+        "You already started signing up with this email. Enter the verification code we sent you, or tap Resend code.",
+      changeEmail: "← Change email",
+      resendIn: "Resend in {seconds}s",
+      resendCode: "Resend code",
+      submit: "Verify email",
+      submitting: "Verifying…",
+    },
+    phone: {
+      heading: "Verify your phone",
+      sub: "We'll text you a one-time code. Your number stays private — it isn't shown to other members.",
+      phoneInputLabel: "Mobile phone number",
+      codePromptLead: "Enter the {length}-digit code sent to",
+      sendCode: "Send code",
+      resend: "Resend",
+      resendIn: "Resend in {seconds}s",
+      verify: "Verify & continue",
+      verifying: "Verifying…",
+    },
+    verifiedSuccessfully: {
+      eyebrow: "Phone verified",
+      heading: "You're verified, {name}!",
+      body: "Phone number confirmed. Next we'll set up your profile so we can match you with the right buddies.",
+      continueCta: "Continue",
+    },
+    userRole: {
+      eyebrow: "Your status",
+      heading: "What's your current status?",
+      sub: "This helps us match you with the right peers and groups.",
+      patient: { title: "I've been diagnosed", body: "I'm a patient, currently in treatment or about to start" },
+      caregiver: { title: "I'm taking care of someone", body: "I'm a caregiver for a family member or friend" },
+      survivor: { title: "I'm a survivor", body: "I've completed treatment, and I'm in remission" },
+      caregiverHiddenHint: "Caregiver option is available for users 13 and older.",
+    },
+    cgRelationship: {
+      heading: "Your relationship to the patient",
+      sub: "How are you related to the person you're caring for?",
+      sectionLabel: "Relationship",
+      selectRelationship: "Select your relationship",
+      searchRelationships: "Search relationships…",
+    },
+    cgPatientAge: {
+      heading: "Patient's birth date",
+      sub: "Enter the birth month and year of the person you're caring for.",
+      sub2: "This is optional — you can skip it.",
+      skipLink: "Skip this step",
+    },
+    diagnosis: {
+      heading: "Your diagnosis",
+      sub: "Sharing info makes your recommendations better.",
+      myDiagnosis: "My diagnosis",
+      currentlyIm: "Currently I'm",
+      myTreatment: "My treatment",
+      mySideEffects: "My side effects",
+      sideEffectsHint: "If there are any side effects related to your diagnosis, please add them.",
+      inRemissionSince: "In remission since",
+      addDiagnosis: "Add a diagnosis",
+      addAnotherDiagnosis: "Add another diagnosis",
+      selectStatus: "Select your current status",
+      addTreatment: "Add a treatment",
+      addAnotherTreatment: "Add another treatment",
+      addSideEffect: "Add a side effect",
+      addAnotherSideEffect: "Add another side effect",
+      treatmentLocked: "Select your status above to unlock this section",
+      searchDiagnoses: "Search 173 diagnoses…",
+      searchStatuses: "Search statuses…",
+      searchTreatments: "Search treatments…",
+      searchSideEffects: "Search side effects…",
+    },
+    medicalCenter: {
+      heading: "Your medical team",
+      sub: "Where are you or your patient being treated? You can add more later from your profile.",
+      hospitalsLabel: "Hospital / Medical center",
+      hospitalsPlaceholder: "Search hospitals…",
+      addHospital: "Add a hospital or medical center",
+      addAnotherHospital: "Add another hospital",
+      selectHospital: "Select a hospital or medical center",
+      searchHospitals: "Search hospitals…",
+      supportOrgsLabel: "Support organization",
+      supportOrgsPlaceholder: "Search organizations…",
+      addSupportOrg: "Add a support organization",
+      addAnotherSupportOrg: "Add another support organization",
+      selectSupportOrg: "Select a support organization",
+      searchSupportOrgs: "Search organizations…",
+      skipLink: "Skip this step",
+      skipNote: "You can add these from your profile later.",
+    },
+    address: {
+      heading: "Your location",
+      sub: "We use your location to suggest local peer groups and events.",
+      zipcodeLabel: "Zip code",
+      zipcodePlaceholder: "Zip Code",
+      cityLabel: "City",
+      cityPlaceholder: "City",
+      stateLabel: "State",
+      statePlaceholder: "State",
+      zipNotFound: "Hmm, that zip code is not on the list yet. Please skip this step for now.",
+      zipSearching: "Loading cities…",
+    },
+    createProfile: {
+      heading: "Glad you're here, {name}!",
+      body1: "Your CancerBuddy account is ready!",
+      body2: "Now you can create your profile so you can get matched with buddies.",
+      cta: "Create profile",
+    },
+    profilePic: {
+      heading: "Add a profile photo",
+      sub: "A photo helps others recognise you and builds trust in the community.",
+      changePhoto: "Change photo",
+      mayLater: "Maybe later",
+    },
+    about: {
+      heading: "About you",
+      sub: "Tell the community a bit about yourself.",
+      bioLabel: "Bio",
+      bioPlaceholder: "Write a short intro — interests, what you're going through, or anything you'd like others to know…",
+      bioCounter: "{length} / {max}",
+      cancerlossLabel: "Coping with cancer loss",
+      copingLabel: "Who did you lose?",
+      copingPlaceholder: "Select who you lost…",
+      selectCoping: "Select who you lost",
+      searchCoping: "Search options…",
+      collegeLabel: "Currently in college or university",
+      universityLabel: "University / College",
+      universityPlaceholder: "Type to search for your university…",
+      searchUniversities: "Search universities…",
+      selectUniversity: "Search for your university or college",
+      mayLater: "Maybe later",
+    },
+    interests: {
+      heading: "Your interests",
+      sub: "Select topics you enjoy — we'll use them to find better buddy matches.",
+      mayLater: "Maybe later",
+      tapToSelect: "Tap to select",
+    },
+    languages: {
+      heading: "Languages you speak",
+      sub: "We use this to connect you with peers who share your language.",
+      mayLater: "Maybe later",
+    },
+    photos: {
+      heading: "Add photos",
+      sub: "Share up to 6 photos that represent you — your hobbies, travels, family, or anything that tells your story.",
+      addPhoto: "Add photo",
+      mayLater: "Maybe later",
+      removePhoto: "Remove",
+    },
+    loading: {
+      heading: "Your profile is getting ready…",
+      sub: "Hang tight — we're finishing a few things in the background.",
+    },
+    allSet: {
+      heading: "You're all set!",
+      sub: "Your profile is live. We've found some buddies and groups you might like — let's go!",
+      findBuddies: "Find buddies",
+      exploreGroups: "Explore groups",
+    },
+    serverError: {
+      somethingWrong: "Something went wrong. Please try again.",
+      couldntResend: "Couldn't resend right now. Please try again in a moment.",
+      codeMismatch: "That code didn't match. Please try again.",
+      codeExpired: "That code expired. Please request a new one.",
+      alreadyExistsGoogle:
+        "An account with this email already exists. Please sign in with Google.",
+      alreadyExistsApple:
+        "An account with this email already exists. Please sign in with Apple.",
+      alreadyExistsDefault:
+        "An account with this email already exists. Try signing in instead.",
+      existingEmailWrongPassword:
+        "An account with this email already exists, but that password does not match. Enter the password you used when you started signing up, or use Forgot password when it is available.",
+      missingPasswordAfterRefresh:
+        "Your password is missing (for example after a refresh). Go back to the previous step, re-enter your password, then continue.",
+      profileFieldErrors:
+        "Please fill out all required profile fields correctly.",
+      credentialFieldErrors: "Please fix the errors in your credentials.",
+      phoneInvalid: "Please choose a country and enter a valid number.",
+      phoneAlreadyInUse:
+        "This phone number is already linked to another account. Please use a different number.",
+      phoneCheckAndRetry:
+        "That number doesn't look right. Please check and try again.",
+      phoneBecameInvalid: "Phone number became invalid. Please re-enter it.",
+      roleRequired: "Please select a role to continue.",
+      relationshipRequired: "Please select your relationship to the patient.",
+      diagnosisRequired: "Please fill in the required diagnosis fields.",
+      addressRequired: "Please fill in all address fields.",
+      finalizeFailed: "Something went wrong saving your profile. Please try again.",
+      photoUploadFailed: "Photo upload failed. Please try a different image.",
+      guardianSaveFailed: "Couldn't save guardian information. Please try again.",
+      guardianCodeMismatch: "That code didn't match. Please try again.",
     },
   },
 

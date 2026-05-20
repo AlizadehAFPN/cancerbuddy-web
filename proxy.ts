@@ -2,7 +2,7 @@
  * proxy.ts — Next.js 16 auth routing (replaces middleware.ts).
  *
  * Responsibilities:
- *  1. Redirect authenticated users away from auth pages (/, /login, /signup…)
+ *  1. Redirect authenticated users away from auth pages (/, /login, /register…)
  *  2. Redirect unauthenticated users away from protected app pages (/dashboard…)
  *
  * Current state: the session check is a TODO stub — auth pages are freely
@@ -15,7 +15,7 @@ import type { NextRequest } from "next/server";
 /* ── Route classification ── */
 
 /** Pages that logged-in users should be redirected away from. */
-const AUTH_ROUTES = ["/", "/login", "/signup", "/forgot-password"];
+const AUTH_ROUTES = ["/", "/login", "/register", "/forgot-password"];
 
 /** Path prefixes that require an active session. */
 const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/groups", "/feed"];

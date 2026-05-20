@@ -12,7 +12,6 @@ import {
   credentialsSchema,
   otpSchema as emailOtpSchema,
 } from "@/lib/signup/validation";
-import { PRONOUN_OPTIONS } from "@/lib/signup/constants";
 import { t } from "@/lib/i18n";
 
 /**
@@ -132,7 +131,7 @@ export const hostRegisterFormSchema = z.object({
   lastName: z.string(),
   birthMonth: z.string(),
   birthYear: z.string(),
-  pronouns: z.enum(PRONOUN_OPTIONS).or(z.literal("")),
+  pronouns: z.string(),
   email: z.string(),
   password: z.string(),
   confirmPassword: z.string(),

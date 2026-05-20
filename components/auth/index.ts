@@ -1,4 +1,5 @@
 export { OtpInput } from "./OtpInput";
+export { HelpDialog } from "./HelpDialog";
 export { MonthYearPicker } from "./MonthYearPicker";
 export { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 export { PronounPicker } from "./PronounPicker";
