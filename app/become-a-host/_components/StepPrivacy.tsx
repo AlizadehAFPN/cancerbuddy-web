@@ -9,6 +9,8 @@ import {
   t,
 } from "@/lib/i18n";
 
+/* ── Icons ─────────────────────────────────────────────────────────────── */
+
 function CheckIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -83,22 +85,26 @@ function IconTerms() {
   );
 }
 
-function ArrowRightIcon() {
+function ChevronRightIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-3.5 w-3.5"
+      className="h-4 w-4 text-cb-gray-400"
       fill="none"
-      stroke="currentColor"
-      strokeWidth={2.25}
-      strokeLinecap="round"
-      strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M5 12h14M12 5l7 7-7 7" />
+      <path
+        d="M9 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
+
+/* ── Props ─────────────────────────────────────────────────────────────── */
 
 interface Props {
   accepted: boolean;
@@ -112,21 +118,21 @@ const SECTIONS = [
   {
     href: "/privacy",
     title: PRIVACY_POLICY.title,
-    summary: PRIVACY_POLICY.summary,
+    summaryHint: PRIVACY_POLICY.summary[0]!,
     icon: IconPrivacy,
     accent: "bg-cb-blue/25 text-cb-gray-800 ring-1 ring-cb-blue/30",
   },
   {
     href: "/child-safety",
     title: CHILD_SAFETY.title,
-    summary: CHILD_SAFETY.summary,
+    summaryHint: CHILD_SAFETY.summary[0]!,
     icon: IconSafety,
     accent: "bg-cb-yellow/40 text-cb-black ring-1 ring-cb-yellow-600/25",
   },
   {
     href: "/terms",
     title: TERMS_OF_USE.title,
-    summary: TERMS_OF_USE.summary,
+    summaryHint: TERMS_OF_USE.summary[0]!,
     icon: IconTerms,
     accent: "bg-cb-gray-100 text-cb-gray-800 ring-1 ring-cb-gray-200",
   },
@@ -139,32 +145,41 @@ export function StepPrivacy({
   onBack,
   onContinue,
 }: Props) {
+  /* Plain onClick handlers — no <form onSubmit>. The submit-button +
+     onSubmit + watch chain was racing on Android, leaving Continue
+     visually enabled but acting on a stale closure. Direct onClick
+     is the simplest reliable path. */
   return (
     <div className="w-full">
       <header className="mb-4">
         <p className="font-body text-[11px] font-semibold uppercase tracking-[0.2em] text-cb-gray-400">
-          {t("register.privacy.eyebrow")}
+          {t("hostsRegister.privacy.eyebrow")}
         </p>
         <h1
           className="mt-1.5 font-heading font-bold text-cb-black tracking-tight"
           style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.875rem)", lineHeight: 1.15 }}
         >
-          {t("register.privacy.heading")}
+          {t("hostsRegister.privacy.heading")}
         </h1>
         <p className="mt-1.5 max-w-[44ch] font-body text-[14px] leading-relaxed text-cb-gray-600">
-          {t("register.privacy.body")}
+          {t("hostsRegister.privacy.body")}
         </p>
       </header>
 
-      <ul className="space-y-2.5">
+      <ul className="space-y-2">
         {SECTIONS.map((section) => {
           const Icon = section.icon;
           return (
-            <li
-              key={section.href}
-              className="rounded-2xl border border-cb-gray-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(36,36,36,0.04)]"
-            >
-              <div className="flex items-center gap-3">
+            <li key={section.href}>
+              <Link
+                href={section.href}
+                title={section.summaryHint}
+                className={[
+                  "group flex items-center gap-3 rounded-2xl border border-cb-gray-200/90 bg-white p-3.5 shadow-[0_1px_2px_rgba(36,36,36,0.04)] transition-all duration-200",
+                  "hover:border-cb-gray-300 hover:shadow-[0_4px_14px_rgba(36,36,36,0.07)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2",
+                ].join(" ")}
+              >
                 <span
                   className={[
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
@@ -174,38 +189,30 @@ export function StepPrivacy({
                 >
                   <Icon />
                 </span>
-                <h2 className="min-w-0 flex-1 font-heading text-[15px] font-semibold leading-snug text-cb-black">
-                  {section.title}
-                </h2>
-              </div>
-
-              <ul className="mt-3 space-y-1.5">
-                {section.summary.map((point) => (
-                  <li
-                    key={point}
-                    className="flex gap-2 font-body text-[13.5px] leading-snug text-cb-gray-700"
-                  >
-                    <span
-                      className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-cb-gray-400"
-                      aria-hidden
-                    />
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={section.href}
-                className="group mt-3 inline-flex items-center gap-1.5 font-body text-[13px] font-semibold text-cb-gray-600 transition-colors hover:text-cb-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 rounded"
-              >
-                {t("register.privacy.readAll")}
-                <ArrowRightIcon />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-heading text-[15px] font-semibold leading-snug text-cb-black line-clamp-2">
+                    {section.title}
+                  </span>
+                </span>
+                <span
+                  className="flex shrink-0 items-center gap-0.5 font-body text-[13px] font-semibold text-cb-gray-500 transition-colors group-hover:text-cb-black"
+                  aria-hidden
+                >
+                  {t("hostsRegister.privacy.view")}
+                  <ChevronRightIcon />
+                </span>
               </Link>
             </li>
           );
         })}
       </ul>
 
+      {/* Accept toggle.
+          The whole pill is a tap target. We use a custom button (not a
+          label-wrapped <input>) so the tap goes straight to onClick on
+          Android — labels sometimes need a second tap to commit the
+          checkbox state on Android Chrome. The visible "check mark" is
+          driven by `accepted`, so feedback is immediate. */}
       <button
         type="button"
         role="checkbox"
@@ -231,42 +238,37 @@ export function StepPrivacy({
           {accepted ? <CheckIcon className="h-3 w-3" /> : null}
         </span>
         <span className="font-body text-[13.5px] font-medium leading-snug text-cb-black">
-          {t("register.privacy.acceptAll")}
+          {t("hostsRegister.privacy.acceptAll")}
         </span>
       </button>
 
-      {/* Sticky action bar — stays visible while the cards scroll behind it.
-          Negative bottom margin + matching padding lets the white bar cover
-          the scroll container's bottom padding so it sits flush. */}
-      <div className="sticky bottom-0 z-10 mt-6 -mb-6 border-t border-cb-gray-100/80 bg-white pt-3 pb-6 sm:-mb-5 sm:pb-5">
-        {error ? (
-          <p role="alert" className="mb-2.5 font-body text-sm text-cb-danger">
-            {error}
-          </p>
-        ) : null}
+      {error ? (
+        <p role="alert" className="mt-3 font-body text-sm text-cb-danger">
+          {error}
+        </p>
+      ) : null}
 
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            size="lg"
-            onClick={onBack}
-            className="touch-manipulation"
-          >
-            {t("common.back")}
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="lg"
-            fullWidth
-            onClick={onContinue}
-            disabled={!accepted}
-            className="touch-manipulation"
-          >
-            {t("common.continue")}
-          </Button>
-        </div>
+      <div className="mt-6 flex items-center gap-3">
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          onClick={onBack}
+          className="touch-manipulation"
+        >
+          {t("common.back")}
+        </Button>
+        <Button
+          type="button"
+          variant="primary"
+          size="lg"
+          fullWidth
+          onClick={onContinue}
+          disabled={!accepted}
+          className="touch-manipulation"
+        >
+          {t("common.continue")}
+        </Button>
       </div>
     </div>
   );

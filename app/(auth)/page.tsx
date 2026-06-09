@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { t } from "@/lib/i18n";
+import WelcomeSplash from "./WelcomeSplash";
 
 export const metadata: Metadata = {
   title: t("metadata.landingTitle"),
@@ -29,24 +30,6 @@ function MenuIcon() {
       <line x1="3" y1="6" x2="21" y2="6" />
       <line x1="3" y1="12" x2="21" y2="12" />
       <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-  );
-}
-
-function ArrowRightIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="w-4 h-4"
-      aria-hidden
-    >
-      <path d="M5 12h14M12 5l7 7-7 7" />
     </svg>
   );
 }
@@ -81,22 +64,6 @@ export default function LandingPage() {
               priority
             />
           </Link>
-
-          <div className="hidden sm:flex items-center gap-2">
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm font-medium text-cb-gray-700 hover:text-cb-black transition-colors rounded-lg hover:bg-cb-gray-100"
-            >
-              {t("common.signIn")}
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-cb-black text-white text-sm font-heading font-medium transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700"
-            >
-              {t("common.getStarted")}
-              <ArrowRightIcon />
-            </Link>
-          </div>
 
           <button
             className="sm:hidden shrink-0 p-2 text-cb-black rounded-lg hover:bg-cb-gray-100 transition-colors"
@@ -160,23 +127,7 @@ export default function LandingPage() {
                   {t("landing.heroBody")}
                 </p>
 
-                <div className="mt-5 flex flex-wrap gap-3 sm:mt-6 sm:gap-4">
-                  <Link
-                    href="/register"
-                    className="inline-flex h-12 items-center gap-2 rounded-full bg-cb-black px-6 font-heading text-[0.9375rem] font-medium text-white transition-colors hover:bg-cb-gray-800 active:bg-cb-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 sm:h-[3.25rem] sm:px-8 sm:text-base"
-                  >
-                    {t("landing.ctaPrimary")}
-                    <ArrowRightIcon />
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="inline-flex h-12 items-center gap-2 rounded-full border-2 border-cb-black bg-transparent px-6 font-heading text-[0.9375rem] font-medium text-cb-black transition-colors hover:bg-black/5 active:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 sm:h-[3.25rem] sm:px-8 sm:text-base"
-                  >
-                    {t("landing.ctaSecondary")}
-                  </Link>
-                </div>
-
-                <p className="mt-4 text-sm text-cb-gray-600 font-body sm:mt-5">
+                <p className="mt-5 text-sm text-cb-gray-600 font-body sm:mt-6">
                   {t("landing.supportedBy")}{" "}
                   <span className="font-medium text-cb-black">
                     {t("common.bmcfName")}
@@ -194,22 +145,8 @@ export default function LandingPage() {
                 </p> */}
               </div>
 
-              {/* ── Right: Visual ───────────────────────────── */}
-              <div
-                className="order-1 flex min-h-0 justify-center lg:order-2 lg:justify-end"
-                style={{ animation: "hero-fade-in 0.8s ease-out 0.15s both" }}
-              >
-                <div className="relative w-full max-w-[min(100%,420px)] lg:max-w-none">
-                  <Image
-                    src="/images/welcome.png"
-                    alt={t("common.cancerBuddyCommunityIllustratedAlt")}
-                    width={540}
-                    height={600}
-                    priority
-                    className="h-auto w-full object-contain max-h-[min(38vh,340px)] sm:max-h-[min(42vh,400px)] lg:max-h-[min(58vh,520px)]"
-                  />
-                </div>
-              </div>
+              {/* ── Right: Splash animation (mobile SplashScreen port) ── */}
+              <WelcomeSplash />
             </div>
           </div>
         </section>

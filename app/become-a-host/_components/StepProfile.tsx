@@ -3,7 +3,7 @@
 import { useFormContext } from "react-hook-form";
 import { Button, Input } from "@/components/ui";
 import { MonthYearPicker, PronounPicker } from "@/components/auth";
-import type { UserRegisterFormValues } from "@/lib/user-signup/validation";
+import type { HostRegisterFormValues } from "@/lib/host-signup/validation";
 import { t, tList } from "@/lib/i18n";
 
 interface Props {
@@ -12,9 +12,8 @@ interface Props {
 }
 
 /**
- * Step 2 — name, birth month/year, pronouns. Same rules as the host flow and
- * mobile `PrivacyTermsIntroduction` — combined name + birth + pronouns on a
- * single screen rather than three.
+ * Step 2 — name, birth month/year, pronouns. Same rules as the regular
+ * signup flow; only the heading copy differs to set the host context.
  */
 export function StepProfile({ onBack, onContinue }: Props) {
   const {
@@ -22,7 +21,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
     watch,
     setValue,
     formState: { errors },
-  } = useFormContext<UserRegisterFormValues>();
+  } = useFormContext<HostRegisterFormValues>();
 
   const firstName = watch("firstName") ?? "";
   const lastName = watch("lastName") ?? "";
@@ -48,22 +47,22 @@ export function StepProfile({ onBack, onContinue }: Props) {
             lineHeight: 1.15,
           }}
         >
-          {t("register.profile.heading")}
+          {t("hostsRegister.profile.heading")}
         </h1>
       </div>
 
       <div className="grid gap-x-4 sm:grid-cols-2">
         <Input
-          label={t("register.profile.firstNameLabel")}
-          placeholder={t("register.profile.firstNamePlaceholder")}
+          label={t("hostsRegister.profile.firstNameLabel")}
+          placeholder={t("hostsRegister.profile.firstNamePlaceholder")}
           autoComplete="given-name"
           autoFocus
           error={errors.firstName?.message}
           {...register("firstName")}
         />
         <Input
-          label={t("register.profile.lastNameLabel")}
-          placeholder={t("register.profile.lastNamePlaceholder")}
+          label={t("hostsRegister.profile.lastNameLabel")}
+          placeholder={t("hostsRegister.profile.lastNamePlaceholder")}
           autoComplete="family-name"
           error={errors.lastName?.message}
           {...register("lastName")}
@@ -73,10 +72,9 @@ export function StepProfile({ onBack, onContinue }: Props) {
       <div className="mb-5 grid grid-cols-1 items-start gap-x-4 sm:grid-cols-2">
         <MonthYearPicker
           className="!mb-0"
-          label={t("register.profile.dateOfBirthLabel")}
+          label={t("hostsRegister.profile.dateOfBirthLabel")}
           month={birthMonth}
           year={birthYear}
-          overrideMaxYear={new Date().getFullYear()}
           onChange={(m, y) => {
             setValue("birthMonth", m, {
               shouldValidate: true,
@@ -90,7 +88,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
           error={errors.birthMonth?.message ?? errors.birthYear?.message}
           hint={
             birthMonth !== "" && birthYear !== ""
-              ? t("register.profile.bornHint", {
+              ? t("hostsRegister.profile.bornHint", {
                   month: monthNames[Number(birthMonth) - 1] ?? "",
                   year: birthYear,
                 })
@@ -109,7 +107,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
       </div>
 
       <p className="mb-6 mt-0.5 font-body text-[12px] text-cb-gray-400">
-        {t("register.profile.pronounsHint")}
+        {t("hostsRegister.profile.pronounsHint")}
       </p>
 
       <div className="flex items-center gap-3">
@@ -131,7 +129,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
           disabled={!canContinue}
           title={
             !canContinue
-              ? t("register.profile.continueDisabledTitle")
+              ? t("hostsRegister.profile.continueDisabledTitle")
               : undefined
           }
           className="touch-manipulation"
