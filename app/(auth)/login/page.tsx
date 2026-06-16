@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +10,6 @@ import { loginSchema, type LoginFormData } from "@/lib/validations";
 import { Button, Input } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { defaultLoginService } from "@/lib/login/service";
-import type { LoginResult } from "@/lib/login/types";
 import { useUserSignupStore } from "@/lib/user-signup/store";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -71,22 +70,6 @@ function LockIcon() {
   );
 }
 
-function CheckCircleFilledIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="w-12 h-12" aria-hidden>
-      <circle cx="24" cy="24" r="24" fill="#10b981" />
-      <polyline
-        points="13 25 20 32 35 16"
-        fill="none"
-        stroke="white"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function WarningIcon() {
   return (
     <svg
@@ -103,102 +86,6 @@ function WarningIcon() {
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Registration-Complete modal
-   Shown when sign-in confirms the user's onboarding is fully finished.
-───────────────────────────────────────────────────────────────────────── */
-
-interface RegistrationCompleteModalProps {
-  onClose: () => void;
-  onContinue: () => void;
-}
-
-function RegistrationCompleteModal({
-  onClose,
-  onContinue,
-}: RegistrationCompleteModalProps) {
-  const ctaRef = useRef<HTMLButtonElement>(null);
-
-  /* Auto-focus primary CTA on open */
-  useEffect(() => {
-    ctaRef.current?.focus();
-  }, []);
-
-  /* Close on ESC */
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="presentation"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-cb-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-
-      {/* Dialog */}
-      <div
-        role="dialog"
-        aria-modal
-        aria-labelledby="reg-complete-heading"
-        className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden"
-        style={{ animation: "hero-fade-up 0.3s ease-out both" }}
-      >
-        {/* Colour strip at top */}
-        <div className="h-1.5 w-full bg-emerald-500" />
-
-        <div className="flex flex-col items-center text-center px-8 pt-8 pb-7">
-          {/* Icon */}
-          <div className="mb-5">
-            <CheckCircleFilledIcon />
-          </div>
-
-          {/* Text */}
-          <h2
-            id="reg-complete-heading"
-            className="font-heading font-bold text-cb-black text-[1.5rem] leading-tight mb-2.5"
-          >
-            {t("login.registrationCompleteHeading")}
-          </h2>
-          <p className="font-body text-cb-gray-500 text-sm leading-relaxed max-w-[320px]">
-            {t("login.registrationCompleteSub")}
-          </p>
-
-          {/* CTAs */}
-          <div className="mt-7 w-full flex flex-col gap-2.5">
-            <Button
-              ref={ctaRef}
-              variant="primary"
-              size="lg"
-              fullWidth
-              onClick={onContinue}
-            >
-              {t("login.registrationCompleteCta")}
-            </Button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-sm font-body text-cb-gray-500 hover:text-cb-black transition-colors py-1"
-            >
-              {t("login.registrationCompleteClose")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -244,7 +131,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showNotConfirmed, setShowNotConfirmed] = useState(false);
-  const [doneResult, setDoneResult] = useState<LoginResult | null>(null);
 
   const {
     register,
@@ -267,10 +153,10 @@ export default function LoginPage() {
       });
 
       switch (result.status) {
-        /* ── Registration complete → show success modal ── */
+        /* ── Fully registered → go straight to the app home (Groups) ── */
         case "DONE":
-          setDoneResult(result);
-          setLoading(false);
+          router.push("/groups");
+          // Keep loading=true; the page unmounts as navigation completes.
           return;
 
         /* ── Phone not verified → resume phone-verification step ── */
@@ -312,14 +198,6 @@ export default function LoginPage() {
 
   return (
     <>
-      {/* ── Registration-complete overlay ── */}
-      {doneResult?.status === "DONE" && (
-        <RegistrationCompleteModal
-          onClose={() => setDoneResult(null)}
-          onContinue={() => router.push("/dashboard")}
-        />
-      )}
-
       <div className="fixed inset-0 z-0 flex h-dvh max-h-dvh min-h-0 w-full overflow-hidden overscroll-none">
 
         {/* ══════════════════════════════════════════════════════

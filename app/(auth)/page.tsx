@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { t } from "@/lib/i18n";
 import WelcomeSplash from "./WelcomeSplash";
+import MobileMenu from "./MobileMenu";
 
 export const metadata: Metadata = {
   title: t("metadata.landingTitle"),
@@ -12,40 +13,17 @@ export const metadata: Metadata = {
 const shellPad = "px-6 sm:px-8 lg:px-12";
 
 /* ─────────────────────────────────────────────────────────
-   Inline nav icon components (no external icon library)
-───────────────────────────────────────────────────────── */
-
-function MenuIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      className="w-6 h-6"
-      aria-hidden
-    >
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────
    Page — fills the viewport; document does not scroll.
    The yellow hero scrolls internally only if content overflows.
 ───────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
   return (
-    <div className="flex h-dvh max-h-dvh min-h-0 w-full flex-col overflow-hidden bg-white">
+    <div className="flex h-dvh max-h-dvh min-h-0 w-full flex-col overflow-hidden bg-cb-yellow">
       {/* ════════════════════════════════════════════════
           NAVIGATION
       ════════════════════════════════════════════════ */}
-      <header className="shrink-0 border-b border-cb-gray-200 bg-white">
+      <header className="shrink-0 bg-cb-yellow">
         <nav
           className={`mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 sm:h-16 ${shellPad}`}
           aria-label={t("common.mainNavigation")}
@@ -65,12 +43,7 @@ export default function LandingPage() {
             />
           </Link>
 
-          <button
-            className="sm:hidden shrink-0 p-2 text-cb-black rounded-lg hover:bg-cb-gray-100 transition-colors"
-            aria-label={t("common.openMenu")}
-          >
-            <MenuIcon />
-          </button>
+          <MobileMenu />
         </nav>
       </header>
 
@@ -88,61 +61,56 @@ export default function LandingPage() {
           />
 
           <div
-            className={`relative mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-y-auto overscroll-y-contain ${shellPad} py-4 sm:py-5 lg:py-6`}
+            className={`relative mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden ${shellPad} py-4 sm:py-5 lg:py-6`}
           >
             <div className="grid min-h-0 w-full flex-1 grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10 xl:gap-14">
-              {/* ── Left: Content ───────────────────────────── */}
+              {/* ── Left: Content (hidden on mobile, shown on web) ──── */}
               <div
-                className="order-2 flex min-h-0 flex-col justify-center lg:order-1"
+                className="order-2 hidden min-h-0 flex-col justify-center lg:order-1 lg:flex"
                 style={{ animation: "hero-fade-up 0.65s ease-out both" }}
               >
-                <div className="mb-4 inline-flex items-center gap-2.5 self-start sm:mb-5">
-                  <span className=" mt-2 text-[11px] font-medium text-cb-gray-600 tracking-[0.12em] uppercase">
+                {/* Eyebrow — powered by */}
+                <div className="mb-6 inline-flex items-center gap-2.5 self-start rounded-full bg-white/55 py-1.5 pe-4 ps-3.5 ring-1 ring-black/5 backdrop-blur-sm">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cb-gray-600">
                     {t("common.poweredBy")}
                   </span>
                   <Image
                     src="/images/BMCF_LOGO_WIDE.svg"
                     alt={t("common.bmcfLogoAlt")}
-                    width={88}
-                    height={30}
+                    width={84}
+                    height={28}
                     className="object-contain"
                   />
                 </div>
 
                 <h1
-                  className="font-heading font-bold text-cb-black tracking-tight leading-[1.06]"
+                  className="font-heading font-bold text-cb-black tracking-tight leading-[1.03]"
                   style={{
-                    fontSize: "clamp(1.85rem, 4.5vw + 0.5rem, 3.75rem)",
+                    fontSize: "clamp(2rem, 4vw + 0.5rem, 3.75rem)",
                   }}
                 >
                   {t("landing.heroHeading")}
                 </h1>
 
                 <p
-                  className="mt-3 max-w-xl font-body leading-relaxed text-cb-gray-700 sm:mt-4"
+                  className="mt-5 max-w-lg font-body leading-relaxed text-cb-gray-700"
                   style={{
-                    fontSize: "clamp(0.9375rem, 1.1vw + 0.65rem, 1.125rem)",
+                    fontSize: "clamp(1rem, 0.7vw + 0.8rem, 1.1875rem)",
                   }}
                 >
                   {t("landing.heroBody")}
                 </p>
 
-                <p className="mt-5 text-sm text-cb-gray-600 font-body sm:mt-6">
-                  {t("landing.supportedBy")}{" "}
-                  <span className="font-medium text-cb-black">
-                    {t("common.bmcfName")}
-                  </span>
-                </p>
-
-                {/* <p className="mt-3 text-sm text-cb-gray-600 font-body">
-                  {t("landing.hostInviteLead")}{" "}
-                  <Link
-                    href="/become-a-host"
-                    className="font-medium text-cb-black underline underline-offset-2 hover:text-cb-gray-700 transition-colors"
-                  >
-                    {t("landing.hostInviteCta")}
-                  </Link>
-                </p> */}
+                {/* Supported-by — quiet footnote with a hairline accent */}
+                <div className="mt-8 flex items-center gap-3 border-t border-cb-black/10 pt-5">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-cb-black/70" aria-hidden />
+                  <p className="font-body text-sm text-cb-gray-600">
+                    {t("landing.supportedBy")}{" "}
+                    <span className="font-medium text-cb-black">
+                      {t("common.bmcfName")}
+                    </span>
+                  </p>
+                </div>
               </div>
 
               {/* ── Right: Splash animation (mobile SplashScreen port) ── */}

@@ -31,15 +31,15 @@ export function ensureAmplifyConfigured(): void {
       process.env.NEXT_PUBLIC_AWS_APPSYNC_AUTHENTICATION_TYPE ??
       "AMAZON_COGNITO_USER_POOLS",
     aws_appsync_apiKey: process.env.NEXT_PUBLIC_AWS_APPSYNC_API_KEY,
-    Auth: {
-      cookieStorage: {
-        domain: typeof window !== "undefined" ? window.location.hostname : "localhost",
-        path: "/",
-        expires: 365,
-        sameSite: "lax",
-        secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
-      },
-    },
+    // NOTE: Amplify keeps Cognito tokens in its default storage (localStorage)
+    // on purpose. We do NOT use `Auth.cookieStorage`: that wrote the full
+    // id/access/refresh JWT bundle into cookies on every request, which on the
+    // shared `localhost` origin pushed the request headers past Node's ~16 KB
+    // limit and made the dev server answer with `431 Request Header Fields Too
+    // Large` (an empty body → blank page). Nothing reads these tokens
+    // server-side yet (proxy.ts session check is a stub), so cookies bought us
+    // nothing. When server-side auth is wired up, set a single minimal session
+    // cookie instead of persisting the whole Amplify token bundle.
     ...(s3Bucket && s3Region
       ? {
           Storage: {

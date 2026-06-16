@@ -457,6 +457,7 @@ function RegisterController() {
             diagnosis: values.diagnosis,
             treatmentStatus: values.treatmentStatus,
             inRemissionSince: values.inRemissionSince,
+            treatments: values.treatments,
           });
           if (!result.success) {
             toast.error(t("register.serverError.diagnosisRequired"));

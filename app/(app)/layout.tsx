@@ -1,10 +1,16 @@
+import AuthGuard from "@/components/auth/AuthGuard";
+import AppShell from "@/components/app-shell/AppShell";
+import StreamChatProvider from "@/lib/chat/StreamChatProvider";
+
 /**
- * Authenticated app layout — placeholder for future navigation chrome.
+ * Authenticated app layout.
  *
- * When this layout grows it will contain:
- *  • Top navigation bar
- *  • Bottom tab bar (matching the mobile drawer/tab navigator)
- *  • Session guard (redirect to "/" if unauthenticated)
+ *  • <AuthGuard mode="protected"> redirects to "/" when there is no valid
+ *    Cognito session (tokens live in localStorage, so this is checked
+ *    client-side rather than in the proxy).
+ *  • <AppShell> is the responsive navigation chrome: a left sidebar on desktop,
+ *    a bottom tab bar on mobile, and a shared account menu — the web port of
+ *    the mobile bottom-tab + hamburger-drawer navigation.
  */
 export default function AppLayout({
   children,
@@ -12,10 +18,10 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col flex-1 min-h-dvh bg-white">
-      {/* TODO: <AppNav /> */}
-      <main className="flex flex-col flex-1">{children}</main>
-      {/* TODO: <AppTabBar /> */}
-    </div>
+    <AuthGuard mode="protected" redirectTo="/">
+      <StreamChatProvider>
+        <AppShell>{children}</AppShell>
+      </StreamChatProvider>
+    </AuthGuard>
   );
 }

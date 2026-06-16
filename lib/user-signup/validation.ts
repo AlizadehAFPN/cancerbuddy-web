@@ -136,6 +136,8 @@ export const diagnosisSchemaPatient = z.object({
 export const diagnosisSchemaSurvivor = z.object({
   diagnosis: z.string().min(1, "Please select a diagnosis"),
   inRemissionSince: z.string().min(7, "Please enter the remission date"),
+  // Treatment section is always unlocked for survivors, so it is required.
+  treatments: z.string().min(1, "Please add at least one treatment"),
 });
 
 export const addressSchema = z.object({

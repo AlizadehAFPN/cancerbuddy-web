@@ -97,7 +97,11 @@ export default function SupportPage() {
             {t("common.back")}
           </Link>
 
-          <Link href="/" className="lg:hidden" aria-label={t("common.cancerBuddyHome")}>
+          <Link
+            href="/"
+            className="lg:hidden"
+            aria-label={t("common.cancerBuddyHome")}
+          >
             <Image
               src="/images/trademark-logo.png"
               alt={t("common.cancerBuddyAlt")}
@@ -125,7 +129,10 @@ export default function SupportPage() {
             <div className="mb-8">
               <h1
                 className="font-heading font-bold text-cb-black tracking-tight"
-                style={{ fontSize: "clamp(1.75rem, 2.5vw, 2.25rem)", lineHeight: 1.1 }}
+                style={{
+                  fontSize: "clamp(1.75rem, 2.5vw, 2.25rem)",
+                  lineHeight: 1.1,
+                }}
               >
                 {t("support.heading")}
               </h1>

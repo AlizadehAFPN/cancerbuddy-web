@@ -31,7 +31,7 @@ export default function WelcomeSplash() {
   }, []);
 
   return (
-    <div className="order-1 flex min-h-0 flex-col items-center justify-center gap-7 pb-10 sm:pb-14 lg:order-2 lg:gap-9 lg:pb-20">
+    <div className="order-1 flex min-h-0 flex-col items-center justify-center gap-5 sm:gap-6 lg:order-2 lg:gap-7">
       {/* 1 — Logo drops in from the top */}
       <div
         className="relative w-full max-w-[min(100%,420px)] transition-all duration-[800ms] ease-out lg:max-w-none"

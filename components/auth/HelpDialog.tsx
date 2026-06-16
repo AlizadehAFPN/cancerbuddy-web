@@ -12,8 +12,16 @@ import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 
 function LifeBuoyIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <circle cx="12" cy="12" r="10" />
       <circle cx="12" cy="12" r="4" />
       <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
@@ -26,8 +34,16 @@ function LifeBuoyIcon({ className }: { className?: string }) {
 
 function XIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
@@ -36,8 +52,16 @@ function XIcon({ className }: { className?: string }) {
 
 function ArrowLeftIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <line x1="19" y1="12" x2="5" y2="12" />
       <polyline points="12 19 5 12 12 5" />
     </svg>
@@ -46,8 +70,16 @@ function ArrowLeftIcon({ className }: { className?: string }) {
 
 function ChevronRightIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <polyline points="9 18 15 12 9 6" />
     </svg>
   );
@@ -55,8 +87,16 @@ function ChevronRightIcon({ className }: { className?: string }) {
 
 function IdCardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <rect x="2" y="5" width="20" height="14" rx="2" />
       <circle cx="8" cy="12" r="2" />
       <path d="M13 10h4M13 14h4" />
@@ -66,8 +106,16 @@ function IdCardIcon({ className }: { className?: string }) {
 
 function HelpCircleIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <circle cx="12" cy="12" r="10" />
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -77,8 +125,16 @@ function HelpCircleIcon({ className }: { className?: string }) {
 
 function AlertCircleIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="8" x2="12" y2="12" />
       <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -147,7 +203,9 @@ function RadioOption({
       >
         {selected && <span className="h-2.5 w-2.5 rounded-full bg-cb-black" />}
       </span>
-      <span className="font-body text-[14px] leading-snug text-cb-black">{label}</span>
+      <span className="font-body text-[14px] leading-snug text-cb-black">
+        {label}
+      </span>
     </label>
   );
 }
@@ -173,8 +231,12 @@ function MenuCard({
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-body text-[14px] font-semibold text-cb-black">{title}</p>
-        <p className="font-body text-[13px] leading-snug text-cb-gray-500">{description}</p>
+        <p className="font-body text-[14px] font-semibold text-cb-black">
+          {title}
+        </p>
+        <p className="font-body text-[13px] leading-snug text-cb-gray-500">
+          {description}
+        </p>
       </div>
       <ChevronRightIcon className="h-4 w-4 shrink-0 text-cb-gray-400" />
     </button>
@@ -374,7 +436,8 @@ export function HelpDialog() {
 
   function validateContact(): boolean {
     const errs: FieldErrors = {};
-    if (!fields.helpFullName.trim()) errs.helpFullName = "Your name is required.";
+    if (!fields.helpFullName.trim())
+      errs.helpFullName = "Your name is required.";
     if (!fields.helpEmail.trim()) {
       errs.helpEmail = "Your email is required.";
     } else if (!EMAIL_RE.test(fields.helpEmail.trim())) {
@@ -386,8 +449,10 @@ export function HelpDialog() {
 
   function validateOther(): boolean {
     const errs: FieldErrors = {};
-    if (!fields.helpOtherProblem.trim()) errs.helpOtherProblem = "Please describe the issue.";
-    if (!fields.helpFullName.trim()) errs.helpFullName = "Your name is required.";
+    if (!fields.helpOtherProblem.trim())
+      errs.helpOtherProblem = "Please describe the issue.";
+    if (!fields.helpFullName.trim())
+      errs.helpFullName = "Your name is required.";
     if (!fields.helpEmail.trim()) {
       errs.helpEmail = "Your email is required.";
     } else if (!EMAIL_RE.test(fields.helpEmail.trim())) {
@@ -419,13 +484,18 @@ export function HelpDialog() {
 
     setSubmitting(true);
     try {
-      const raw = await raiseUserLambda(LambdaPayloadType.SEND_HELP_EMAIL, lambdaFn, {
-        email: fields.helpEmail.trim(),
-        name: fields.helpFullName.trim(),
-        textIfAdded: view === "other" ? fields.helpOtherProblem.trim() : fields.option,
-        reason: fields.reason.trim() || " ",
-        subject: SUBJECT[view],
-      });
+      const raw = await raiseUserLambda(
+        LambdaPayloadType.SEND_HELP_EMAIL,
+        lambdaFn,
+        {
+          email: fields.helpEmail.trim(),
+          name: fields.helpFullName.trim(),
+          textIfAdded:
+            view === "other" ? fields.helpOtherProblem.trim() : fields.option,
+          reason: fields.reason.trim() || " ",
+          subject: SUBJECT[view],
+        },
+      );
       const parsed = raw ? (JSON.parse(raw) as { statusCode?: number }) : {};
       if (parsed.statusCode === 200) {
         doClose();
@@ -441,7 +511,8 @@ export function HelpDialog() {
   }
 
   /* ── Derived state ── */
-  const isTwoStepView = view === "cant-create-account" || view === "personal-info";
+  const isTwoStepView =
+    view === "cant-create-account" || view === "personal-info";
   const isStep1 = isTwoStepView && step === 1;
   const progressPct = step === 1 ? 50 : 100;
 
@@ -514,7 +585,6 @@ export function HelpDialog() {
 
         {/* ── Scrollable body ── */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2 pt-5 sm:px-5">
-
           {/* Progress bar — only for two-step views */}
           {isTwoStepView && <ProgressBar pct={progressPct} />}
 
@@ -571,22 +641,26 @@ export function HelpDialog() {
               ))}
 
               {/* Conditional detail textarea — personal-info / medical center only */}
-              {view === "personal-info" && fields.option === MEDICAL_CENTER_REASON && (
-                <Textarea
-                  label="More details"
-                  placeholder="Enter details"
-                  hint="(Maximum 1000 characters)"
-                  maxLength={1000}
-                  rows={3}
-                  error={errors.reason}
-                  value={fields.reason}
-                  onChange={(e) => updateField("reason", e.target.value)}
-                  wrapperClassName="mt-1"
-                />
-              )}
+              {view === "personal-info" &&
+                fields.option === MEDICAL_CENTER_REASON && (
+                  <Textarea
+                    label="More details"
+                    placeholder="Enter details"
+                    hint="(Maximum 1000 characters)"
+                    maxLength={1000}
+                    rows={3}
+                    error={errors.reason}
+                    value={fields.reason}
+                    onChange={(e) => updateField("reason", e.target.value)}
+                    wrapperClassName="mt-1"
+                  />
+                )}
 
               {errors.option && (
-                <p role="alert" className="font-body text-[13px] text-cb-danger">
+                <p
+                  role="alert"
+                  className="font-body text-[13px] text-cb-danger"
+                >
                   {errors.option}
                 </p>
               )}
@@ -630,7 +704,9 @@ export function HelpDialog() {
                 rows={4}
                 error={errors.helpOtherProblem}
                 value={fields.helpOtherProblem}
-                onChange={(e) => updateField("helpOtherProblem", e.target.value)}
+                onChange={(e) =>
+                  updateField("helpOtherProblem", e.target.value)
+                }
               />
               <Input
                 label="Full name"

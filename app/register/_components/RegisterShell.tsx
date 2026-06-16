@@ -162,13 +162,22 @@ export function RegisterShell({
             className="object-contain"
           />
           <div className="ms-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-cb-gray-600">
-            <Link href="/privacy" className="hover:text-cb-black transition-colors">
+            <Link
+              href="/privacy"
+              className="hover:text-cb-black transition-colors"
+            >
               {t("common.privacyPolicy")}
             </Link>
-            <Link href="/terms" className="hover:text-cb-black transition-colors">
+            <Link
+              href="/terms"
+              className="hover:text-cb-black transition-colors"
+            >
               {t("common.termsOfService")}
             </Link>
-            <Link href="/support" className="hover:text-cb-black transition-colors">
+            <Link
+              href="/support"
+              className="hover:text-cb-black transition-colors"
+            >
               {t("common.support")}
             </Link>
             <span className="text-cb-gray-500">
@@ -220,10 +229,12 @@ export function RegisterShell({
             />
           </Link>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3 ">
             <HelpDialog />
             <p className="min-w-0 text-end font-body text-sm text-cb-gray-500">
-              <span className="hidden sm:inline">{t("register.alreadyMember")}</span>{" "}
+              <span className="hidden sm:inline">
+                {t("register.alreadyMember")}
+              </span>{" "}
               <Link
                 href="/login"
                 className="font-medium text-cb-black underline-offset-2 transition-colors hover:text-cb-gray-700 hover:underline sm:underline"

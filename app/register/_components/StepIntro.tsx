@@ -100,36 +100,36 @@ interface Props {
 
 export function StepIntro({ onStart }: Props) {
   return (
-    <div className="w-full">
-      <header className="mb-5">
+    <div className="flex w-full flex-col">
+      <header className="mb-4">
         <p className="font-body text-[11px] font-semibold uppercase tracking-[0.2em] text-cb-gray-500">
           {t("register.intro.eyebrow")}
         </p>
         <h1
           className="mt-1.5 font-heading font-bold text-cb-black tracking-tight"
-          style={{ fontSize: "clamp(1.6rem, 2.3vw, 2rem)", lineHeight: 1.12 }}
+          style={{ fontSize: "clamp(1.5rem, 2.1vw, 1.9rem)", lineHeight: 1.1 }}
         >
           {t("register.intro.heading")}
         </h1>
-        <p className="mt-2 max-w-[44ch] font-body text-[14px] leading-relaxed text-cb-gray-600">
+        <p className="mt-1.5 max-w-[44ch] font-body text-[14px] leading-relaxed text-cb-gray-600">
           {t("register.intro.body")}
         </p>
       </header>
 
-      <ul className="mb-5 space-y-2">
+      <ul className="mb-4 space-y-2">
         {HIGHLIGHTS.map(({ icon: Icon, titleKey, bodyKey, accent }) => (
           <li
             key={titleKey}
-            className="flex items-start gap-3 rounded-2xl border border-cb-gray-200/90 bg-white p-3"
+            className="flex items-start gap-3 rounded-2xl border border-cb-gray-200/90 bg-white p-2.5"
           >
             <span
               className={[
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-black/5",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 ring-black/5",
                 accent,
               ].join(" ")}
               aria-hidden
             >
-              <Icon className="h-[16px] w-[16px]" />
+              <Icon className="h-[15px] w-[15px]" />
             </span>
             <div className="min-w-0">
               <p className="font-heading text-[14px] font-semibold text-cb-black">
@@ -143,11 +143,11 @@ export function StepIntro({ onStart }: Props) {
         ))}
       </ul>
 
-      <p className="mb-5 text-center font-body text-[12.5px] text-cb-gray-500">
+      <p className="mb-4 text-center font-body text-[12.5px] text-cb-gray-500">
         {t("register.intro.timeNote")}
       </p>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         <Button
           type="button"
           variant="primary"

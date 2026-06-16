@@ -17,8 +17,19 @@ import type { NextRequest } from "next/server";
 /** Pages that logged-in users should be redirected away from. */
 const AUTH_ROUTES = ["/", "/login", "/register", "/forgot-password"];
 
-/** Path prefixes that require an active session. */
-const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/groups", "/feed"];
+/**
+ * Path prefixes that require an active session.
+ *
+ * DISABLED (empty) for now: the auth tokens live in Amplify's client storage
+ * (localStorage), which this server-side proxy cannot read, so the only
+ * "session check" available is the `getSessionFromCookie` stub below — and it
+ * always returns false. With these prefixes populated, that stub made
+ * `/dashboard` (and friends) permanently redirect to `/login`, so login could
+ * never reach the dashboard. Re-populate this list only once a real
+ * server-readable session (e.g. a minimal session cookie) is wired up in
+ * `getSessionFromCookie`. Until then, protect these routes client-side.
+ */
+const PROTECTED_PREFIXES: string[] = [];
 
 function isAuthRoute(pathname: string): boolean {
   return AUTH_ROUTES.includes(pathname);

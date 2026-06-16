@@ -11,6 +11,7 @@ import {
   fetchTreatmentStatuses,
   fetchDisabilities,
 } from "@/lib/aws/appsyncPicklistQueries";
+import { fetchSignedInFirstName } from "@/lib/aws/sessionAttributes";
 import { t } from "@/lib/i18n";
 import {
   sortAlpha,
@@ -65,6 +66,21 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
   const [treatmentStatuses, setTreatmentStatuses] = useState<ReturnType<typeof sortAlpha>>([]);
   const [disabilities,      setDisabilities]      = useState<ReturnType<typeof sortAlpha>>([]);
   const [loading,           setLoading]           = useState(true);
+
+  /* If the in-memory draft lost firstName (e.g. a page refresh wiped the
+     Zustand store), recover it from the signed-in Cognito session and write
+     it back into the form. The page-level watch subscriber then persists it
+     into the signup store — no localStorage involved. */
+  useEffect(() => {
+    if (firstName.trim()) return;
+    let cancelled = false;
+    console.debug("[StepDiagnosis] firstName empty — fetching from AppSync…");
+    fetchSignedInFirstName().then((name) => {
+      console.debug("[StepDiagnosis] fetchSignedInFirstName →", name);
+      if (!cancelled && name) setValue("firstName", name, { shouldDirty: true });
+    });
+    return () => { cancelled = true; };
+  }, [firstName, setValue]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +150,11 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
     diagnosisIds.length > 0 &&
     (userType === "PATIENT"
       ? treatmentStatus.trim() !== ""
-      : (inRemissionMonth ?? "") !== "" && (inRemissionYear ?? "") !== "");
+      : (inRemissionMonth ?? "") !== "" && (inRemissionYear ?? "") !== "") &&
+    // My treatment is required whenever the section is unlocked. It stays
+    // locked (and thus not required) for PATIENTs in "Pre-treatment", who by
+    // definition have no treatment to report yet.
+    (!treatmentUnlocked || treatmentIds.length > 0);
 
   if (loading) return <DiagnosisSkeleton />;
 
@@ -149,6 +169,7 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
         >
           {firstName ? (
             <>
+              {t("register.diagnosis.headingPrefix")}{" "}
               <span className="relative inline-block">
                 {firstName}
                 <span
@@ -214,7 +235,7 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
           </div>
         )}
 
-        {/* 3 ── My treatment — OPTIONAL (locked for PATIENT until status chosen) */}
+        {/* 3 ── My treatment — REQUIRED (locked for PATIENT until status chosen) */}
         {treatmentUnlocked ? (
           <MultiSection
             sectionLabel={t("register.diagnosis.myTreatment")}
@@ -226,7 +247,7 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
             selectedIds={treatmentIds}
             onAdd={(id)    => addId("treatments", treatmentIds, id)}
             onRemove={(id) => removeId("treatments", treatmentIds, id)}
-            optional
+            required
           />
         ) : (
           <LockedSection
