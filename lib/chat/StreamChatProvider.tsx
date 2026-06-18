@@ -79,15 +79,19 @@ export default function StreamChatProvider({ children }: { children: ReactNode }
         );
         if (cancelled) return;
 
+        const unread =
+          (connected.user as { total_unread_count?: number } | undefined)
+            ?.total_unread_count ?? 0;
+
         console.info(
           "[chat] connected:",
           connected.userID,
           "unread=",
-          connected.user?.total_unread_count ?? 0,
+          unread,
         );
         setClient(connected);
         setUserId(id);
-        setTotalUnread(connected.user?.total_unread_count ?? 0);
+        setTotalUnread(unread);
         setStatus("ready");
       } catch (e) {
         console.error("[chat] connect failed:", e);
