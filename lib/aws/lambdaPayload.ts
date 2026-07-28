@@ -16,4 +16,14 @@ export const LambdaPayloadType = {
   CREATE_SUPPORT_MESSAGE: "supportMessage",
   /** In-registration help email — mirrors mobile `LambdaPayloadType.SENDEMAILHELP`. */
   SEND_HELP_EMAIL: "sendEmailHelp",
+
+  /* ── Groups ── */
+  /** One page of a group's feed, authors already resolved server-side. */
+  GET_POSTS_BY_GROUP: "newGetPostByGroup",
+  JOIN_GROUP: "joinToGroup",
+  LEAVE_GROUP: "leftGroup",
+  MUTE_GROUP: "muteGroup",
+  UNMUTE_GROUP: "unmuteGroup",
+  /** Scheduled live sessions across all groups. */
+  GET_LIVE_CALENDAR: "getLiveCalendar",
 } as const;

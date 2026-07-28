@@ -34,6 +34,7 @@ export default function MessageBubble({
   const mine = message.mine;
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const clusterRef = useRef<HTMLDivElement>(null);
   const reactable = message.status === "sent" && !!onReact;
 
@@ -83,7 +84,7 @@ export default function MessageBubble({
               canEdit={canActOnSelf && message.text.length > 0}
               canDelete={canActOnSelf}
               onEdit={onEdit}
-              onDelete={onDelete}
+              onRequestDelete={() => setConfirmDelete(true)}
             />
           </>
         ) : (
@@ -96,7 +97,7 @@ export default function MessageBubble({
               canEdit={false}
               canDelete={false}
               onEdit={onEdit}
-              onDelete={onDelete}
+              onRequestDelete={() => setConfirmDelete(true)}
             />
             {reactable && (
               <ReactionPicker
@@ -169,7 +170,7 @@ export default function MessageBubble({
                 message.status === "failed" ? "opacity-70" : "",
               ].join(" ")}
             >
-              {message.text}
+              <LinkifiedText text={message.text} mine={mine} />
             </div>
           )}
 
@@ -216,6 +217,71 @@ export default function MessageBubble({
       </div>
 
       {!mine && controls}
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          onConfirm={() => {
+            setConfirmDelete(false);
+            onDelete?.(message.id);
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfirmDeleteModal({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("app.chat.deleteConfirmTitle")}
+    >
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="px-5 pb-2 pt-5">
+          <h2 className="font-heading text-base font-bold text-cb-black">
+            {t("app.chat.deleteConfirmTitle")}
+          </h2>
+          <p className="mt-1.5 font-body text-sm text-cb-gray-600">
+            {t("app.chat.deleteConfirmBody")}
+          </p>
+        </div>
+        <div className="flex gap-2 px-5 py-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl bg-cb-gray-100 px-4 py-2.5 font-heading text-sm font-medium text-cb-black transition-colors hover:bg-cb-gray-200"
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 font-heading text-sm font-medium text-white transition-colors hover:bg-red-700"
+          >
+            {t("app.chat.delete")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -228,7 +294,7 @@ function ActionMenu({
   canEdit,
   canDelete,
   onEdit,
-  onDelete,
+  onRequestDelete,
 }: {
   open: boolean;
   setOpen: (v: boolean) => void;
@@ -237,7 +303,7 @@ function ActionMenu({
   canEdit: boolean;
   canDelete: boolean;
   onEdit?: (id: string, text: string) => void;
-  onDelete?: (id: string) => void;
+  onRequestDelete?: () => void;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   // Which way the popover opens, decided from the trigger's spot in the viewport.
@@ -313,8 +379,8 @@ function ActionMenu({
               label={t("app.chat.delete")}
               danger
               onClick={() => {
-                onDelete?.(message.id);
                 setOpen(false);
+                onRequestDelete?.();
               }}
             />
           )}
@@ -322,6 +388,48 @@ function ActionMenu({
       )}
     </div>
   );
+}
+
+// Matches http(s):// URLs and bare www. URLs, mirroring the mobile app's
+// auto-linkification of message text.
+const URL_PATTERN = "(https?:\\/\\/[^\\s]+|www\\.[^\\s]+)";
+// Trailing punctuation that shouldn't be part of a clicked link.
+const TRAILING_RE = /[.,!?;:'")\]]+$/;
+
+/** Render message text with clickable links. */
+function LinkifiedText({ text, mine }: { text: string; mine: boolean }) {
+  const parts: React.ReactNode[] = [];
+  const re = new RegExp(URL_PATTERN, "gi");
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text)) !== null) {
+    const start = m.index;
+    let raw = m[0];
+    // Strip trailing punctuation, keeping it as plain text after the link.
+    const trail = raw.match(TRAILING_RE)?.[0] ?? "";
+    if (trail) raw = raw.slice(0, raw.length - trail.length);
+    if (start > last) parts.push(text.slice(last, start));
+    const href = raw.startsWith("http") ? raw : `https://${raw}`;
+    parts.push(
+      <a
+        key={key++}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className={`underline underline-offset-2 ${
+          mine ? "text-white decoration-white/60" : "text-blue-600"
+        }`}
+      >
+        {raw}
+      </a>,
+    );
+    if (trail) parts.push(trail);
+    last = start + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
 }
 
 function MenuItem({

@@ -13,7 +13,16 @@ import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 
 export interface StreamCredentials {
   apiKey: string;
+  /** Stream **Chat** token. */
   token: string;
+  /**
+   * Stream **Feeds** token — reads/writes group activities. Undefined if this
+   * environment's Lambda doesn't mint one, in which case the Groups tab can
+   * still read posts (those come from `USERS_LAMBDA`) but not post or react.
+   */
+  feedToken?: string;
+  /** Stream **Reactions** token — likes, comments, pins. */
+  reactionsToken?: string;
 }
 
 function getStreamLambdaName(): string {
@@ -71,22 +80,36 @@ export async function fetchStreamCredentials(
     body = {};
   }
 
-  // The Lambda mints only the chat token. Its field name varies across
-  // clients/envs, and it may be nested under `keys` — accept all shapes.
+  // One Lambda call mints all three tokens — chat, activity feeds, and
+  // reactions — exactly as the mobile app stores them (`ChatDataUserKeys`).
+  // Field names vary across clients/envs and may be nested under `keys`, so
+  // accept every shape rather than assuming one.
   const nestedKeys =
     body.keys && typeof body.keys === "object"
       ? (body.keys as Record<string, unknown>)
       : undefined;
-  const token =
-    (typeof body.chatToken === "string" && body.chatToken) ||
-    (typeof body.token === "string" && body.token) ||
-    (nestedKeys && typeof nestedKeys.chatToken === "string" && nestedKeys.chatToken) ||
-    "";
+
+  const pick = (...names: string[]): string => {
+    for (const name of names) {
+      const direct = body[name];
+      if (typeof direct === "string" && direct) return direct;
+      const nested = nestedKeys?.[name];
+      if (typeof nested === "string" && nested) return nested;
+    }
+    return "";
+  };
+
+  const token = pick("chatToken", "token");
 
   if (!token) {
     console.error("[chat] GetStream token missing. body keys:", Object.keys(body));
     throw new Error("GetStream response is missing the chat token.");
   }
 
-  return { apiKey, token };
+  return {
+    apiKey,
+    token,
+    feedToken: pick("feedToken") || undefined,
+    reactionsToken: pick("reactionsToken") || undefined,
+  };
 }

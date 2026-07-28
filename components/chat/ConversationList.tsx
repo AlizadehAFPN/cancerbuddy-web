@@ -2,13 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { Search, X, MailWarning } from "lucide-react";
 import type { Channel } from "stream-chat";
 import { t } from "@/lib/i18n";
+import { channelSortTs } from "@/lib/chat/helpers";
 import { useStreamChat } from "@/lib/chat/StreamChatProvider";
 import { useChannelList } from "@/lib/chat/useChannelList";
+import { useUnreadChannels } from "@/lib/chat/useUnreadChannels";
+import { useConversationSearch } from "@/lib/chat/useConversationSearch";
 import ConversationListItem from "./ConversationListItem";
 
+/** Instant local match over already-loaded channels, shown until server results land. */
 function matchesQuery(channel: Channel, userId: string, q: string): boolean {
   if (!q) return true;
   const data = channel.data as { name?: string } | undefined;
@@ -27,26 +31,83 @@ function matchesQuery(channel: Channel, userId: string, q: string): boolean {
 export default function ConversationList() {
   const pathname = usePathname();
   const { userId, status, reconnect } = useStreamChat();
-  const { channels, loading, error } = useChannelList();
+  const { channels, loading, error, loadMore, hasMore, loadingMore } =
+    useChannelList();
   const [query, setQuery] = useState("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  // Server-side search: all conversations, matched by channel or participant name.
+  const { results, searching, active } = useConversationSearch(query);
+  // All unread conversations, fetched only while the filter is on.
+  const { channels: unreadChannels, loading: unreadLoading } =
+    useUnreadChannels(unreadOnly && !active);
 
-  const filtered = useMemo(() => {
+  // Instant local matches over loaded channels (also matches message text), shown
+  // immediately and kept even after server results land.
+  const localFiltered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return channels;
+    if (!active) return channels;
     return channels.filter((c) => matchesQuery(c, userId ?? "", q));
-  }, [channels, query, userId]);
+  }, [channels, query, userId, active]);
+
+  // Search view = UNION of server results (all conversations, by name) and local
+  // matches (loaded conversations, incl. message text). Union — not replacement —
+  // so local matches don't vanish when the server (which doesn't search message
+  // bodies) returns fewer or no results.
+  const searchView = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: Channel[] = [];
+    for (const c of [...(results ?? []), ...localFiltered]) {
+      if (c.cid && !seen.has(c.cid)) {
+        seen.add(c.cid);
+        merged.push(c);
+      }
+    }
+    return merged.sort((a, b) => channelSortTs(b) - channelSortTs(a));
+  }, [results, localFiltered]);
+
+  const filtered = active
+    ? searchView
+    : unreadOnly
+      ? unreadChannels
+      : channels;
 
   const showSkeleton = status === "connecting" || (loading && channels.length === 0);
 
+  // Infinite scroll: pull the next page as the user nears the bottom. Disabled
+  // while searching or filtering unread (both are already fully fetched).
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (active || unreadOnly || !hasMore || loadingMore) return;
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) loadMore();
+  };
+
+  const showControls =
+    !showSkeleton && status === "ready" && channels.length > 0;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-16 shrink-0 items-center px-5">
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-5">
         <h1 className="font-heading text-xl font-bold text-cb-black">
           {t("app.chat.title")}
         </h1>
+        {showControls && (
+          <button
+            type="button"
+            onClick={() => setUnreadOnly((v) => !v)}
+            aria-pressed={unreadOnly}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-heading text-xs font-medium transition-colors ${
+              unreadOnly
+                ? "border-cb-black bg-cb-black text-white"
+                : "border-cb-gray-200 text-cb-gray-600 hover:bg-cb-gray-100"
+            }`}
+          >
+            <MailWarning className="h-3.5 w-3.5" />
+            {t("app.chat.filterUnread")}
+          </button>
+        )}
       </div>
 
-      {!showSkeleton && status === "ready" && channels.length > 0 && (
+      {showControls && (
         <div className="shrink-0 px-3 pb-2">
           <div className="flex items-center gap-2 rounded-xl bg-cb-gray-100 px-3">
             <Search className="h-4 w-4 shrink-0 text-cb-gray-400" />
@@ -70,7 +131,10 @@ export default function ConversationList() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      <div
+        onScroll={onScroll}
+        className="min-h-0 flex-1 overflow-y-auto px-2 pb-2"
+      >
         {showSkeleton ? (
           <ListSkeleton />
         ) : status === "error" || error ? (
@@ -79,10 +143,20 @@ export default function ConversationList() {
             actionLabel={t("app.chat.retry")}
             onAction={reconnect}
           />
-        ) : channels.length === 0 ? (
+        ) : !active && channels.length === 0 ? (
           <StateMessage text={t("app.chat.empty")} sub={t("app.chat.emptySub")} />
         ) : filtered.length === 0 ? (
-          <StateMessage text={t("app.chat.noResults")} />
+          <StateMessage
+            text={
+              active && searching
+                ? t("app.chat.searching")
+                : unreadOnly
+                  ? unreadLoading
+                    ? t("app.chat.searching")
+                    : t("app.chat.filterUnreadEmpty")
+                  : t("app.chat.noResults")
+            }
+          />
         ) : (
           <ul className="flex flex-col gap-0.5">
             {filtered.map((ch) => (
@@ -94,6 +168,14 @@ export default function ConversationList() {
                 />
               </li>
             ))}
+            {!active && loadingMore && (
+              <li
+                className="flex justify-center py-3"
+                aria-label={t("app.chat.searching")}
+              >
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-cb-gray-300 border-t-cb-black" />
+              </li>
+            )}
           </ul>
         )}
       </div>

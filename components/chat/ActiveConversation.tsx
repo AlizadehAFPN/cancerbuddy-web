@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { channelDisplay } from "@/lib/chat/helpers";
 import { useStreamChat } from "@/lib/chat/StreamChatProvider";
 import { useChannelMessages } from "@/lib/chat/useChannelMessages";
 import { useContactProfile } from "@/lib/chat/useContactProfile";
-import { removeConnection } from "@/lib/chat/connections";
+import { removeConnection, reportConnection } from "@/lib/chat/connections";
 import ChatHeader from "./ChatHeader";
 import MessageThread from "./MessageThread";
 import MessageComposer from "./MessageComposer";
+import ReportModal from "./ReportModal";
 
 /** The right pane: a single open conversation. */
 export default function ActiveConversation({ channelId }: { channelId: string }) {
@@ -37,6 +39,8 @@ export default function ActiveConversation({ channelId }: { channelId: string })
   } = useChannelMessages(channelId);
 
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  const [reporting, setReporting] = useState(false);
+  const [submittingReport, setSubmittingReport] = useState(false);
 
   const display =
     channel && userId
@@ -54,6 +58,31 @@ export default function ActiveConversation({ channelId }: { channelId: string })
     }
     if (id) await removeConnection(id);
     router.push("/chat");
+  };
+
+  // Block & report: record the block first (so it survives even if the channel
+  // delete fails — the opposite order to mobile, which deletes the channel
+  // first), then delete the Stream channel.
+  const handleReport = async (reason: string) => {
+    const id = channel?.id;
+    const blockedUserId = display.other?.id;
+    if (!channel || !id || !blockedUserId) return;
+    setSubmittingReport(true);
+    try {
+      await reportConnection({ connectionId: id, blockedUserId, reason });
+      try {
+        await channel.delete();
+      } catch {
+        /* the block is already recorded; channel cleanup is best-effort */
+      }
+      toast.success(t("app.chat.reportThankYou"));
+      setReporting(false);
+      router.push("/chat");
+    } catch {
+      toast.error(t("app.chat.reportError"));
+    } finally {
+      setSubmittingReport(false);
+    }
   };
 
   if (status === "error") {
@@ -75,6 +104,9 @@ export default function ActiveConversation({ channelId }: { channelId: string })
         profile={profile}
         typing={typingNames.length > 0}
         onRemove={channel ? handleRemove : undefined}
+        onReport={
+          channel && display.other?.id ? () => setReporting(true) : undefined
+        }
       />
 
       {error ? (
@@ -82,7 +114,10 @@ export default function ActiveConversation({ channelId }: { channelId: string })
       ) : loading && !channel ? (
         <ThreadSkeleton />
       ) : messages.length === 0 ? (
-        <Centered text={t("app.chat.startConversation")} />
+        <Centered
+          text={t("app.chat.startConversation")}
+          sub={t("app.chat.disclaimer")}
+        />
       ) : (
         <MessageThread
           messages={messages}
@@ -109,22 +144,38 @@ export default function ActiveConversation({ channelId }: { channelId: string })
         }}
         onCancelEdit={() => setEditing(null)}
       />
+
+      {reporting && (
+        <ReportModal
+          name={profile?.name || display.name}
+          submitting={submittingReport}
+          onSubmit={handleReport}
+          onClose={() => {
+            if (!submittingReport) setReporting(false);
+          }}
+        />
+      )}
     </div>
   );
 }
 
 function Centered({
   text,
+  sub,
   actionLabel,
   onAction,
 }: {
   text: string;
+  sub?: string;
   actionLabel?: string;
   onAction?: () => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
       <p className="font-body text-cb-gray-500">{text}</p>
+      {sub && (
+        <p className="max-w-sm font-body text-sm text-cb-gray-400">{sub}</p>
+      )}
       {actionLabel && onAction && (
         <button
           type="button"

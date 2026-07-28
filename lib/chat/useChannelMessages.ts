@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { Channel, Event } from "stream-chat";
+import { t } from "@/lib/i18n";
 import { useStreamChat } from "./StreamChatProvider";
 
 export type MessageStatus = "sending" | "sent" | "failed";
@@ -93,6 +95,9 @@ export function useChannelMessages(channelId: string | null) {
   const [error, setError] = useState(false);
   const [, forceTick] = useState(0);
   const [pending, setPending] = useState<UIMessage[]>([]);
+  // Ids deleted in this session — filtered out immediately so the bubble
+  // disappears on the first click, without waiting for the WS event round-trip.
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const [typing, setTyping] = useState<Record<string, string>>({});
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -106,6 +111,7 @@ export function useChannelMessages(channelId: string | null) {
     setLoading(true);
     setError(false);
     setPending([]);
+    setDeletedIds(new Set());
     setTyping({});
     setHasMore(true);
 
@@ -246,9 +252,16 @@ export function useChannelMessages(channelId: string | null) {
       if (!client) return;
       try {
         await client.deleteMessage(id);
+        // Hide it right away; the WS `message.deleted` event also arrives but
+        // may lag, so don't depend on it for the first render.
+        setDeletedIds((s) => {
+          const n = new Set(s);
+          n.add(id);
+          return n;
+        });
         rerender();
       } catch {
-        /* ignore */
+        toast.error(t("app.chat.deleteError"));
       }
     },
     [client, rerender],
@@ -301,7 +314,7 @@ export function useChannelMessages(channelId: string | null) {
   const serverMessages = channel?.state.messages ?? [];
   const serverIds = new Set(serverMessages.map((m) => m.id));
   const ui: UIMessage[] = serverMessages
-    .filter((m) => !m.deleted_at)
+    .filter((m) => !m.deleted_at && !deletedIds.has(m.id))
     .map((m) => ({
       id: m.id,
       text: m.text ?? "",

@@ -109,6 +109,52 @@ const LIST_COPING_WITH_CANCER_LOSS = /* GraphQL */ `
   }
 `;
 
+const LIST_ETHNICITIES = /* GraphQL */ `
+  query getEthnicities {
+    listEthnicities(limit: 1000) {
+      items { label: name, value: id }
+    }
+  }
+`;
+
+const LIST_TRANSGENDERS = /* GraphQL */ `
+  query getTransgenders {
+    listTransgenders(limit: 1000) {
+      items { label: name, value: id }
+    }
+  }
+`;
+
+const LIST_SEXUAL_ORIENTATIONS = /* GraphQL */ `
+  query getSexualOrientations {
+    listSexualOrientations(limit: 1000) {
+      items { label: name, value: id }
+    }
+  }
+`;
+
+const SEARCH_CITIES_IN_STATE = (stateId: string, query: string) => /* GraphQL */ `
+  query searchCitiesInState {
+    searchCities(
+      filter: { stateID: { eq: "${stateId}" }, name: { matchPhrasePrefix: "${query}" } },
+      limit: 100
+    ) {
+      items { value: id, label: name }
+    }
+  }
+`;
+
+const SEARCH_WORKPLACES = (query: string) => /* GraphQL */ `
+  query searchWorkplaces {
+    searchWorkplaces(
+      filter: { name: { matchPhrasePrefix: "${query}" } },
+      limit: 100
+    ) {
+      items { value: id, label: name }
+    }
+  }
+`;
+
 const SEARCH_BY_ZIPCODE = (zipcode: string) => /* GraphQL */ `
   query SearchCityZipCodes {
     searchCityZipCodes(filter: { zipcode: { match: "${zipcode}" }}, limit: 10000) {
@@ -223,6 +269,54 @@ export async function fetchCitiesByZipCode(zipcode: string): Promise<ZipCodeResu
   } catch {
     return [];
   }
+}
+
+export function fetchEthnicities(): Promise<PicklistItem[]> {
+  return fetchList(LIST_ETHNICITIES, "listEthnicities");
+}
+
+export function fetchTransgenderOptions(): Promise<PicklistItem[]> {
+  return fetchList(LIST_TRANSGENDERS, "listTransgenders");
+}
+
+export function fetchSexualOrientations(): Promise<PicklistItem[]> {
+  return fetchList(LIST_SEXUAL_ORIENTATIONS, "listSexualOrientations");
+}
+
+/** Free-text city lookup scoped to one state — cities are far too many to list. */
+export async function fetchCitiesInState(
+  stateId: string,
+  query: string,
+): Promise<PicklistItem[]> {
+  if (!stateId || !query.trim()) return [];
+  try {
+    const { data } = await executeAppSyncGraphql<{
+      searchCities: { items: PicklistItem[] } | null;
+    }>({
+      query: SEARCH_CITIES_IN_STATE(sanitizeSearchTerm(stateId), sanitizeSearchTerm(query)),
+      variables: {},
+    });
+    return data?.searchCities?.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchWorkplacesByName(query: string): Promise<PicklistItem[]> {
+  if (!query.trim()) return [];
+  try {
+    const { data } = await executeAppSyncGraphql<{
+      searchWorkplaces: { items: PicklistItem[] } | null;
+    }>({ query: SEARCH_WORKPLACES(sanitizeSearchTerm(query)), variables: {} });
+    return data?.searchWorkplaces?.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** These builders interpolate into query text, so strip anything quote-like. */
+function sanitizeSearchTerm(value: string): string {
+  return value.replace(/["\\\n\r]/g, "").trim();
 }
 
 export async function fetchCollegesByName(query: string): Promise<PicklistItem[]> {

@@ -1,47 +1,117 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Channel, ChannelFilters, ChannelSort, Event } from "stream-chat";
+import { channelSortTs } from "./helpers";
 import { useStreamChat } from "./StreamChatProvider";
 
 const PAGE = 30;
+// Stream caps offset-based pagination at 1000.
+const MAX_OFFSET = 1000;
 
-function lastTs(ch: Channel): number {
-  const v = ch.state?.last_message_at;
-  if (!v) return 0;
-  return v instanceof Date ? v.getTime() : new Date(v as string).getTime();
+function eventCid(e: Event): string | undefined {
+  return e.cid ?? e.channel?.cid;
 }
 
 /**
- * Live list of the current user's 1:1 messaging channels, newest first.
- *
- * Channels are watched, so their state stays current automatically; we just
- * re-sort on message events and re-query on structural events (added to /
- * removed from a channel, deletes). Counts (≤30 channels) make per-render
- * sorting cheap.
+ * Live list of the current user's 1:1 messaging channels, newest first, loaded
+ * lazily: the first page arrives fast, and `loadMore()` pulls subsequent pages
+ * on demand (infinite scroll). Channels are watched, so their state stays
+ * current; we re-sort on message events, merge new/moved channels from the top,
+ * and drop removed ones — without disturbing already-loaded pages.
  */
 export function useChannelList() {
   const { client, userId, status } = useStreamChat();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState(false);
   const [, forceTick] = useState(0);
+  const pagesLoadedRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
-  const query = useCallback(async () => {
-    if (!client || !userId) return;
-    const filter: ChannelFilters = {
-      type: "messaging",
-      members: { $in: [userId] },
-    };
-    const sort: ChannelSort = [{ last_message_at: -1 }];
-    const result = await client.queryChannels(filter, sort, {
-      limit: PAGE,
-      watch: true,
-      state: true,
-      message_limit: 1,
-    });
-    setChannels(result);
-  }, [client, userId]);
+  const fetchPage = useCallback(
+    async (offset: number): Promise<Channel[]> => {
+      if (!client || !userId) return [];
+      const filter: ChannelFilters = {
+        type: "messaging",
+        members: { $in: [userId] },
+      };
+      const sort: ChannelSort = [{ last_message_at: -1 }];
+      return client.queryChannels(filter, sort, {
+        limit: PAGE,
+        offset,
+        watch: true,
+        state: true,
+        message_limit: 1,
+      });
+    },
+    [client, userId],
+  );
+
+  // Initial load / full refresh — resets to the first page.
+  const reload = useCallback(async () => {
+    const page = await fetchPage(0);
+    const seen = new Set<string>();
+    const out: Channel[] = [];
+    for (const ch of page) {
+      if (ch.cid && !seen.has(ch.cid)) {
+        seen.add(ch.cid);
+        out.push(ch);
+      }
+    }
+    pagesLoadedRef.current = 1;
+    setChannels(out);
+    setHasMore(page.length === PAGE);
+  }, [fetchPage]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMore) return;
+    const offset = pagesLoadedRef.current * PAGE;
+    if (offset >= MAX_OFFSET) {
+      setHasMore(false);
+      return;
+    }
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const page = await fetchPage(offset);
+      pagesLoadedRef.current += 1;
+      setChannels((prev) => {
+        const seen = new Set(prev.map((c) => c.cid));
+        const merged = [...prev];
+        for (const ch of page) {
+          if (ch.cid && !seen.has(ch.cid)) {
+            seen.add(ch.cid);
+            merged.push(ch);
+          }
+        }
+        return merged;
+      });
+      setHasMore(page.length === PAGE && offset + PAGE < MAX_OFFSET);
+    } catch {
+      /* keep what we have; user can scroll again to retry */
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore, fetchPage]);
+
+  // Pull the first page and merge any new/moved channels in, leaving the loaded
+  // pages intact (render re-sorts, so insertion order doesn't matter).
+  const refreshTop = useCallback(async () => {
+    try {
+      const page = await fetchPage(0);
+      setChannels((prev) => {
+        const seen = new Set(prev.map((c) => c.cid));
+        const fresh = page.filter((ch) => ch.cid && !seen.has(ch.cid));
+        return fresh.length ? [...fresh, ...prev] : prev;
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [fetchPage]);
 
   useEffect(() => {
     if (!client || status !== "ready" || !userId) return;
@@ -51,7 +121,7 @@ export function useChannelList() {
       setLoading(true);
       setError(false);
       try {
-        await query();
+        await reload();
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -60,9 +130,6 @@ export function useChannelList() {
     })();
 
     const resort = () => forceTick((n) => n + 1);
-    const restructure = () => {
-      query().catch(() => {});
-    };
 
     const handler = (event: Event) => {
       switch (event.type) {
@@ -74,12 +141,16 @@ export function useChannelList() {
           break;
         case "notification.added_to_channel":
         case "notification.message_new":
+        case "channel.visible":
+          refreshTop();
+          break;
         case "notification.removed_from_channel":
         case "channel.deleted":
-        case "channel.hidden":
-        case "channel.visible":
-          restructure();
+        case "channel.hidden": {
+          const cid = eventCid(event);
+          if (cid) setChannels((prev) => prev.filter((c) => c.cid !== cid));
           break;
+        }
       }
     };
 
@@ -88,8 +159,18 @@ export function useChannelList() {
       cancelled = true;
       client.off(handler);
     };
-  }, [client, status, userId, query]);
+  }, [client, status, userId, reload, refreshTop]);
 
-  const sorted = [...channels].sort((a, b) => lastTs(b) - lastTs(a));
-  return { channels: sorted, loading, error, refetch: query };
+  // Newest message first — unread channels stay wherever their last message
+  // falls (no unread-first reordering).
+  const sorted = [...channels].sort((a, b) => channelSortTs(b) - channelSortTs(a));
+  return {
+    channels: sorted,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    loadMore,
+    refetch: reload,
+  };
 }

@@ -1,5 +1,26 @@
 import type { Channel, UserResponse } from "stream-chat";
 
+/**
+ * Timestamp used to order the conversation list: the latest NON-deleted message,
+ * falling back to the channel's `last_message_at`. Stream doesn't roll back
+ * `last_message_at` when the most recent message is deleted, so reading it
+ * directly would keep a conversation pinned to the top after you delete the
+ * message that put it there. Scanning the loaded messages fixes that.
+ */
+export function channelSortTs(channel: Channel): number {
+  const msgs = channel.state?.messages ?? [];
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i] as { deleted_at?: unknown; created_at?: unknown };
+    if (m.deleted_at) continue;
+    const c = m.created_at;
+    if (c instanceof Date) return c.getTime();
+    if (typeof c === "string") return new Date(c).getTime();
+  }
+  const v = channel.state?.last_message_at;
+  if (!v) return 0;
+  return v instanceof Date ? v.getTime() : new Date(v as string).getTime();
+}
+
 export interface ChannelDisplay {
   name: string;
   image?: string;

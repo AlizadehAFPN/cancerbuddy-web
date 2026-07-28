@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, MoreVertical, UserMinus } from "lucide-react";
+import { ArrowLeft, MoreVertical, UserMinus, ShieldAlert } from "lucide-react";
 import { t } from "@/lib/i18n";
 import type { ContactProfile } from "@/lib/chat/contactProfile";
 import ChatAvatar from "./ChatAvatar";
@@ -17,6 +17,7 @@ export default function ChatHeader({
   profile,
   typing,
   onRemove,
+  onReport,
 }: {
   name: string;
   image?: string;
@@ -24,9 +25,11 @@ export default function ChatHeader({
   profile: ContactProfile | null;
   typing: boolean;
   onRemove?: () => void;
+  onReport?: () => void;
 }) {
   // The menu is hidden for Support/Host conversations, mirroring mobile.
-  const showMenu = !!onRemove && !profile?.isSupport && !profile?.isHost;
+  const showMenu =
+    !!onRemove && !!onReport && !profile?.isSupport && !profile?.isHost;
 
   return (
     <div className="flex h-16 shrink-0 items-center gap-3 border-b border-cb-gray-200 px-3 sm:px-4">
@@ -53,12 +56,18 @@ export default function ChatHeader({
         )}
       </div>
 
-      {showMenu && <HeaderMenu onRemove={onRemove!} />}
+      {showMenu && <HeaderMenu onRemove={onRemove!} onReport={onReport!} />}
     </div>
   );
 }
 
-function HeaderMenu({ onRemove }: { onRemove: () => void }) {
+function HeaderMenu({
+  onRemove,
+  onReport,
+}: {
+  onRemove: () => void;
+  onReport: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -115,21 +124,42 @@ function HeaderMenu({ onRemove }: { onRemove: () => void }) {
               </div>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-cb-gray-100"
-            >
-              <UserMinus className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-              <span>
-                <span className="block font-heading text-sm font-medium text-red-600">
-                  {t("app.chat.removeBuddy")}
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-cb-gray-100"
+              >
+                <UserMinus className="mt-0.5 h-5 w-5 shrink-0 text-cb-black" />
+                <span>
+                  <span className="block font-heading text-sm font-medium text-cb-black">
+                    {t("app.chat.removeBuddy")}
+                  </span>
+                  <span className="block font-body text-xs text-cb-gray-500">
+                    {t("app.chat.removeBuddySub")}
+                  </span>
                 </span>
-                <span className="block font-body text-xs text-cb-gray-500">
-                  {t("app.chat.removeBuddySub")}
+              </button>
+              <div className="mx-3 my-1 border-t border-cb-gray-100" />
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onReport();
+                }}
+                className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-cb-gray-100"
+              >
+                <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                <span>
+                  <span className="block font-heading text-sm font-medium text-red-600">
+                    {t("app.chat.blockReport")}
+                  </span>
+                  <span className="block font-body text-xs text-cb-gray-500">
+                    {t("app.chat.blockReportSub")}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+            </>
           )}
         </div>
       )}
