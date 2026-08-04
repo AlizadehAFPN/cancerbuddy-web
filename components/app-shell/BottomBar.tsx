@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { t } from "@/lib/i18n";
-import { PRIMARY_NAV } from "@/lib/navigation/appNav";
+import { primaryNavFor } from "@/lib/navigation/appNav";
+import { useSignedInUserType } from "@/lib/navigation/useSignedInUserType";
 import { isActivePath, type NavBadges } from "./navState";
 
 /**
@@ -19,6 +20,9 @@ export default function BottomBar({
   badges: NavBadges;
   onOpenMenu: () => void;
 }) {
+  const userType = useSignedInUserType();
+  const navItems = primaryNavFor(userType);
+
   const pathname = usePathname();
 
   return (
@@ -26,7 +30,7 @@ export default function BottomBar({
       aria-label={t("app.nav.primaryLabel")}
       className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-cb-gray-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
-      {PRIMARY_NAV.map(({ href, labelKey, Icon, badge }) => {
+      {navItems.map(({ href, labelKey, Icon, badge }) => {
         const active = isActivePath(pathname, href);
         const count = badge ? badges[badge] ?? 0 : 0;
         return (

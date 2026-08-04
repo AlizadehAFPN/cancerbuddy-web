@@ -9,7 +9,8 @@
  * survivors show a remission date where everyone else shows treatment status.
  *
  * Previous / Next mirror mobile's "Next" button, walking whatever discovery
- * list brought the user here.
+ * list brought the user here — including the partner-resource interstitial
+ * that interrupts every fifth Next (see `lib/buddies/adRotation.ts`).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -25,8 +26,10 @@ import {
   XIcon,
 } from "@/components/buddies/controls";
 import { ageSuffix, formatRemissionDate } from "@/lib/buddies/age";
+import { nextAdOrNull } from "@/lib/buddies/adRotation";
 import { useBuddies } from "@/lib/buddies/BuddiesProvider";
 import { deleteConnection } from "@/lib/buddies/connections";
+import { prefetchAds } from "@/lib/contentful/ads";
 import {
   ROLE_BADGE_CLASS,
   ROLE_LABELS,
@@ -143,6 +146,32 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
   useEffect(() => {
     setNeighbours(getDiscoveryNeighbours(userId));
   }, [userId]);
+
+  // Warm the partner resources here rather than on the interstitial: by the
+  // time someone has paged through five buddies the list is long since cached,
+  // so the ad never opens on a spinner. Fire-and-forget and memoised — the
+  // repeat calls as the user pages are free.
+  useEffect(() => {
+    prefetchAds();
+  }, []);
+
+  /**
+   * Mobile's `handleNext`: every sixth press (then every fifth) lands on a
+   * partner resource instead of the next buddy. `replace`, not `push`, so Back
+   * from a profile skips over the ad the same way mobile's `navigation.replace`
+   * does.
+   */
+  const goToNext = useCallback(() => {
+    const nextId = neighbours.nextId;
+    if (!nextId) return;
+
+    const ad = nextAdOrNull();
+    if (ad) {
+      router.replace(`/buddies/ad/${ad.id}?next=${encodeURIComponent(nextId)}`);
+      return;
+    }
+    router.push(`/buddies/${nextId}`);
+  }, [neighbours.nextId, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -465,9 +494,7 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
                 <button
                   type="button"
                   disabled={!neighbours.nextId}
-                  onClick={() =>
-                    neighbours.nextId && router.push(`/buddies/${neighbours.nextId}`)
-                  }
+                  onClick={goToNext}
                   aria-label={t("app.buddies.nextBuddy")}
                   className="flex h-11 items-center gap-1.5 rounded-full border-2 border-cb-black px-4 font-body text-[14px] font-bold text-cb-black transition-colors hover:bg-cb-gray-100 disabled:cursor-not-allowed disabled:border-cb-gray-200 disabled:text-cb-gray-300"
                 >

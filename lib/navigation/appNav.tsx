@@ -61,6 +61,23 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
   { href: "/profile", labelKey: "app.nav.profile", Icon: User },
 ];
 
+/**
+ * The nav a given account type actually gets.
+ *
+ * Support accounts have no profile — mobile never mounts that tab for them, so
+ * showing the entry here would lead to a page that immediately turns them away.
+ * While the type is still unknown the full nav is returned; the profile route
+ * guards itself either way.
+ */
+export function primaryNavFor(
+  userType: string | null | undefined,
+): PrimaryNavItem[] {
+  if (userType === "SUPPORT") {
+    return PRIMARY_NAV.filter((item) => item.href !== "/profile");
+  }
+  return PRIMARY_NAV;
+}
+
 export interface AccountLink {
   labelKey: MessageKey;
   subKey?: MessageKey;

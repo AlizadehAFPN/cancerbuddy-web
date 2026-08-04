@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { t } from "@/lib/i18n";
-import { PRIMARY_NAV, HOME_HREF } from "@/lib/navigation/appNav";
+import { HOME_HREF, primaryNavFor } from "@/lib/navigation/appNav";
+import { useSignedInUserType } from "@/lib/navigation/useSignedInUserType";
 import { isActivePath, type NavBadges } from "./navState";
 
 /**
@@ -20,6 +21,9 @@ export default function Sidebar({
   badges: NavBadges;
   onOpenMenu: () => void;
 }) {
+  const userType = useSignedInUserType();
+  const navItems = primaryNavFor(userType);
+
   const pathname = usePathname();
 
   return (
@@ -43,7 +47,7 @@ export default function Sidebar({
         aria-label={t("app.nav.primaryLabel")}
         className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2"
       >
-        {PRIMARY_NAV.map(({ href, labelKey, Icon, badge }) => {
+        {navItems.map(({ href, labelKey, Icon, badge }) => {
           const active = isActivePath(pathname, href);
           const count = badge ? badges[badge] ?? 0 : 0;
           return (

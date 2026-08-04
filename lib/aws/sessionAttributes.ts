@@ -23,6 +23,25 @@ const GET_USER_NAME = /* GraphQL */ `
   }
 `;
 
+/**
+ * The signed-in user's email address, read from Cognito.
+ *
+ * Unlike the display name this *is* a Cognito attribute — signup writes it
+ * there — so it needs no AppSync round trip. The profile form shows it
+ * read-only, matching mobile, because changing it would mean re-verifying the
+ * account.
+ */
+export async function fetchSignedInEmail(): Promise<string | null> {
+  ensureAmplifyConfigured();
+  try {
+    const user = await Auth.currentAuthenticatedUser({ bypassCache: false });
+    const email = user?.attributes?.email;
+    return typeof email === "string" && email.trim() ? email.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchSignedInFirstName(): Promise<string | null> {
   ensureAmplifyConfigured();
   try {

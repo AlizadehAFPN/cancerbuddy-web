@@ -123,3 +123,38 @@ export const RefreshIcon = ({ size = 16, className }: IconProps) =>
     </>,
   );
 
+/**
+ * Not built on `svg()` because this one has two states: outlined when a
+ * resource isn't starred, solid when it is.
+ */
+export const StarIcon = ({
+  size = 20,
+  className,
+  filled = false,
+}: IconProps & { filled?: boolean }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill={filled ? "currentColor" : "none"}
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden
+  >
+    <path d="m12 2.5 2.9 5.9 6.6.9-4.8 4.6 1.2 6.5-5.9-3.1-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9z" />
+  </svg>
+);
+
+export const ExternalLinkIcon = ({ size = 16, className }: IconProps) =>
+  svg(
+    size,
+    className,
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6M10 14 21 3" />
+    </>,
+  );
+

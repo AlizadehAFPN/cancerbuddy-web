@@ -26,4 +26,6 @@ export const LambdaPayloadType = {
   UNMUTE_GROUP: "unmuteGroup",
   /** Scheduled live sessions across all groups. */
   GET_LIVE_CALENDAR: "getLiveCalendar",
+  /** Schedules a live session; also provisions its Twilio room and chat channel. */
+  CREATE_LIVE: "createLive",
 } as const;
