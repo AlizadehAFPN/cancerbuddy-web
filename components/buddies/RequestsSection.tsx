@@ -21,23 +21,36 @@ import { ROLE_BADGE_CLASS, ROLE_LABELS, formatName } from "@/lib/buddies/display
 import { useRequests } from "@/lib/buddies/useRequests";
 import type { PendingRequest } from "@/lib/buddies/types";
 
-function RequestCard({
+/**
+ * Exported so the Updates tab renders the identical card. The two surfaces
+ * differ only in shape — a fixed-width rail here, a full-width stack there —
+ * so `wide` swaps the sizing rather than the markup.
+ */
+export function RequestCard({
   request,
   busy,
   onAccept,
   onDismiss,
+  wide = false,
 }: {
   request: PendingRequest;
   busy: boolean;
   onAccept: () => void;
   onDismiss: () => void;
+  wide?: boolean;
 }) {
   const { remitent } = request;
   const name = formatName(remitent.name);
   const role = ROLE_LABELS[remitent.userType] ?? "";
 
   return (
-    <article className="flex w-full shrink-0 flex-col rounded-2xl border border-cb-gray-200 bg-white p-4 transition-shadow hover:shadow-[0_6px_24px_-10px_rgba(36,36,36,0.2)] lg:w-[320px]">
+    <article
+      className={[
+        "flex w-full shrink-0 flex-col rounded-2xl border border-cb-gray-200 bg-white p-4",
+        "transition-shadow hover:shadow-[0_6px_24px_-10px_rgba(36,36,36,0.2)]",
+        wide ? "" : "lg:w-[320px]",
+      ].join(" ")}
+    >
       <div className="flex items-start gap-3.5">
         <BuddyAvatar
           name={remitent.name}

@@ -1040,6 +1040,45 @@ const en = {
       unavailable: "This resource isn't available.",
     },
 
+    /* ── Updates tab: the notification feed + buddy requests ─────────── */
+    updates: {
+      heading: "Updates",
+      sub: "Everything that happened while you were away.",
+
+      // The two tabs, matching mobile's "All" / "Buddies Request".
+      tabAll: "All",
+      tabRequests: "Buddy requests",
+      tabRequestsCount: "{count} waiting",
+
+      // Section headings. Mobile's wording, kept verbatim so the two apps
+      // group a notification under the same label.
+      sectionNew: "New",
+      sectionToday: "Today",
+      sectionYesterday: "Yesterday",
+      sectionLast7: "Last 7 days",
+      sectionLast30: "Last 30 days",
+
+      // States
+      loadError: "We couldn't load your updates",
+      loadErrorSub: "Check your connection and try again.",
+      tryAgain: "Try again",
+      refresh: "Refresh",
+      loadingMore: "Loading more…",
+      endOfList: "That's everything.",
+
+      empty: "Your updates will appear here.",
+      emptySub:
+        "Replies, likes and new posts from your groups show up here, along with buddy requests.",
+      emptyRequests: "You don't have any buddy requests yet.",
+      emptyRequestsSub:
+        "When someone asks to connect, their request waits for you here.",
+      findBuddies: "Find new buddies",
+
+      // Accessibility
+      openNotification: "Open this update",
+      unopenable: "This update has nothing to open",
+    },
+
     /* ── Profile tab: the hub and its edit sections ──────────────────── */
     profile: {
       heading: "Profile",
