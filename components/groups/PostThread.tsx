@@ -10,7 +10,7 @@
  * disagrees with the next reload.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Sheet } from "@/components/ui/Sheet";
@@ -34,19 +34,38 @@ function CommentRow({
   depth,
   onReply,
   onDelete,
+  highlighted = false,
 }: {
   comment: FeedComment;
   currentUserId: string | null;
   depth: number;
   onReply: (comment: FeedComment) => void;
   onDelete: (comment: FeedComment) => void;
+  /** The comment an Updates notification pointed at — opened and scrolled to. */
+  highlighted?: boolean;
 }) {
-  const [showReplies, setShowReplies] = useState(depth > 0);
+  const [showReplies, setShowReplies] = useState(depth > 0 || highlighted);
+  const rowRef = useRef<HTMLLIElement>(null);
   const name = formatName(comment.author?.name ?? "Member");
   const mine = comment.userId === currentUserId;
 
+  // Mobile scrolls the highlighted comment to a third of the way down the
+  // screen; `center` is the closest equivalent that doesn't fight the sheet's
+  // own scroll container.
+  useEffect(() => {
+    if (!highlighted) return;
+    rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlighted]);
+
   return (
-    <li className={depth > 0 ? "ml-9 mt-3" : "mt-4"}>
+    <li ref={rowRef} className={depth > 0 ? "ml-9 mt-3" : "mt-4"}>
+      <div
+        className={
+          highlighted
+            ? "-mx-2 rounded-2xl bg-cb-bone-300 px-2 py-2 transition-colors"
+            : undefined
+        }
+      >
       <div className="flex items-start gap-2.5">
         <BuddyAvatar
           name={comment.author?.name ?? "?"}
@@ -122,6 +141,7 @@ function CommentRow({
           )}
         </div>
       </div>
+      </div>
     </li>
   );
 }
@@ -131,11 +151,20 @@ export default function PostThread({
   canModerate,
   onClose,
   onCommentCountChange,
+  highlightCommentId,
 }: {
+  /**
+   * Opened from the feed this is the real post. Opened from an Updates
+   * notification only `id` and `feedId` are known — the rest is filled in by
+   * the fetch below, the same way mobile's `PostDetail` receives `{id, feedId}`
+   * and loads the body itself.
+   */
   post: FeedPost;
   canModerate: boolean;
   onClose: () => void;
   onCommentCountChange: (postId: string, count: number) => void;
+  /** A comment to open and scroll to — mobile's `highlightParentReactionId`. */
+  highlightCommentId?: string;
 }) {
   const { userId, requireFeedSession } = useGroups();
 
@@ -260,15 +289,29 @@ export default function PostThread({
       }
     >
       <div className="px-5 pb-4">
-        <PostCard
-          post={detail}
-          currentUserId={userId}
-          canModerate={canModerate}
-          expanded
-          onToggleLike={() => {}}
-          onOpenComments={() => {}}
-          onOpenActions={() => {}}
-        />
+        {/* Opened from a notification the body arrives with the fetch, so show
+            a placeholder until it does rather than an empty card. Opening from
+            the feed the post is already complete and this never renders. */}
+        {loading && !detail.html ? (
+          <div aria-hidden className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 animate-pulse rounded-full bg-cb-gray-100" />
+              <div className="h-4 w-40 animate-pulse rounded bg-cb-gray-100" />
+            </div>
+            <div className="h-4 w-full animate-pulse rounded bg-cb-gray-100" />
+            <div className="h-4 w-4/5 animate-pulse rounded bg-cb-gray-100" />
+          </div>
+        ) : (
+          <PostCard
+            post={detail}
+            currentUserId={userId}
+            canModerate={canModerate}
+            expanded
+            onToggleLike={() => {}}
+            onOpenComments={() => {}}
+            onOpenActions={() => {}}
+          />
+        )}
 
         {loading ? (
           <div aria-hidden className="mt-5 space-y-3">
@@ -297,6 +340,9 @@ export default function PostThread({
                 depth={0}
                 onReply={setReplyTo}
                 onDelete={remove}
+                highlighted={
+                  !!highlightCommentId && comment.id === highlightCommentId
+                }
               />
             ))}
           </ul>

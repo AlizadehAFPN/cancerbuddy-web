@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
@@ -36,12 +36,34 @@ type OpenSheet =
   | { kind: "actions"; post: FeedPost }
   | { kind: "report"; post: FeedPost }
   | { kind: "delete"; post: FeedPost }
-  | { kind: "thread"; post: FeedPost }
+  | { kind: "thread"; post: FeedPost; highlightCommentId?: string }
   | { kind: "pin-conflict"; post: FeedPost }
   | { kind: "info" }
   | { kind: "leave" }
   | { kind: "join" }
   | null;
+
+/**
+ * A post identified only by id — what an Updates notification carries.
+ *
+ * `PostThread` refetches by id and replaces every other field, so the blanks
+ * are placeholders that never reach the screen. Mobile does the same thing,
+ * handing `PostDetail` a `{id, feedId}` pair and nothing else.
+ */
+function postStub(id: string, feedId: string): FeedPost {
+  return {
+    id,
+    feedId,
+    actorId: "",
+    html: "",
+    createdAt: "",
+    edited: false,
+    pinned: false,
+    likeCount: 0,
+    commentCount: 0,
+    attachments: [],
+  };
+}
 
 function FeedSkeleton() {
   return (
@@ -88,6 +110,41 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
   const [posting, setPosting] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Deep link from the Updates tab: `?post=…&feed=…&reaction=…` opens that
+   * post's thread, which is where mobile lands too — its notification router
+   * passes through the feed screen and straight on to `PostDetail`.
+   *
+   * Read once per target rather than on every render: the sheet is dismissible,
+   * and re-opening it because the query string is still in the URL would trap
+   * the user. Without the parameter nothing here runs and the feed behaves
+   * exactly as before.
+   */
+  const searchParams = useSearchParams();
+  const targetPostId = searchParams.get("post");
+  const targetFeedId = searchParams.get("feed");
+  const targetReactionId = searchParams.get("reaction");
+  const openedTargetRef = useRef<string | null>(null);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is the
+  // external system being synchronised here, which is what effects are for. It
+  // can't be a lazy initialiser: arriving from a second notification for the
+  // same group changes only the query string, and this component stays mounted.
+  // The ref bounds it to one setState per distinct target.
+  useEffect(() => {
+    if (!targetPostId || openedTargetRef.current === targetPostId) return;
+    openedTargetRef.current = targetPostId;
+
+    // Prefer the loaded post when the feed already has it — the sheet then
+    // renders instantly instead of showing its placeholder for a beat.
+    const loaded = feed.posts.find((p) => p.id === targetPostId);
+    setSheet({
+      kind: "thread",
+      post: loaded ?? postStub(targetPostId, targetFeedId ?? groupId),
+      highlightCommentId: targetReactionId ?? undefined,
+    });
+  }, [targetPostId, targetFeedId, targetReactionId, groupId, feed.posts]);
 
   // The joined copy carries mute state and the membership row id, so prefer it.
   const joined = useMemo(
@@ -469,6 +526,7 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
         <PostThread
           post={sheet.post}
           canModerate={canModerate}
+          highlightCommentId={sheet.highlightCommentId}
           onClose={() => setSheet(null)}
           onCommentCountChange={(postId, count) =>
             feed.patchPost(postId, { commentCount: count })
