@@ -124,12 +124,17 @@ const GET_PROFILE = /* GraphQL */ `
  * The gallery is keyed on `userGalleryId`, not `pictureUserId` — a picture is
  * attached to its owner's gallery when it's created. Filtering on the wrong
  * field returns an empty list rather than an error, so this one matters.
+ *
+ * `limit` caps *scanned* rows, not returned ones: this is a DynamoDB scan with
+ * a post-read filter, so a small limit means page after page of zero matches
+ * and one network round trip for each. Mobile uses the same huge limit for the
+ * same reason — see the note in `lib/buddies/discoveryFetch.ts`.
  */
 const GET_GALLERY = (withToken: boolean) => /* GraphQL */ `
   query getGalleryPictures($id: ID!${withToken ? ", $token: String" : ""}) {
     listPictures(
       filter: { userGalleryId: { eq: $id } }
-      limit: 100
+      limit: 1000000
       ${withToken ? "nextToken: $token" : ""}
     ) {
       items {

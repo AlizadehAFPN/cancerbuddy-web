@@ -33,7 +33,7 @@ const LIST_MY_JOURNAL = /* GraphQL */ `
   query getMyJournal($id: ID!, $token: String) {
     listJournals(
       filter: { userJournalId: { eq: $id } }
-      limit: 100
+      limit: 1000000
       nextToken: $token
     ) {
       items {
@@ -109,7 +109,7 @@ const LIST_PUBLIC_JOURNAL = /* GraphQL */ `
   query getPublicJournal($id: ID!, $token: String) {
     listJournals(
       filter: { userJournalId: { eq: $id }, visibleToPublic: { eq: true } }
-      limit: 100
+      limit: 1000000
       nextToken: $token
     ) {
       items {

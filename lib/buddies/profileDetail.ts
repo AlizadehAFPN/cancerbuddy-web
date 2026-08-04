@@ -125,7 +125,7 @@ const GET_PROFILE_DETAIL = /* GraphQL */ `
 
 const GET_GALLERY = (userId: string) => /* GraphQL */ `
   query getGalleryPictures {
-    listPictures(filter: { userGalleryId: { eq: "${safeId(userId)}" } }, limit: 60) {
+    listPictures(filter: { userGalleryId: { eq: "${safeId(userId)}" } }, limit: 1000000) {
       items {
         id
         createdAt

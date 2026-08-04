@@ -84,10 +84,14 @@ export default function ProfileProvider({ children }: { children: ReactNode }) {
         if (cancelled || !mountedRef.current) return;
         setUserId(id);
 
-        const [profile, pictures] = await Promise.all([
-          fetchOwnProfile(id),
-          fetchOwnGallery(id).catch(() => [] as GalleryPicture[]),
-        ]);
+        // The gallery is only needed for one completion ring, so it must not
+        // hold the whole page. Fired here, awaited nowhere — it lands later and
+        // the Photos ring fills in.
+        const galleryPromise = fetchOwnGallery(id).catch(
+          () => [] as GalleryPicture[],
+        );
+
+        const profile = await fetchOwnProfile(id);
         if (cancelled || !mountedRef.current) return;
 
         // Mobile never mounts this tab for a support account; the web mirrors
@@ -99,8 +103,11 @@ export default function ProfileProvider({ children }: { children: ReactNode }) {
         }
 
         setUser(profile);
-        setGallery(pictures);
         setStatus("ready");
+
+        void galleryPromise.then((pictures) => {
+          if (!cancelled && mountedRef.current) setGallery(pictures);
+        });
       } catch (err) {
         console.error("[profile] load failed:", err);
         if (!cancelled && mountedRef.current) setStatus("error");
