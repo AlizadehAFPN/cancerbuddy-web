@@ -32,7 +32,11 @@ import {
   medicalInformationProgress,
   personalInformationProgress,
 } from "@/lib/profile/progress";
-import { formatName } from "@/lib/buddies/display";
+import {
+  ROLE_BADGE_CLASS,
+  ROLE_LABELS,
+  formatName,
+} from "@/lib/buddies/display";
 import { removeProfilePicture, setProfilePicture } from "@/lib/profile/photos";
 
 function SectionCard({
@@ -203,6 +207,22 @@ export default function ProfileHub() {
               <h1 className="font-heading text-[20px] font-bold leading-tight text-cb-black">
                 {formatName(user.name ?? "", user.userType ?? undefined)}
               </h1>
+              {/* Role tag, as mobile's AvatarProfile shows it. HOST is
+                  excluded there because it isn't a real underlying role — the
+                  dedicated host badge below stands in for it. */}
+              {user.userType &&
+                user.userType !== "HOST" &&
+                ROLE_LABELS[user.userType] && (
+                  <span
+                    className={[
+                      "rounded-full px-2.5 py-0.5 font-body text-[11.5px] font-bold",
+                      ROLE_BADGE_CLASS[user.userType] ??
+                        "bg-cb-gray-200 text-cb-black",
+                    ].join(" ")}
+                  >
+                    {ROLE_LABELS[user.userType]}
+                  </span>
+                )}
               {user.ambassador && (
                 <span className="rounded-full bg-cb-bone px-2 py-0.5 font-body text-[10.5px] font-bold uppercase tracking-wide text-cb-black">
                   {t("app.buddies.ambassador")}

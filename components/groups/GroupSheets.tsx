@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Sheet } from "@/components/ui/Sheet";
@@ -307,7 +308,12 @@ export function GroupInfoSheet({
             </h3>
             <ul className="mt-3 space-y-3">
               {group.hosts.map((host) => (
-                <li key={host.id} className="flex items-start gap-3">
+                <li key={host.id}>
+                  <Link
+                    href={`/groups/hosts/${host.id}`}
+                    onClick={onClose}
+                    className="flex items-start gap-3 rounded-xl p-1 transition-colors hover:bg-cb-gray-100/70"
+                  >
                   <BuddyAvatar
                     name={host.name}
                     photoUrl={host.profilePicUrl}
@@ -323,11 +329,12 @@ export function GroupInfoSheet({
                       </p>
                     )}
                     {host.bio && (
-                      <p className="mt-1 font-body text-[13.5px] leading-snug text-cb-gray-600">
+                      <p className="mt-1 line-clamp-3 font-body text-[13.5px] leading-snug text-cb-gray-600">
                         {host.bio}
                       </p>
                     )}
                   </div>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -352,6 +359,30 @@ export function GroupInfoSheet({
             </p>
           </section>
         )}
+
+        <Link
+          href={`/groups/${group.id}/members`}
+          onClick={onClose}
+          className="mt-6 flex items-center justify-between gap-3 rounded-xl bg-cb-gray-100 px-4 py-3 transition-colors hover:bg-cb-gray-200/70"
+        >
+          <span className="font-heading text-[14.5px] font-bold text-cb-black">
+            {t("app.groups.viewMembers")}
+          </span>
+          <svg
+            width={18}
+            height={18}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-cb-gray-400"
+            aria-hidden
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </Link>
 
         {isMember && (
           <section className="mt-6 border-t border-cb-gray-100 pt-4">

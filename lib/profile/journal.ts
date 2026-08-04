@@ -105,6 +105,64 @@ export async function fetchMyJournal(userId: string): Promise<JournalEntry[]> {
   );
 }
 
+const LIST_PUBLIC_JOURNAL = /* GraphQL */ `
+  query getPublicJournal($id: ID!, $token: String) {
+    listJournals(
+      filter: { userJournalId: { eq: $id }, visibleToPublic: { eq: true } }
+      limit: 100
+      nextToken: $token
+    ) {
+      items {
+        id
+        text
+        createdAt
+        visibleToPublic
+      }
+      nextToken
+    }
+  }
+`;
+
+/**
+ * Another member's public journal entries, newest first.
+ *
+ * The `visibleToPublic` filter is always present — see the module note on why
+ * it is treated as a display rule the web must honour rather than as the
+ * boundary that protects private entries.
+ *
+ * Mobile's equivalent query has no `limit` or pagination, so a prolific
+ * journaller's older public entries silently disappear there. This pages
+ * properly, which means the web can show entries the phone doesn't.
+ */
+export async function fetchPublicJournal(
+  userId: string,
+): Promise<JournalEntry[]> {
+  const entries: JournalEntry[] = [];
+  let token: string | undefined;
+  let pages = 0;
+
+  do {
+    const { data } = await executeAppSyncGraphql<{
+      listJournals: {
+        items?: JournalEntry[] | null;
+        nextToken?: string | null;
+      } | null;
+    }>({
+      query: LIST_PUBLIC_JOURNAL,
+      variables: { id: userId, token: token ?? null },
+      authWithUserPool: true,
+    });
+
+    entries.push(...(data?.listJournals?.items ?? []).filter((e) => e?.id));
+    token = data?.listJournals?.nextToken ?? undefined;
+    pages += 1;
+  } while (token && pages < MAX_PAGES);
+
+  return entries.sort((a, b) =>
+    (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
+  );
+}
+
 export async function createJournalEntry(params: {
   userId: string;
   text: string;

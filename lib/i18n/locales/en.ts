@@ -799,6 +799,11 @@ const en = {
 
     /* ── Buddies tab: incoming requests + discovery ─────────────────── */
     buddies: {
+      journal: "Journal",
+      journalEntryCount: "{count} shared entries",
+      journalNoneShared: "Nothing shared yet.",
+      journalError: "We couldn't load these entries.",
+      readMore: "Read more",
       heading: "Let's find your next Buddy",
       sub: "People here have been where you are. Filter to find the ones closest to your experience.",
       loadError: "We couldn't load your buddies",
@@ -1409,6 +1414,14 @@ const en = {
       reportSubmit: "Submit report",
       reportThanks: "Thanks — our team will review it.",
       reportError: "We couldn't send that report. Please try again.",
+
+      // Members + host detail
+      membersError: "We couldn't load the member list.",
+      membersEmpty: "No members to show yet.",
+      hostTitle: "Group host",
+      hostNotFound: "We couldn't find that host.",
+      hostsGroup: "Hosts",
+      viewMembers: "View members",
 
       // Calendar
       calendarEmpty: "No live sessions scheduled.",

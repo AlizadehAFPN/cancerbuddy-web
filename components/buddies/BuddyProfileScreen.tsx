@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
 import BuddyAvatar from "@/components/buddies/BuddyAvatar";
+import JournalPreview from "@/components/buddies/JournalPreview";
 import {
   ArrowLeftIcon,
   ChevronRightIcon,
@@ -354,6 +355,10 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
               </div>
             </section>
           )}
+
+          {/* Journal — hidden for support accounts along with the other
+              personal sections, exactly as mobile's `shouldHide` does. */}
+          {!isSupportAccount && <JournalPreview userId={profile.id} />}
 
           {/* Photos */}
           {profile.gallery.length > 0 && !isSupportAccount && (
