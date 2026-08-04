@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useStreamChat } from "@/lib/chat/StreamChatProvider";
+import { usePendingRequestCount } from "@/lib/buddies/usePendingRequestCount";
 import Sidebar from "./Sidebar";
 import BottomBar from "./BottomBar";
 import AccountSheet from "./AccountSheet";
@@ -20,9 +21,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const openMenu = () => setMenuOpen(true);
 
-  // Chat unread count comes live from Stream; other badges await their data.
-  const { totalUnread } = useStreamChat();
-  const badges: NavBadges = { chat: totalUnread };
+  const { totalUnread, userId } = useStreamChat();
+
+  /**
+   * Badges.
+   *
+   * Chat comes live from Stream. Updates carries the buddy-request count,
+   * which is the one countable, actionable thing the tab holds: the
+   * notification rows themselves have no unread state to count, because the
+   * `read` flag on them is never set (see `docs/UPDATES.md`). Mobile's Updates
+   * badge counts push messages received since the app opened instead — a
+   * number that resets on reload and can't be reconstructed here.
+   */
+  const pendingRequests = usePendingRequestCount(userId ?? null);
+  const badges: NavBadges = {
+    chat: totalUnread,
+    notifications: pendingRequests,
+  };
 
   return (
     <div className="flex h-dvh max-h-dvh w-full overflow-hidden bg-white">

@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { API, graphqlOperation } from "aws-amplify";
 import {
   acceptConnection,
   deleteConnection,
@@ -21,6 +22,23 @@ import { useBuddies } from "@/lib/buddies/BuddiesProvider";
 import { useStreamChat } from "@/lib/chat/StreamChatProvider";
 import { formatName } from "@/lib/buddies/display";
 import type { PendingRequest } from "@/lib/buddies/types";
+
+/**
+ * Mobile subscribes to this on the Updates screen, the requests screen and the
+ * tab bar, so a request that arrives while the app is open appears without a
+ * refresh. Same subscription here, in the hook both surfaces already share.
+ */
+const ON_CREATE_CONNECTION = /* GraphQL */ `
+  subscription GetPendingConnections($userId: ID!) {
+    onCreateConnectionByRecipientId(connectionRecipientId: $userId) {
+      id
+      connectionRecipientId
+      connectionRemitentId
+      accepted
+      ignored
+    }
+  }
+`;
 
 export interface RequestsResult {
   requests: PendingRequest[];
@@ -69,6 +87,39 @@ export function useRequests(): RequestsResult {
     if (!userId) return;
     setLoading(true);
     void load();
+  }, [userId, load]);
+
+  /**
+   * A new request arriving while the page is open re-reads the list rather than
+   * splicing the payload in: the subscription carries only the connection's
+   * ids, and the card needs the sender's profile, photo and role.
+   *
+   * A dropped socket is not surfaced. The list is correct as of the last read
+   * and re-reads on entry, so a failed subscription costs liveness, not truth.
+   */
+  useEffect(() => {
+    if (!userId) return;
+
+    let subscription: { unsubscribe: () => void } | undefined;
+    try {
+      const observable = API.graphql(
+        graphqlOperation(ON_CREATE_CONNECTION, { userId }),
+      ) as {
+        subscribe: (handlers: {
+          next: () => void;
+          error: () => void;
+        }) => { unsubscribe: () => void };
+      };
+
+      subscription = observable.subscribe({
+        next: () => void load(),
+        error: () => {},
+      });
+    } catch (err) {
+      console.error("[buddies] request subscription failed:", err);
+    }
+
+    return () => subscription?.unsubscribe();
   }, [userId, load]);
 
   const markBusy = (id: string, busy: boolean) =>

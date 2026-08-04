@@ -71,6 +71,64 @@ const PENDING_REQUESTS = (userId: string, nextToken?: string) => /* GraphQL */ `
 `;
 
 /**
+ * Ids only — what the navigation badge needs.
+ *
+ * A separate query from `PENDING_REQUESTS` on purpose: that one pulls each
+ * sender's profile and then signs an S3 URL per avatar, which is the right
+ * cost for a screen full of cards and the wrong one for a number rendered next
+ * to a nav icon on every page.
+ */
+const PENDING_REQUEST_IDS = (userId: string, nextToken?: string) => /* GraphQL */ `
+  query countConnectionsByRecipient {
+    byRecipientId(
+      connectionRecipientId: "${safeId(userId)}",
+      filter: { accepted: { eq: false }, ignored: { eq: false } },
+      limit: 50
+      ${nextToken ? `, nextToken: "${nextToken}"` : ""}
+    ) {
+      items {
+        id
+        Remitent { id }
+      }
+      nextToken
+    }
+  }
+`;
+
+/**
+ * How many buddy requests are waiting.
+ *
+ * Counts the same rows `fetchPendingRequests` would render — including the
+ * filter for senders whose account is gone — so the badge can never promise a
+ * request the list doesn't show.
+ */
+export async function fetchPendingRequestCount(userId: string): Promise<number> {
+  let count = 0;
+  let nextToken: string | undefined;
+  let pages = 0;
+
+  do {
+    const { data } = await executeAppSyncGraphql<{
+      byRecipientId: {
+        items?: { id: string; Remitent?: { id?: string } | null }[] | null;
+        nextToken?: string | null;
+      } | null;
+    }>({
+      query: PENDING_REQUEST_IDS(userId, nextToken),
+      variables: {},
+      authWithUserPool: true,
+    });
+
+    const page = data?.byRecipientId;
+    count += (page?.items ?? []).filter((r) => !!r?.Remitent?.id).length;
+    nextToken = page?.nextToken ?? undefined;
+    pages += 1;
+  } while (nextToken && pages < MAX_PAGES);
+
+  return count;
+}
+
+/**
  * Buddy requests waiting on the user, newest first. Rows whose `Remitent` has
  * been deleted are dropped — mobile filters these out too, otherwise the list
  * renders empty cards for accounts that no longer exist.
