@@ -143,6 +143,20 @@ server-side only; never give it a `NEXT_PUBLIC_` prefix. If the organisation
 disallows personal tokens, the alternative is a Contentful App with scoped
 permissions, which this client would talk to the same way.
 
+### Deploying it
+
+Setting the variable in the Amplify console is **not enough**, and the failure
+is silent — the panel simply reports Contentful as unconfigured. The admin app
+delivers non-`NEXT_PUBLIC_` variables to its SSR runtime through the `env`
+block in `next.config.ts`, which inlines them at build time. Any new variable
+has to be added in **both** places:
+
+1. the Amplify app's environment variables (app `d3cjblipd48wqf`), and
+2. the `env` block in `next.config.ts`.
+
+`amplify.yml` has a `frontend.environment.variables` block listing the same
+names. Amplify ignores it — it is a checklist, not a mechanism.
+
 ### Screens
 
 - `/dashboard/resources` — grouped by organisation, with search, publish /
