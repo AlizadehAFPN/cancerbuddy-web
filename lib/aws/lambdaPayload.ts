@@ -28,4 +28,21 @@ export const LambdaPayloadType = {
   GET_LIVE_CALENDAR: "getLiveCalendar",
   /** Schedules a live session; also provisions its Twilio room and chat channel. */
   CREATE_LIVE: "createLive",
+
+  /* ── Live video room ── */
+  /**
+   * Mints a Twilio Video access token and reports the caller's role. The
+   * Lambda is the only place that decides who is a host, and it refuses
+   * blocked users — never infer either client-side.
+   */
+  GET_TWILIO_TOKEN: "getTwilioToken",
+  /** Host-only: mute / hide / remove / block another participant. */
+  MODERATE_LIVE: "moderateLive",
+  /** Host-only: close the session for everyone. */
+  END_LIVE: "endLive",
+  /**
+   * Host-only: push "we're live" to the group's members. Runs on
+   * `NOTIFICATIONS_LAMBDA`, not the users one.
+   */
+  NOTIFY_GROUP_LIVE: "notifyGroupLive",
 } as const;

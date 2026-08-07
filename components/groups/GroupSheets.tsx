@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui";
+import { ChevronRightIcon } from "@/components/ui/icons";
 import GroupAvatar from "@/components/groups/GroupAvatar";
 import BuddyAvatar from "@/components/buddies/BuddyAvatar";
 import { formatName } from "@/lib/buddies/display";
@@ -40,31 +41,47 @@ function ActionRow({
   title,
   description,
   danger,
+  busy,
+  disabled,
   onClick,
 }: {
   title: string;
   description?: string;
   danger?: boolean;
+  /** Shows a spinner and blocks the row while the action is in flight. */
+  busy?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full border-b border-cb-gray-100 px-5 py-4 text-left transition-colors last:border-0 hover:bg-cb-gray-100/70"
+      disabled={busy || disabled}
+      aria-busy={busy || undefined}
+      className="flex w-full items-center gap-3 border-b border-cb-gray-100 px-5 py-4 text-left transition-colors last:border-0 hover:bg-cb-gray-100/70 disabled:cursor-default disabled:hover:bg-transparent"
     >
-      <span
-        className={[
-          "block font-heading text-[15px] font-bold",
-          danger ? "text-cb-danger" : "text-cb-black",
-        ].join(" ")}
-      >
-        {title}
-      </span>
-      {description && (
-        <span className="mt-0.5 block font-body text-[13px] leading-snug text-cb-gray-500">
-          {description}
+      <span className="min-w-0 flex-1">
+        <span
+          className={[
+            "block font-heading text-[15px] font-bold transition-opacity",
+            danger ? "text-cb-danger" : "text-cb-black",
+            disabled && !busy ? "opacity-40" : "",
+          ].join(" ")}
+        >
+          {title}
         </span>
+        {description && (
+          <span className="mt-0.5 block font-body text-[13px] leading-snug text-cb-gray-500">
+            {description}
+          </span>
+        )}
+      </span>
+      {busy && (
+        <span
+          aria-hidden
+          className="h-[18px] w-[18px] shrink-0 animate-spin rounded-full border-2 border-cb-gray-300 border-t-cb-black"
+        />
       )}
     </button>
   );
@@ -264,14 +281,16 @@ export function GroupInfoSheet({
   return (
     <Sheet open wide title={group.name} onClose={onClose}>
       <div className="px-5 pb-6">
-        <div className="flex items-center gap-4">
+        {/* Wraps rather than squeezes: on a phone-width sheet the members link
+            drops to its own line instead of crushing the sponsor name. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <GroupAvatar
             name={group.name}
             imageUrl={group.profilePicUrl}
             verified={group.verified}
             size={72}
           />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1 basis-[140px]">
             {group.sponsor?.name && (
               <p className="font-body text-[13.5px] text-cb-gray-500">
                 {t("app.groups.hostedBy", { sponsor: group.sponsor.name })}
@@ -288,6 +307,17 @@ export function GroupInfoSheet({
               </p>
             )}
           </div>
+
+          {/* Sits with the count rather than at the foot of the sheet — the
+              number is what prompts the question "who's in here?". */}
+          <Link
+            href={`/groups/${group.id}/members`}
+            onClick={onClose}
+            className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-cb-gray-100 px-3.5 py-2 font-heading text-[13px] font-bold text-cb-black transition-colors hover:bg-cb-gray-200/70"
+          >
+            {t("app.groups.viewMembers")}
+            <ChevronRightIcon size={14} className="text-cb-gray-400" />
+          </Link>
         </div>
 
         {(group.about || group.description) && (
@@ -360,47 +390,34 @@ export function GroupInfoSheet({
           </section>
         )}
 
-        <Link
-          href={`/groups/${group.id}/members`}
-          onClick={onClose}
-          className="mt-6 flex items-center justify-between gap-3 rounded-xl bg-cb-gray-100 px-4 py-3 transition-colors hover:bg-cb-gray-200/70"
-        >
-          <span className="font-heading text-[14.5px] font-bold text-cb-black">
-            {t("app.groups.viewMembers")}
-          </span>
-          <svg
-            width={18}
-            height={18}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 text-cb-gray-400"
-            aria-hidden
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </Link>
-
         {isMember && (
           <section className="mt-6 border-t border-cb-gray-100 pt-4">
+            {/* Muting round-trips to AppSync and back, which is slow enough to
+                look like a dead tap — so the row states what it's doing and
+                spins until the answer lands. */}
             <ActionRow
               title={
-                group.muted ? t("app.groups.unmuteGroup") : t("app.groups.muteGroup")
+                muteBusy
+                  ? t(group.muted ? "app.groups.unmuting" : "app.groups.muting")
+                  : t(
+                      group.muted
+                        ? "app.groups.unmuteGroup"
+                        : "app.groups.muteGroup",
+                    )
               }
               description={
                 group.muted
                   ? t("app.groups.unmuteGroupSub")
                   : t("app.groups.muteGroupSub")
               }
-              onClick={muteBusy ? () => {} : onToggleMute}
+              busy={muteBusy}
+              onClick={onToggleMute}
             />
             <ActionRow
               title={t("app.groups.leaveGroup")}
               description={t("app.groups.leaveGroupSub")}
               danger
+              disabled={muteBusy}
               onClick={onLeave}
             />
           </section>

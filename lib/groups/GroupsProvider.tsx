@@ -52,6 +52,12 @@ interface GroupsContextValue {
   /** Fast membership test without scanning the array. */
   isMember: (groupId: string) => boolean;
   liveGroupIds: Set<string>;
+  /**
+   * The live session id for a group that is broadcasting, or null. That id is
+   * what `/live/[eventId]` needs — the same `liveEvent.id` mobile passes to its
+   * Twilio room.
+   */
+  liveEventIdFor: (groupId: string) => string | null;
   /** Resolves (and caches) the Stream feed session; throws if unavailable. */
   requireFeedSession: () => Promise<FeedSession>;
   refreshGroups: () => Promise<void>;
@@ -68,6 +74,7 @@ const GroupsContext = createContext<GroupsContextValue>({
   joinedGroups: [],
   isMember: () => false,
   liveGroupIds: new Set(),
+  liveEventIdFor: () => null,
   requireFeedSession: () => Promise.reject(new Error("Groups are not ready.")),
   refreshGroups: async () => {},
   addJoinedGroup: () => {},
@@ -210,9 +217,24 @@ export default function GroupsProvider({ children }: { children: ReactNode }) {
     [liveGroups],
   );
 
+  const liveEventByGroup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const live of liveGroups) {
+      if (live.groupId && live.id && !map.has(live.groupId)) {
+        map.set(live.groupId, live.id);
+      }
+    }
+    return map;
+  }, [liveGroups]);
+
   const isMember = useCallback(
     (groupId: string) => memberIds.has(groupId),
     [memberIds],
+  );
+
+  const liveEventIdFor = useCallback(
+    (groupId: string) => liveEventByGroup.get(groupId) ?? null,
+    [liveEventByGroup],
   );
 
   const value = useMemo<GroupsContextValue>(
@@ -222,6 +244,7 @@ export default function GroupsProvider({ children }: { children: ReactNode }) {
       joinedGroups,
       isMember,
       liveGroupIds,
+      liveEventIdFor,
       requireFeedSession,
       refreshGroups,
       addJoinedGroup,
@@ -235,6 +258,7 @@ export default function GroupsProvider({ children }: { children: ReactNode }) {
       joinedGroups,
       isMember,
       liveGroupIds,
+      liveEventIdFor,
       requireFeedSession,
       refreshGroups,
       addJoinedGroup,

@@ -48,6 +48,17 @@
   --color-cb-success:    #83E86D;
   --color-cb-info:       #7986FC;
   --color-cb-warning:    #FCDC0C;
+
+  /* ── Live room ──
+     The video room is the one dark surface in the app, exactly as it is on
+     mobile: video reads badly against white, and the tiles need to be the
+     brightest thing on screen. `bg` and `surface` are the same two values the
+     mobile Twilio room uses (`twilio-video-room.styles.ts`), so the two
+     platforms look like one product. */
+  --color-cb-live-bg:      #1A1A1A;
+  --color-cb-live-surface: #2A2A2A;
+  --color-cb-live-raised:  #363636;
+  --color-cb-live-scrim:   #111111;
 }
 
 /* ── Global defaults ── */

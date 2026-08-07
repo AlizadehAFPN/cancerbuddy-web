@@ -720,11 +720,25 @@ const en = {
       profileTitle: "Profile",
       profileBody: "Your profile will appear here.",
       settingsTitle: "Settings",
-      settingsBody: "Account and app settings will appear here.",
+      settingsBody: "Manage how CancerBuddy reaches you.",
       partnersTitle: "More from our partners",
       partnersBody: "Information, products and support from our partners.",
       fundersTitle: "Our funders",
       fundersBody: "CancerBuddy is made possible by independent grants.",
+    },
+    push: {
+      title: "Notifications",
+      body: "Get notified about new messages and buddy requests, even when CancerBuddy isn't open in this browser.",
+      statusOn: "Notifications are on for this browser.",
+      turnOn: "Turn on notifications",
+      turnOff: "Turn off",
+      blocked:
+        "Notifications are blocked for this site. To turn them back on, open your browser's site settings for cancerbuddy.com and allow notifications.",
+      unavailable:
+        "This browser can't show notifications yet. On an iPhone or iPad, add CancerBuddy to your home screen first, then come back to this page.",
+      error:
+        "We couldn't finish turning on notifications. Please reload the page and try again.",
+      toastOpen: "Open",
     },
     chat: {
       title: "Chat",
@@ -1381,6 +1395,8 @@ const en = {
       muteGroupSub: "You won't be notified about new posts.",
       unmuteGroup: "Unmute group updates",
       unmuteGroupSub: "You'll be notified about new posts.",
+      muting: "Muting…",
+      unmuting: "Unmuting…",
       muteError: "We couldn't change that setting. Please try again.",
       mutedToast: "You won't be notified about new posts in {name}.",
       unmutedToast: "You'll be notified about new posts in {name}.",
@@ -1470,8 +1486,165 @@ const en = {
       calendarLive: "Live now",
       calendarUpcoming: "Upcoming",
       calendarError: "We couldn't load the live calendar.",
-      liveVideoUnavailable:
-        "Joining live video isn't available on the web yet — open the CancerBuddy app to join.",
+      joinLive: "Join live",
+      liveHappeningNow: "This session is happening right now.",
+    },
+
+    /* ── Live video room (/live/[eventId]) ─────────────────────────────── */
+    live: {
+      // Chrome
+      liveSession: "Live session",
+      liveBadge: "Live",
+      reconnecting: "Reconnecting",
+      participantCount: "{count} participants",
+      participantCountOne: "1 participant",
+      youAreHost: "You're hosting",
+      loading: "Loading the session…",
+      joining: "Joining {name}…",
+
+      // People and tiles
+      you: "You",
+      youWithName: "{name} (you)",
+      yourScreen: "Your screen",
+      screenOf: "{name}'s screen",
+      unknownMember: "Member",
+      hostBadge: "Host",
+      hostSender: "Host",
+      presenting: "Presenting",
+      cameraOn: "Camera on",
+      cameraOff: "Camera off",
+      micOn: "Microphone on",
+      micOff: "Microphone off",
+      reconnectingParticipant: "Reconnecting…",
+      networkQuality: "Connection quality {level} of 5",
+      pinTile: "Show {name} on the main stage",
+      manageParticipant: "Manage {name}",
+      hostsSection: "Hosts",
+      participantsSection: "Participants",
+      otherParticipants: "Other participants",
+      waitingForOthers: "Waiting for others to join…",
+
+      // Controls
+      turnCameraOn: "Turn camera on",
+      turnCameraOff: "Turn camera off",
+      muteMic: "Mute microphone",
+      unmuteMic: "Unmute microphone",
+      shareScreen: "Share your screen",
+      stopSharing: "Stop sharing",
+      shareScreenSub: "Show a window or your whole screen to the group.",
+      chooseCamera: "Choose a camera",
+      chooseAudioDevices: "Choose audio devices",
+      camera: "Camera",
+      microphone: "Microphone",
+      speaker: "Speaker",
+      noDevices: "No devices found",
+      switchToGrid: "Switch to grid",
+      switchToGridSub: "Show everyone at the same size.",
+      switchToStage: "Switch to stage",
+      switchToStageSub: "Give the speaker the main view.",
+      people: "People ({count})",
+      viewPeople: "View people",
+      viewPeopleSub: "See who's here and manage participants.",
+      chat: "Chat",
+      roomOptions: "Session options",
+      leave: "Leave session",
+      closePanel: "Close panel",
+      sidePanel: "Chat and people",
+      audioBlocked: "Your browser blocked the sound — tap to hear the session.",
+
+      // Pre-join
+      prejoinSub: "Check your camera and microphone before you join.",
+      prejoinDefaultsNote:
+        "You'll join muted with your camera off. You can turn them on at any time.",
+      joinNow: "Join now",
+      cancel: "Cancel",
+
+      // Chat
+      chatEmpty: "No messages yet",
+      chatEmptySub: "Say hello — the whole session can see the chat.",
+      chatPlaceholder: "Message here…",
+      send: "Send message",
+      jumpToLatest: "Jump to latest",
+      messageFailed: "Not sent — tap to retry",
+      chatUnavailable: "Chat isn't available for this session.",
+
+      // Host options
+      notifyMembers: "Notify group members",
+      notifyMembersSub: "Send everyone in the group a nudge to join.",
+      notifySent: "Your group has been notified.",
+      notifyFailed: "We couldn't send that notification. Please try again.",
+      exitLive: "Exit live session",
+      exitLiveSub: "You're able to come back.",
+      endForEveryone: "End live for everyone",
+      endForEveryoneSub:
+        "This can't be undone. No one will be able to rejoin.",
+      endForEveryoneConfirm:
+        "This ends the session for everyone in it, and nobody will be able to rejoin. Are you sure?",
+      endedToast: "The session has ended.",
+      endFailed: "We couldn't end the session. Please try again.",
+
+      // Moderation the host performs
+      moderationSub: "Only you and other hosts can do this.",
+      muteMicrophone: "Mute microphone",
+      muteMicrophoneSub: "Their mic will be turned off.",
+      disableCamera: "Disable camera",
+      disableCameraSub: "Their camera will be turned off.",
+      removeFromLive: "Remove from live",
+      removeFromLiveSub: "They can rejoin later.",
+      blockFromLive: "Block from live",
+      blockFromLiveSub: "They won't be able to rejoin this session.",
+      mutedToast: "{name} has been muted.",
+      cameraOffToast: "{name}'s camera has been turned off.",
+      removedToast: "{name} has been removed.",
+      blockedToast: "{name} has been blocked from this session.",
+      moderationFailed: "We couldn't do that. Please try again.",
+
+      // Moderation this user receives
+      mutedTitle: "Microphone muted",
+      mutedBody: "The host muted your microphone. You can unmute yourself.",
+      cameraOffTitle: "Camera turned off",
+      cameraOffBody: "The host turned off your camera. You can turn it back on.",
+      removedTitle: "Removed from the session",
+      removedBody: "The host removed you from this live session.",
+      blockedTitle: "Blocked from the session",
+      blockedBody: "The host blocked you from this live session.",
+
+      // Errors and end states
+      errorTitle: "Unable to connect",
+      retry: "Try again",
+      goBack: "Go back",
+      backToGroup: "Back to the group",
+      backToGroups: "Back to groups",
+      sessionNotFound: "We couldn't find that live session.",
+      loadFailed: "We couldn't load that live session. Please try again.",
+      joinFailed: "We couldn't get you into this session. Please try again.",
+      notSignedIn: "Sign in again to join this session.",
+      sessionEnded: "The live session has ended.",
+      overTitle: "This session has ended",
+      overBody:
+        "It's no longer running, so there's nothing to join. Upcoming sessions are on the live calendar.",
+      duplicateIdentity:
+        "You joined this session somewhere else. Close the other tab or device and try again.",
+      leftTitle: "You've left the session",
+      leftBody: "You can rejoin as long as it's still running.",
+      rejoin: "Rejoin",
+
+      // Device access
+      cameraDenied:
+        "Your browser is blocking the camera. Allow camera access for this site, then try again.",
+      cameraMissing: "We couldn't find a camera. Connect one and try again.",
+      cameraBusy:
+        "Your camera is being used by another app. Close it and try again.",
+      cameraFailed: "We couldn't start your camera. Please try again.",
+      micDenied:
+        "Your browser is blocking the microphone. Allow microphone access for this site, then try again.",
+      micMissing: "We couldn't find a microphone. Connect one and try again.",
+      micBusy:
+        "Your microphone is being used by another app. Close it and try again.",
+      micFailed: "We couldn't start your microphone. Please try again.",
+      screenUnsupported: "This browser can't share a screen.",
+      screenFailed: "We couldn't start screen sharing. Please try again.",
+      deviceSwitchFailed: "We couldn't switch to that device.",
     },
   },
 

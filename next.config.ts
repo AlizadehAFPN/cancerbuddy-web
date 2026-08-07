@@ -46,12 +46,20 @@ const SECURITY_HEADERS = [
     value: "strict-origin-when-cross-origin",
   },
   /* Disable browser features we don't use. Reduces the blast radius of an
-     XSS or rogue dependency embedding a microphone / camera capture. The
-     photo upload is a normal `<input type="file">`, not `getUserMedia`. */
+     XSS or rogue dependency embedding a capture API.
+
+     `camera`, `microphone` and `display-capture` are granted to `self` — and
+     only `self` — because the live video room (`/live/[eventId]`) calls
+     `getUserMedia` / `getDisplayMedia`. An empty allowlist here does not
+     prompt and does not warn: `getUserMedia` simply rejects with
+     `NotAllowedError`, which is indistinguishable from the user refusing
+     permission. Do not "tidy" these back to `()` without removing the live
+     room first. Third-party frames (the group widget iframe) are still
+     excluded, so an embedded page cannot reach a camera. */
   {
     key: "Permissions-Policy",
     value:
-      "accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+      "accelerometer=(), camera=(self), display-capture=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(self), payment=(), usb=()",
   },
   /* Reduce data sent to third parties by default; the only cross-origin
      callers we expect are AWS endpoints, which don't read these. */
@@ -111,6 +119,29 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: SECURITY_HEADERS,
+      },
+      /* The push service worker (`public/firebase-messaging-sw.js`). Files in
+         `public/` are served with `Cache-Control: public, max-age=0`, which lets
+         a proxy or the HTTP cache hold on to a stale worker; a service worker
+         that outlives a fix to click-routing is hard to debug, so make it
+         explicitly uncacheable. `Service-Worker-Allowed: /` lets it claim the
+         whole origin even though nothing today registers it off-root. */
+      {
+        source: "/firebase-messaging-sw.js",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
+        ],
       },
     ];
   },

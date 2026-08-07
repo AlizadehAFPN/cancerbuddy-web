@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { signOut } from "@/lib/auth-client";
 import { disconnectStream } from "@/lib/chat/streamClient";
+import { unregisterPushDevice } from "@/lib/push/pushClient";
 import {
   RESOURCE_LINKS,
   LOGOUT_LINK,
@@ -60,6 +61,11 @@ export default function AccountSheet({
 
   const handleLogout = async () => {
     onClose();
+    /* Detach this browser from the member's Stream devices before dropping the
+       connection, so a shared computer never delivers their notifications to
+       whoever logs in next. Mirrors mobile (`useAuth.ts:196,277`). Must run
+       first: `removeDevice` needs the connected client. */
+    await unregisterPushDevice();
     await disconnectStream();
     await signOut();
     router.replace("/");

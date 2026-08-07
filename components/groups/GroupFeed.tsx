@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
@@ -94,6 +95,7 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
     joinedGroups,
     isMember,
     liveGroupIds,
+    liveEventIdFor,
     requireFeedSession,
     refreshGroups,
     removeJoinedGroup,
@@ -127,11 +129,9 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
   const targetReactionId = searchParams.get("reaction");
   const openedTargetRef = useRef<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is the
-  // external system being synchronised here, which is what effects are for. It
-  // can't be a lazy initialiser: arriving from a second notification for the
-  // same group changes only the query string, and this component stays mounted.
-  // The ref bounds it to one setState per distinct target.
+  // Not a lazy initialiser: arriving from a second notification for the same
+  // group changes only the query string, and this component stays mounted. The
+  // ref bounds this to one state write per distinct target.
   useEffect(() => {
     if (!targetPostId || openedTargetRef.current === targetPostId) return;
     openedTargetRef.current = targetPostId;
@@ -153,6 +153,7 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
   );
   const member = isMember(groupId);
   const live = liveGroupIds.has(groupId);
+  const liveEventId = live ? liveEventIdFor(groupId) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -391,6 +392,17 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
             </span>
           </span>
         </button>
+
+        {/* A running session is the most time-sensitive thing on this screen,
+            so it gets a button in the header rather than a line in the feed. */}
+        {member && liveEventId && (
+          <Link
+            href={`/live/${liveEventId}`}
+            className="shrink-0 rounded-full bg-cb-danger px-4 py-2 font-heading text-[13px] font-bold text-white transition-[filter] hover:brightness-110"
+          >
+            {t("app.groups.joinLive")}
+          </Link>
+        )}
 
         {!member && (
           <Button size="sm" onClick={() => setSheet({ kind: "join" })}>

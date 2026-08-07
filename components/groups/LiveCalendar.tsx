@@ -7,8 +7,10 @@
  * the mobile calendar. Sessions belonging to private groups the user isn't in
  * are filtered out before rendering — see `filterCalendarForPrivacy`.
  *
- * Joining the video itself needs the Twilio room, which isn't part of the web
- * app yet, so live sessions link to their group instead of a call.
+ * A session that is running now leads into `/live/[eventId]`; one that isn't
+ * leads to its group. Mobile makes every calendar row open the Twilio room and
+ * lets the token Lambda reject early arrivals, which is a confusing way to
+ * learn a session hasn't started.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -27,14 +29,20 @@ import type { LiveCalendarEvent } from "@/lib/groups/types";
 
 function EventRow({
   event,
-  live,
+  liveEventId,
   isMember,
 }: {
   event: LiveCalendarEvent;
-  live: boolean;
+  /**
+   * The session to join, when one in this group is running. Usually this row,
+   * but a group can have a session live while a *different* row is the one
+   * broadcasting — the badge follows the group, the link must follow the id.
+   */
+  liveEventId: string | null;
   isMember: boolean;
 }) {
   const when = formatEventWhen(event);
+  const live = liveEventId !== null;
 
   return (
     <li className="rounded-2xl border border-cb-gray-200 bg-white p-4">
@@ -73,19 +81,28 @@ function EventRow({
           )}
         </div>
 
-        {event.groupId && (
+        {liveEventId ? (
           <Link
-            href={`/groups/${event.groupId}`}
-            className="shrink-0 rounded-full border-2 border-cb-black px-3.5 py-1.5 font-body text-[12.5px] font-bold text-cb-black transition-colors hover:bg-cb-gray-100"
+            href={`/live/${liveEventId}`}
+            className="shrink-0 rounded-full bg-cb-danger px-4 py-1.5 font-body text-[12.5px] font-bold text-white transition-[filter] hover:brightness-110"
           >
-            {isMember ? t("app.groups.groupInfo") : t("app.groups.join")}
+            {t("app.groups.joinLive")}
           </Link>
+        ) : (
+          event.groupId && (
+            <Link
+              href={`/groups/${event.groupId}`}
+              className="shrink-0 rounded-full border-2 border-cb-black px-3.5 py-1.5 font-body text-[12.5px] font-bold text-cb-black transition-colors hover:bg-cb-gray-100"
+            >
+              {isMember ? t("app.groups.groupInfo") : t("app.groups.join")}
+            </Link>
+          )
         )}
       </div>
 
       {live && (
         <p className="mt-3 rounded-xl bg-cb-bone px-3 py-2 font-body text-[12.5px] leading-snug text-cb-black">
-          {t("app.groups.liveVideoUnavailable")}
+          {t("app.groups.liveHappeningNow")}
         </p>
       )}
     </li>
@@ -93,7 +110,7 @@ function EventRow({
 }
 
 export default function LiveCalendar() {
-  const { joinedGroups, liveGroupIds, isMember } = useGroups();
+  const { joinedGroups, liveGroupIds, liveEventIdFor, isMember } = useGroups();
 
   const [months, setMonths] = useState<CalendarMonth[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,8 +206,12 @@ export default function LiveCalendar() {
                         <EventRow
                           key={event.id}
                           event={event}
-                          live={
-                            event.inLive === true || liveGroupIds.has(event.groupId)
+                          liveEventId={
+                            event.inLive === true
+                              ? event.id
+                              : liveGroupIds.has(event.groupId)
+                                ? liveEventIdFor(event.groupId)
+                                : null
                           }
                           isMember={isMember(event.groupId)}
                         />
