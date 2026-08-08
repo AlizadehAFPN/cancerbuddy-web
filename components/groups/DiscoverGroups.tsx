@@ -10,7 +10,10 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { toast } from "sonner";
 import { t } from "@/lib/i18n";
+import { BMCF_CONTACT_EMAIL } from "@/lib/constants/contact";
 import { SearchIcon, XIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui";
 import GroupAvatar from "@/components/groups/GroupAvatar";
@@ -64,6 +67,18 @@ export default function DiscoverGroups() {
       cancelled = true;
     };
   }, []);
+
+  const copyContactEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(BMCF_CONTACT_EMAIL);
+      toast.success(t("app.groups.mailCopied"));
+    } catch (err) {
+      // Clipboard access can be refused outright (permissions, insecure origin);
+      // the address is on screen, so say so rather than failing silently.
+      console.error("[groups] clipboard write failed:", err);
+      toast.error(t("app.groups.copyMailError"));
+    }
+  };
 
   const available = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -135,16 +150,32 @@ export default function DiscoverGroups() {
           {error}
         </p>
       ) : available.length === 0 ? (
-        <div className="rounded-2xl border border-cb-gray-200 bg-white px-6 py-16 text-center">
+        <div className="rounded-2xl border border-cb-gray-200 bg-white px-6 py-14 text-center">
           <p className="font-heading text-[17px] font-bold text-cb-black">
             {query
               ? t("app.groups.noSearchResults", { query })
               : t("app.groups.discoverEmpty")}
           </p>
+          {/*
+            Not a dead end: mobile's empty state hands over the foundation's
+            address and a Copy Mail button so a member can ask for the group they
+            wanted (`NoSuggestedGroups.tsx`). Web said "you've joined everything"
+            and stopped there.
+          */}
           {!query && (
-            <p className="mt-1.5 font-body text-[14px] text-cb-gray-500">
-              {t("app.groups.discoverEmptySub")}
-            </p>
+            <>
+              <p className="mx-auto mt-2 max-w-md font-body text-[14px] leading-relaxed text-cb-gray-600">
+                {t("app.groups.discoverEmptySub")}
+              </p>
+              <p className="mt-3 font-heading text-[15px] font-bold text-cb-black">
+                {BMCF_CONTACT_EMAIL}
+              </p>
+              <div className="mt-4">
+                <Button variant="secondary" onClick={copyContactEmail}>
+                  {t("app.groups.copyMail")}
+                </Button>
+              </div>
+            </>
           )}
         </div>
       ) : (
@@ -154,35 +185,46 @@ export default function DiscoverGroups() {
               key={group.id}
               className="flex items-start gap-4 rounded-2xl border border-cb-gray-200 bg-white p-4 transition-shadow hover:shadow-[0_6px_24px_-10px_rgba(36,36,36,0.2)]"
             >
-              <GroupAvatar
-                name={group.name}
-                imageUrl={group.profilePicUrl}
-                verified={group.verified}
-                size={52}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-heading text-[16px] font-bold leading-tight text-cb-black">
-                    {group.name}
-                  </span>
-                  {!group.isPublic && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-cb-gray-100 px-2 py-0.5 font-body text-[10.5px] font-bold uppercase tracking-wide text-cb-gray-600">
-                      <LockIcon />
-                      {t("app.groups.privateGroup")}
+              {/*
+                The row itself opens the group, where its hosts, sponsor and
+                about text are — mobile's Discover row opens the same detail
+                before you decide. Web offered Join and nothing else, so the only
+                way to find out who ran a group was to join it.
+              */}
+              <Link
+                href={`/groups/${group.id}`}
+                className="flex min-w-0 flex-1 items-start gap-4 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-cb-black"
+              >
+                <GroupAvatar
+                  name={group.name}
+                  imageUrl={group.profilePicUrl}
+                  verified={group.verified}
+                  size={52}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-heading text-[16px] font-bold leading-tight text-cb-black">
+                      {group.name}
                     </span>
+                    {!group.isPublic && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-cb-gray-100 px-2 py-0.5 font-body text-[10.5px] font-bold uppercase tracking-wide text-cb-gray-600">
+                        <LockIcon />
+                        {t("app.groups.privateGroup")}
+                      </span>
+                    )}
+                  </div>
+                  {group.sponsor?.name && (
+                    <p className="mt-0.5 font-body text-[12.5px] text-cb-gray-500">
+                      {t("app.groups.hostedBy", { sponsor: group.sponsor.name })}
+                    </p>
+                  )}
+                  {group.description && (
+                    <p className="mt-1.5 line-clamp-2 font-body text-[13.5px] leading-snug text-cb-gray-600">
+                      {group.description}
+                    </p>
                   )}
                 </div>
-                {group.sponsor?.name && (
-                  <p className="mt-0.5 font-body text-[12.5px] text-cb-gray-500">
-                    {t("app.groups.hostedBy", { sponsor: group.sponsor.name })}
-                  </p>
-                )}
-                {group.description && (
-                  <p className="mt-1.5 line-clamp-2 font-body text-[13.5px] leading-snug text-cb-gray-600">
-                    {group.description}
-                  </p>
-                )}
-              </div>
+              </Link>
               <Button
                 size="sm"
                 className="shrink-0"

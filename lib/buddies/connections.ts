@@ -13,18 +13,32 @@ import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
 import { getS3ImageUrl, type S3FileRef } from "@/lib/aws/s3Image";
 import type {
   ConnectionMap,
+  NamedRef,
   PendingRequest,
   UserTypeName,
 } from "@/lib/buddies/types";
 
 const RESULT_LIMIT = 1000000;
 const MAX_PAGES = 200;
+/**
+ * Page size for the index-backed connection reads.
+ *
+ * Small on purpose: every row an index returns already belongs to this user, so
+ * there is nothing to over-fetch. The scan-based version needed a huge limit to
+ * have any chance of finding the user's rows, which is what made it fragile.
+ */
+const CONNECTION_PAGE_SIZE = 100;
 
 function safeId(value: string): string {
   return value.replace(/[^A-Za-z0-9_:-]/g, "");
 }
 
 /* ── Incoming requests ──────────────────────────────────────────────────── */
+
+/** `{ items: [{ <key>: { id, name } }] }` — the shape every relation comes in. */
+interface RawRelation<K extends string> {
+  items?: ({ [P in K]?: { id?: string | null; name?: string | null } | null })[] | null;
+}
 
 interface RawRemitent {
   id: string;
@@ -33,8 +47,25 @@ interface RawRemitent {
   birth?: string | null;
   userType?: string | null;
   ambassador?: boolean | null;
+  State?: { stateAbbreviation?: string | null } | null;
+  Interests?: RawRelation<"interest"> | null;
+  Hospitals?: RawRelation<"hospital"> | null;
+  Treatments?: RawRelation<"treatment"> | null;
+  Diagnosis?: RawRelation<"diagnosis"> | null;
   Goal?: { image?: { file?: S3FileRef | null } | null } | null;
   ProfilePic?: { file?: S3FileRef | null } | null;
+}
+
+/** Flattens one relation list to `{id, name}` pairs, dropping unresolved rows. */
+function namedRefs<K extends string>(
+  relation: RawRelation<K> | null | undefined,
+  key: K,
+): NamedRef[] {
+  return (relation?.items ?? [])
+    .map((row) => row?.[key])
+    .filter((item): item is { id?: string | null; name?: string | null } => !!item)
+    .map((item) => ({ id: item.id ?? "", name: item.name ?? "" }))
+    .filter((ref) => !!ref.id);
 }
 
 interface RawPendingRow {
@@ -61,6 +92,11 @@ const PENDING_REQUESTS = (userId: string, nextToken?: string) => /* GraphQL */ `
           birth
           userType
           ambassador
+          State { stateAbbreviation }
+          Interests { items { interest { id name } } }
+          Hospitals { items { hospital { id name } } }
+          Treatments { items { treatment { id name } } }
+          Diagnosis { items { diagnosis { id name } } }
           Goal { image { file { key bucket region } } }
           ProfilePic { file { key bucket region } }
         }
@@ -174,6 +210,11 @@ export async function fetchPendingRequests(
           birth: r.birth ?? null,
           userType: (r.userType ?? "PATIENT") as UserTypeName,
           ambassador: r.ambassador === true,
+          stateAbbreviation: r.State?.stateAbbreviation ?? null,
+          interests: namedRefs(r.Interests, "interest"),
+          hospitals: namedRefs(r.Hospitals, "hospital"),
+          treatments: namedRefs(r.Treatments, "treatment"),
+          diagnosis: namedRefs(r.Diagnosis, "diagnosis"),
           profilePicUrl,
           goalImageUrl,
         },
@@ -192,13 +233,30 @@ interface RawConnectionRow {
   userID?: string | null;
 }
 
+/**
+ * Both directions of the connection map, read through their GSIs.
+ *
+ * These used to be `listConnections` with the user id in the `filter`. That is a
+ * table **scan**: DynamoDB applies `limit` before the filter, so a large table
+ * returns a page of mostly-unrelated rows and the caller's own connections can
+ * fall outside it entirely. The visible symptom was someone you were already
+ * connected to still showing a live Connect button.
+ *
+ * `byRemitentId` / `byRecipientId` take the id as the index key, so every row
+ * returned belongs to this user and a small bounded page is enough. `ignored` and
+ * the existence check stay as filters — cheap, because they now apply to an
+ * already-narrow result set.
+ */
 const CONNECTIONS_RECEIVED = (userId: string, nextToken?: string) => /* GraphQL */ `
   query connectionsReceive {
-    listConnections(filter: {
-      connectionRecipientId: {eq: "${safeId(userId)}"},
-      connectionRemitentId: {attributeExists: true}
-      ignored: {ne: true}
-    }, limit: ${RESULT_LIMIT}${nextToken ? `, nextToken: "${nextToken}"` : ""}) {
+    byRecipientId(
+      connectionRecipientId: "${safeId(userId)}",
+      filter: {
+        connectionRemitentId: {attributeExists: true},
+        ignored: {ne: true}
+      },
+      limit: ${CONNECTION_PAGE_SIZE}${nextToken ? `, nextToken: "${nextToken}"` : ""}
+    ) {
       items { id accepted userID: connectionRemitentId }
       nextToken
     }
@@ -207,11 +265,14 @@ const CONNECTIONS_RECEIVED = (userId: string, nextToken?: string) => /* GraphQL 
 
 const CONNECTIONS_SENT = (userId: string, nextToken?: string) => /* GraphQL */ `
   query connectionsSend {
-    listConnections(filter: {
-      connectionRemitentId: {eq: "${safeId(userId)}"},
-      connectionRecipientId: {attributeExists: true}
-      ignored: {ne: true}
-    }, limit: ${RESULT_LIMIT}${nextToken ? `, nextToken: "${nextToken}"` : ""}) {
+    byRemitentId(
+      connectionRemitentId: "${safeId(userId)}",
+      filter: {
+        connectionRecipientId: {attributeExists: true},
+        ignored: {ne: true}
+      },
+      limit: ${CONNECTION_PAGE_SIZE}${nextToken ? `, nextToken: "${nextToken}"` : ""}
+    ) {
       items { id accepted userID: connectionRecipientId }
       nextToken
     }
@@ -264,8 +325,8 @@ async function collectConnections(
  */
 export async function fetchConnectionMap(userId: string): Promise<ConnectionMap> {
   const [received, sent] = await Promise.all([
-    collectConnections((t) => CONNECTIONS_RECEIVED(userId, t), "listConnections"),
-    collectConnections((t) => CONNECTIONS_SENT(userId, t), "listConnections"),
+    collectConnections((t) => CONNECTIONS_RECEIVED(userId, t), "byRecipientId"),
+    collectConnections((t) => CONNECTIONS_SENT(userId, t), "byRemitentId"),
   ]);
 
   const map: ConnectionMap = {};
@@ -287,8 +348,64 @@ export async function fetchBlockedUserIds(userId: string): Promise<string[]> {
   return [...new Set(rows.map((r) => r.userID).filter((v): v is string => !!v))];
 }
 
+/**
+ * Is either side of this pair blocking the other?
+ *
+ * `fetchBlockedUserIds` only answers "who have *I* blocked" — it filters on
+ * `connectionRemitentId: me`. That misses the direction that matters just as
+ * much: someone who blocked *you* would still get a live Connect button on their
+ * profile. Mobile asks the pair question with an `or` over both directions
+ * (`cancerbuddyapp/src/graphql/queries/user/user-connections.ts:9-21`), and this
+ * is that query.
+ */
+const BLOCKED_PAIR = (viewerId: string, otherId: string) => /* GraphQL */ `
+  query blockedPair {
+    listBlockedUsers: listConnections(filter: {
+      or: [
+        { connectionRemitentId: {eq: "${safeId(viewerId)}"}, connectionRecipientId: {eq: "${safeId(otherId)}"}, blocked: {eq: true} },
+        { connectionRemitentId: {eq: "${safeId(otherId)}"}, connectionRecipientId: {eq: "${safeId(viewerId)}"}, blocked: {eq: true} }
+      ]
+    }, limit: 1) {
+      items { id }
+    }
+  }
+`;
+
+export async function isPairBlocked(
+  viewerId: string,
+  otherId: string,
+): Promise<boolean> {
+  if (!viewerId || !otherId || viewerId === otherId) return false;
+  try {
+    const { data } = await executeAppSyncGraphql<{
+      listBlockedUsers: { items?: { id?: string }[] | null } | null;
+    }>({
+      query: BLOCKED_PAIR(viewerId, otherId),
+      variables: {},
+      authWithUserPool: true,
+    });
+    return (data?.listBlockedUsers?.items?.length ?? 0) > 0;
+  } catch (err) {
+    console.error("[buddies] blocked-pair check failed:", err);
+    // Fail open rather than hiding a profile on a transient network error; the
+    // action bar's other guards still apply.
+    return false;
+  }
+}
+
 /* ── Mutations ──────────────────────────────────────────────────────────── */
 
+/**
+ * Every connection mutation selects **both** participant ids, and that is
+ * load-bearing rather than tidiness.
+ *
+ * AppSync evaluates a subscription's `filter` against the fields the *mutation*
+ * returned, not against the stored row. `updateConnection` used to return only
+ * `{id, accepted}`, so the `or: [remitent, recipient]` filter on
+ * `onUpdateConnection` could never match and the subscription would have been
+ * silently dead. Mobile documents the same trap at
+ * `cancerbuddyapp/src/graphql/suscriptions/connections.ts:13-16`.
+ */
 const CREATE_CONNECTION = /* GraphQL */ `
   mutation createConnectionUser($input: CreateConnectionInput!) {
     createConnection(input: $input) {
@@ -304,6 +421,9 @@ const ACCEPT_CONNECTION = /* GraphQL */ `
     updateConnection(input: $input) {
       id
       accepted
+      ignored
+      connectionRecipientId
+      connectionRemitentId
     }
   }
 `;
@@ -312,15 +432,73 @@ const DELETE_CONNECTION = /* GraphQL */ `
   mutation removeConnectionUser($input: DeleteConnectionInput!) {
     deleteConnection(input: $input) {
       id
+      connectionRecipientId
+      connectionRemitentId
     }
   }
 `;
 
 /** Sends a buddy request. Returns the new connection (and future channel) id. */
+/**
+ * An open (unaccepted, unignored) request already sent from one user to another.
+ *
+ * Read through `byRemitentId` rather than a filtered `listConnections`, for the
+ * same reason the connection map is — a scan can miss the row and then the guard
+ * would wave a duplicate through.
+ */
+const EXISTING_PENDING_REQUEST = (
+  fromUserId: string,
+  toUserId: string,
+  nextToken?: string,
+) => /* GraphQL */ `
+  query userHasSentAnInvitation {
+    byRemitentId(
+      connectionRemitentId: "${safeId(fromUserId)}",
+      filter: {
+        connectionRecipientId: {eq: "${safeId(toUserId)}"},
+        ignored: {eq: false},
+        accepted: {eq: false}
+      },
+      limit: ${CONNECTION_PAGE_SIZE}${nextToken ? `, nextToken: "${nextToken}"` : ""}
+    ) {
+      items { id }
+      nextToken
+    }
+  }
+`;
+
+export async function findExistingPendingRequest(
+  fromUserId: string,
+  toUserId: string,
+): Promise<string | null> {
+  if (!fromUserId || !toUserId || fromUserId === toUserId) return null;
+  const rows = await collectConnections(
+    (t) => EXISTING_PENDING_REQUEST(fromUserId, toUserId, t),
+    "byRemitentId",
+  );
+  return rows.find((r) => r?.id)?.id ?? null;
+}
+
+/**
+ * Sends a buddy request, or returns the existing one.
+ *
+ * The pre-flight check exists because two rapid taps, or a retry after a dropped
+ * response, otherwise create a second pending row for the same pair — and nothing
+ * in either client cleans that up. Mobile has the same guard
+ * (`UserInfoConnect.tsx:166-168`) but only on a screen nothing navigates to, so
+ * the shipped mobile app has this hole too. Built on web as a data-integrity fix
+ * rather than a parity gap, at the product owner's direction.
+ */
 export async function createConnectionRequest(params: {
   fromUserId: string;
   toUserId: string;
 }): Promise<string> {
+  const existing = await findExistingPendingRequest(
+    params.fromUserId,
+    params.toUserId,
+  );
+  if (existing) return existing;
+
   const { data } = await executeAppSyncGraphql<{
     createConnection: { id: string } | null;
   }>({

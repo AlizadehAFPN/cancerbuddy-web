@@ -9,11 +9,21 @@ export default function ReactionPicker({
   open,
   setOpen,
   align,
+  currentType,
   onPick,
 }: {
   open: boolean;
   setOpen: (v: boolean) => void;
   align: "left" | "right";
+  /**
+   * The reaction this member already gave, if any.
+   *
+   * Required, not optional: the picker showed no selected state at all, so
+   * tapping an emoji you had already chosen silently removed it. Making the prop
+   * required means a call site that cannot supply it fails to compile rather
+   * than quietly reintroducing the ambiguity.
+   */
+  currentType: string | undefined;
   onPick: (type: string) => void;
 }) {
   return (
@@ -32,19 +42,26 @@ export default function ReactionPicker({
             align === "right" ? "right-0" : "left-0"
           }`}
         >
-          {REACTIONS.map((r) => (
-            <button
-              key={r.type}
-              type="button"
-              onClick={() => {
-                onPick(r.type);
-                setOpen(false);
-              }}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none transition-transform hover:scale-125 hover:bg-cb-gray-100"
-            >
-              {r.emoji}
-            </button>
-          ))}
+          {REACTIONS.map((r) => {
+            const mine = r.type === currentType;
+            return (
+              <button
+                key={r.type}
+                type="button"
+                aria-pressed={mine}
+                onClick={() => {
+                  onPick(r.type);
+                  setOpen(false);
+                }}
+                className={[
+                  "flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none transition-transform hover:scale-125",
+                  mine ? "bg-cb-yellow" : "hover:bg-cb-gray-100",
+                ].join(" ")}
+              >
+                {r.emoji}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

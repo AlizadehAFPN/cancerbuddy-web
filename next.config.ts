@@ -1,4 +1,37 @@
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+
 import type { NextConfig } from "next";
+
+/**
+ * Build identification, injected once at build time.
+ *
+ * Support needs to know which bundle a member is running, and a continuously
+ * deployed web app has no store version to fall back on. The SHA is read from
+ * the checkout; when git is unavailable (a container built from a tarball) the
+ * value is omitted and the Settings screen says "Development build" rather than
+ * inventing one.
+ */
+function buildSha(): string {
+  if (process.env.NEXT_PUBLIC_BUILD_SHA) return process.env.NEXT_PUBLIC_BUILD_SHA;
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "";
+  }
+}
+
+function appVersion(): string {
+  if (process.env.NEXT_PUBLIC_APP_VERSION) return process.env.NEXT_PUBLIC_APP_VERSION;
+  try {
+    const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { version?: string };
+    return pkg.version ?? "";
+  } catch {
+    return "";
+  }
+}
 
 /**
  * Global security headers. We apply them via `headers()` instead of the
@@ -70,6 +103,10 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion(),
+    NEXT_PUBLIC_BUILD_SHA: buildSha(),
+  },
   /**
    * Next.js 16 blocks "cross-origin" dev-server resources by default
    * (HMR socket, React refresh runtime, RSC flight stream). When you load

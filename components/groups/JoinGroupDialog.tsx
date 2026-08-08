@@ -17,6 +17,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui";
 import GroupAvatar from "@/components/groups/GroupAvatar";
 import { useGroups } from "@/lib/groups/GroupsProvider";
+import { useAskTheHost } from "@/lib/groups/useReplyPrivately";
 import { joinGroup } from "@/lib/groups/membership";
 import type { Group } from "@/lib/groups/types";
 
@@ -29,12 +30,23 @@ export default function JoinGroupDialog({
   onClose: () => void;
   onJoined: () => void | Promise<void>;
 }) {
-  const { requireFeedSession, addJoinedGroup } = useGroups();
+  const { userId, role, requireFeedSession, addJoinedGroup } = useGroups();
+  const { askTheHost, busy: asking, ready: chatReady } = useAskTheHost(role.name);
 
   const needsCode = !group.isPublic && !!group.code;
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  /**
+   * Someone has to be able to give you the code. Mobile puts an "Ask the Host"
+   * link inside the same modal, hidden when the viewer *is* the host
+   * (`modal-private-group.tsx:152-161`); without it the code gate is a dead end
+   * for anyone who was never sent one.
+   */
+  const host = group.hosts[0];
+  const canAskHost =
+    needsCode && !!host?.id && host.id !== userId && chatReady;
 
   const join = async () => {
     if (needsCode && code.trim().toUpperCase() !== (group.code ?? "").toUpperCase()) {
@@ -131,6 +143,28 @@ export default function JoinGroupDialog({
               <p role="alert" className="mt-2 font-body text-[13px] text-cb-danger">
                 {t("app.groups.codeWrong")}
               </p>
+            )}
+
+            {canAskHost && (
+              <div className="mt-4 border-t border-cb-gray-100 pt-4">
+                <p className="font-body text-[13.5px] text-cb-gray-600">
+                  {t("app.groups.askTheHostSub")}
+                </p>
+                <button
+                  type="button"
+                  disabled={asking}
+                  onClick={() =>
+                    void askTheHost({
+                      hostId: host!.id,
+                      groupId: group.id,
+                      groupName: group.name,
+                    })
+                  }
+                  className="mt-1.5 font-heading text-[14px] font-bold text-cb-black underline underline-offset-2 transition-opacity hover:opacity-70 disabled:opacity-50"
+                >
+                  {t("app.groups.askTheHost")}
+                </button>
+              </div>
             )}
           </div>
         )}

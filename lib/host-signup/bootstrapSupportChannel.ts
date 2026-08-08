@@ -6,10 +6,11 @@
  * `updateConnection` (accept) → `raiseUserLambda(supportMessage)` (same fields
  * as `cancerbuddyapp` `HomeBuddies`). No Stream `channel.watch` in the browser.
  *
- * **Welcome message in GetStream:** The USERS `supportMessage` Lambda sends the
- * Ava text into `messaging` + `channelID`. The Lambda should upsert the channel
- * and members before `sendMessage` when the channel is not created yet (web);
- * mobile often creates the channel first via `client.channel(...).watch()`.
+ * **Welcome message in GetStream:** the USERS `supportMessage` Lambda sends the
+ * Ava text into `messaging` + `channelID`, and does **not** create that channel.
+ * This used to assume it would, so a browser signup left a connection row and a
+ * message with no channel to hold them and the member saw no Support thread.
+ * The channel is now created client-side first, exactly as mobile does.
  */
 
 import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
@@ -117,14 +118,80 @@ function extractListConnections(
   return undefined;
 }
 /**
+ * Which account is this member's support contact.
+ *
+ * Exported because the ambassador explainer's "learn more" needs the same
+ * answer to open a support conversation (mobile's `connectChannelSupport`,
+ * `services/connections/connections.ts:19`). The envelope this Lambda returns is
+ * unusual enough — sometimes double-encoded, sometimes only inside `body` —
+ * that a second parser would be a second thing to get wrong.
+ *
+ * Returns null when the backend has no support contact for this account, which
+ * callers treat as "not available right now" rather than an error.
+ */
+export async function fetchSupportUserId(
+  cognitoUserId: string,
+): Promise<string | null> {
+  const userId = cognitoUserId.trim();
+  if (!userId) return null;
+
+  const raw = await raiseUserLambda(
+    LambdaPayloadType.CREATE_SUPPORT_CONNECTION,
+    usersLambdaName(),
+    { userID: userId },
+  );
+
+  let parsed: SupportConnectionLambdaEnvelope;
+  try {
+    parsed = JSON.parse(raw) as SupportConnectionLambdaEnvelope;
+  } catch {
+    throw new Error("Support connection service returned invalid JSON.");
+  }
+
+  return extractListConnections(parsed)?.[0]?.supportId?.trim() || null;
+}
+
+/**
  * @returns `true` if a support channel was fully bootstrapped, `false` if the
  *         backend returned success but nothing to wire (same as mobile early exits).
  */
+export interface SupportStreamClient {
+  queryChannels: (
+    filter: Record<string, unknown>,
+    sort?: unknown,
+    options?: Record<string, unknown>,
+  ) => Promise<{ id?: string }[]>;
+  channel: (
+    type: string,
+    id: string,
+    data: Record<string, unknown>,
+  ) => { create: () => Promise<unknown>; watch: () => Promise<unknown> };
+}
+
 export async function bootstrapSupportChannelAfterEnrollment(options: {
   cognitoUserId: string;
+  /**
+   * Stream client, when one is connected.
+   *
+   * Optional because enrolment finishes before the chat client necessarily
+   * exists. When it is absent the channel cannot be created here, so the caller
+   * leaves the `pendingSupportChannel` marker and the chat list finishes the job
+   * on the next visit.
+   */
+  client?: SupportStreamClient | null;
 }): Promise<boolean> {
   const userId = options.cognitoUserId.trim();
   if (!userId) return false;
+
+  /*
+   * Without a Stream client there is no way to create the channel, and a
+   * connection row plus a welcome message with no channel is precisely the
+   * broken state this used to leave behind. Defer the whole thing instead: the
+   * caller sets `pendingSupportChannel` and the chat list finishes it once a
+   * client is connected. Doing nothing here also keeps it idempotent — no
+   * orphan connection row for the retry to duplicate.
+   */
+  if (!options.client) return false;
 
   const raw = await raiseUserLambda(
     LambdaPayloadType.CREATE_SUPPORT_CONNECTION,
@@ -157,6 +224,22 @@ export async function bootstrapSupportChannelAfterEnrollment(options: {
 
   const idSupportUser = list[0]?.supportId?.trim();
   if (!idSupportUser) return false;
+
+  /*
+   * Already provisioned — on another device, or by an earlier attempt. Without
+   * this the retry path would create a second connection row and a second
+   * conversation beside the one already holding Ava's welcome.
+   */
+  try {
+    const existing = await options.client.queryChannels(
+      { type: "messaging", members: { $eq: [userId, idSupportUser] } },
+      [{ last_message_at: -1 }],
+      { watch: false, state: false },
+    );
+    if (existing?.[0]?.id) return true;
+  } catch {
+    /* Unreachable Stream — fall through and let the create attempt decide. */
+  }
 
   const created = await executeAppSyncGraphql<{
     createConnection?: { id: string } | null;
@@ -197,6 +280,29 @@ export async function bootstrapSupportChannelAfterEnrollment(options: {
     accepted.data?.AcceptConnection?.id;
   if (!channelId) {
     throw new Error("Accept connection did not return an id.");
+  }
+
+  /*
+   * Create the Stream channel before asking the Lambda to post into it.
+   *
+   * This step was missing, on the assumption that `supportMessage` would upsert
+   * the channel itself — the docblock above used to say so. It does not, so a
+   * browser signup produced a connection row and a welcome message with no
+   * channel to hold them, and the member's chat list showed no Support thread
+   * at all. Mobile creates it first (`HomeBuddies.tsx:219-222`).
+   */
+  {
+    try {
+      const channel = options.client.channel("messaging", channelId, {
+        members: [userId, idSupportUser],
+      });
+      await channel.create();
+      await channel.watch();
+    } catch (err) {
+      // The row exists and the marker stays set, so the chat list retries.
+      console.error("[support] channel creation failed:", err);
+      return false;
+    }
   }
 
   const messageRaw = await raiseUserLambda(

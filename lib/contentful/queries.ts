@@ -31,3 +31,20 @@ query getAds {
   }
 }
 `;
+
+/**
+ * The store link the app is shared with — one entry, one field.
+ *
+ * Mobile's `graphql/queries/appstore-link.ts`, verbatim. Web was sharing
+ * `window.location.origin`, which sends a friend to the web app's front page
+ * instead of the App Store or Play Store listing.
+ */
+export const GET_APP_STORE_LINK = `
+query appLink{
+	appStoreLinkCollection{
+   	items{
+      appLink
+    }
+  }
+}
+`;

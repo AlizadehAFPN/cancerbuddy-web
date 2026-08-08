@@ -13,11 +13,16 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import { t } from "@/lib/i18n";
 import BuddyAvatar from "@/components/buddies/BuddyAvatar";
 import { ageSuffix } from "@/lib/buddies/age";
 import { formatName } from "@/lib/buddies/display";
+import { authorProfileHref } from "@/lib/groups/authorLink";
+import { useGroups } from "@/lib/groups/GroupsProvider";
 import { sanitizePostHtml } from "@/lib/groups/sanitizeHtml";
+import PostAttachments from "@/components/groups/PostAttachments";
+import { useLikeSnapshot } from "@/lib/groups/useLikes";
 import type { FeedPost } from "@/lib/groups/types";
 
 /** "3m", "5h", "12 Mar" — compact relative time, like the mobile post header. */
@@ -107,6 +112,32 @@ function PinIcon() {
   );
 }
 
+/**
+ * Wraps an author's avatar or name in their link, and renders it plainly when
+ * there is nowhere to go — an author whose record never resolved, which happens
+ * for deleted accounts.
+ */
+export function AuthorLink({
+  href,
+  name,
+  children,
+}: {
+  href: string | null;
+  name: string;
+  children: React.ReactNode;
+}) {
+  if (!href) return <>{children}</>;
+  return (
+    <Link
+      href={href}
+      aria-label={name}
+      className="shrink-0 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-cb-black"
+    >
+      {children}
+    </Link>
+  );
+}
+
 export interface PostCardProps {
   post: FeedPost;
   currentUserId: string | null;
@@ -129,9 +160,20 @@ export default function PostCard({
   expanded,
 }: PostCardProps) {
   const [showFull, setShowFull] = useState(!!expanded);
+  const { role } = useGroups();
 
   const author = post.author;
-  const liked = !!post.myLikeReactionId;
+  /**
+   * Counts come from the shared store, not the `post` prop, so the feed and the
+   * comment thread cannot disagree. The prop is the fallback until the first
+   * snapshot for this post is recorded.
+   */
+  const counts = useLikeSnapshot(post.id, {
+    likeCount: post.likeCount,
+    commentCount: post.commentCount,
+    myLikeReactionId: post.myLikeReactionId,
+  });
+  const liked = !!counts.myLikeReactionId;
   const isHostPost = !!author?.groupHostId && author.groupHostId === post.feedId;
   const canAct = !!currentUserId;
 
@@ -144,6 +186,28 @@ export default function PostCard({
 
   const html = sanitizePostHtml(post.html);
 
+  /**
+   * The author opens their profile — or their host page, or the group they host.
+   * Five destinations that a mobile user reaches from one tap and web reached
+   * from none: the author was inert text.
+   */
+  const authorLink = authorProfileHref(
+    {
+      authorId: author?.id ?? post.actorId,
+      groupHostId: author?.groupHostId,
+      postFeedId: post.feedId,
+    },
+    {
+      viewerId: currentUserId,
+      viewerBirth: role.birth,
+      author: {
+        id: author?.id ?? post.actorId,
+        birth: author?.birth,
+        isSnooze: author?.isSnooze,
+      },
+    },
+  );
+
   return (
     <article className="rounded-2xl border border-cb-gray-200 bg-white p-4">
       {post.pinned && (
@@ -154,17 +218,21 @@ export default function PostCard({
       )}
 
       <header className="flex items-start gap-3">
-        <BuddyAvatar
-          name={author?.name ?? "?"}
-          photoUrl={author?.profilePicUrl}
-          goalUrl={author?.goalImageUrl}
-          size={44}
-        />
+        <AuthorLink href={authorLink} name={displayName}>
+          <BuddyAvatar
+            name={author?.name ?? "?"}
+            photoUrl={author?.profilePicUrl}
+            goalUrl={author?.goalImageUrl}
+            size={44}
+          />
+        </AuthorLink>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="font-heading text-[15px] font-bold leading-tight text-cb-black">
-              {displayName}
-            </span>
+            <AuthorLink href={authorLink} name={displayName}>
+              <span className="font-heading text-[15px] font-bold leading-tight text-cb-black">
+                {displayName}
+              </span>
+            </AuthorLink>
             {isHostPost && (
               <span className="rounded-full bg-cb-green px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wide text-cb-black">
                 {t("app.groups.host")}
@@ -213,22 +281,7 @@ export default function PostCard({
         </button>
       )}
 
-      {post.attachments.length > 0 && (
-        <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {post.attachments.map((attachment, i) => (
-            <li key={`${attachment.url}-${i}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={attachment.url ?? ""}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="aspect-square w-full rounded-xl bg-cb-gray-100 object-cover"
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      <PostAttachments attachments={post.attachments} />
 
       <footer className="mt-3 flex items-center gap-1 border-t border-cb-gray-100 pt-2.5">
         <button
@@ -246,7 +299,7 @@ export default function PostCard({
           ].join(" ")}
         >
           <HeartIcon filled={liked} />
-          {post.likeCount > 0 && post.likeCount}
+          {counts.likeCount > 0 && counts.likeCount}
         </button>
 
         <button
@@ -255,7 +308,7 @@ export default function PostCard({
           className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-body text-[13px] font-semibold text-cb-gray-600 transition-colors hover:bg-cb-gray-100 hover:text-cb-black"
         >
           <CommentIcon />
-          {post.commentCount > 0 ? post.commentCount : t("app.groups.comments")}
+          {counts.commentCount > 0 ? counts.commentCount : t("app.groups.comments")}
         </button>
 
         {canModerate && post.pinned && (

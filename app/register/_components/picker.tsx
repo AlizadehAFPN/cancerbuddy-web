@@ -66,9 +66,23 @@ export interface PickerModalProps {
   items: PicklistItem[];
   excludeIds: string[];
   searchPlaceholder?: string;
+  /**
+   * Server-side search, for catalogues too large to hold client-side.
+   *
+   * Hospitals and diagnoses are the cases: filtering a preloaded slice meant
+   * anyone whose entry fell outside it could not be selected at all. When this is
+   * given, typing queries the server (as mobile's `findHospitals` /
+   * `findDiagnosis` do) and `items` is used only for the unfiltered initial list.
+   */
+  onSearch?: (query: string) => Promise<PicklistItem[]>;
   onSelect: (id: string) => void;
   onClose: () => void;
 }
+
+/** Long enough to not fire per keystroke, short enough to feel immediate. */
+const SEARCH_DEBOUNCE_MS = 250;
+/** Below this, a prefix search returns almost the whole catalogue. */
+const MIN_SEARCH_CHARS = 3;
 
 export function PickerModal({
   open,
@@ -76,14 +90,50 @@ export function PickerModal({
   items,
   excludeIds,
   searchPlaceholder = "Search…",
+  onSearch,
   onSelect,
   onClose,
 }: PickerModalProps) {
   const [query, setQuery] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [remote, setRemote] = useState<PicklistItem[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  /**
+   * Debounced remote search. The generation guard drops a slow response that
+   * lands after a newer one, which would otherwise show results for a term the
+   * user has already typed past.
+   */
+  const generation = useRef(0);
+  useEffect(() => {
+    if (!onSearch) return;
+    const term = query.trim();
+    if (term.length < MIN_SEARCH_CHARS) {
+      setRemote(null);
+      setSearching(false);
+      return;
+    }
+
+    const mine = ++generation.current;
+    setSearching(true);
+    const id = setTimeout(() => {
+      onSearch(term)
+        .then((rows) => {
+          if (generation.current === mine) setRemote(rows);
+        })
+        .catch(() => {
+          if (generation.current === mine) setRemote([]);
+        })
+        .finally(() => {
+          if (generation.current === mine) setSearching(false);
+        });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(id);
+  }, [query, onSearch]);
 
   useEffect(() => {
     if (open) {
@@ -107,10 +157,14 @@ export function PickerModal({
 
   if (!mounted || !open) return null;
 
-  const available = items.filter((i) => !excludeIds.includes(i.value));
-  const visible = query
-    ? available.filter((i) => i.label.toLowerCase().includes(query.toLowerCase()))
-    : available;
+  const source = remote ?? items;
+  const available = source.filter((i) => !excludeIds.includes(i.value));
+  // With a remote search the server already applied the term; filtering again
+  // would drop matches it found on fields the label does not show.
+  const visible =
+    query && !remote
+      ? available.filter((i) => i.label.toLowerCase().includes(query.toLowerCase()))
+      : available;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
@@ -299,6 +353,8 @@ export interface MultiSectionProps {
   modalTitle: string;
   searchPlaceholder?: string;
   items: PicklistItem[];
+  /** See {@link PickerModalProps.onSearch}. */
+  onSearch?: (query: string) => Promise<PicklistItem[]>;
   selectedIds: string[];
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
@@ -315,6 +371,7 @@ export function MultiSection({
   modalTitle,
   searchPlaceholder,
   items,
+  onSearch,
   selectedIds,
   onAdd,
   onRemove,
@@ -357,6 +414,7 @@ export function MultiSection({
         items={items}
         excludeIds={selectedIds}
         searchPlaceholder={searchPlaceholder}
+        onSearch={onSearch}
         onSelect={(id) => { onAdd(id); setOpen(false); }}
         onClose={() => setOpen(false)}
       />

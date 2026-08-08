@@ -7,12 +7,16 @@
  *
  * Creating goes through `USERS_LAMBDA` because the Lambda also provisions the
  * Twilio room and chat channel; editing and deleting are plain AppSync
- * mutations. Joining the video itself is not part of the web app.
+ * mutations. Hosting the session itself happens in `/live/[eventId]`.
+ *
+ * The scheduling rules — bounds, the 15-minute grid, duration labels — live in
+ * `lib/profile/liveSchedule.ts`.
  */
 
 import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
 import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 import { raiseUserLambda } from "@/lib/aws/raiseUserLambda";
+import { formatDuration, toLocalInput } from "@/lib/profile/liveSchedule";
 
 export interface LiveSession {
   id: string;
@@ -222,12 +226,7 @@ export async function deleteLiveSession(id: string): Promise<void> {
 /** `<input type="datetime-local">` value ⇄ ISO. */
 export function isoToLocalInput(iso: string | null | undefined): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}`;
+  return toLocalInput(new Date(iso));
 }
 
 export function localInputToIso(value: string): string {
@@ -250,6 +249,7 @@ export function formatSessionWhen(session: LiveSession): string {
     hour: "numeric",
     minute: "2-digit",
   });
-  const mins = session.duration ?? 0;
-  return mins ? `${date} · ${time} · ${mins} min` : `${date} · ${time}`;
+  /* `1h 30m`, not `90 min` — mobile's card format (`ManageLives.tsx:376`). */
+  const length = formatDuration(session.duration);
+  return length ? `${date} · ${time} · ${length}` : `${date} · ${time}`;
 }

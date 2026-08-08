@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+// Guarded so a half-finished profile form is not discarded silently when
+// someone taps a nav item. Behaves exactly like `Link` when nothing is dirty.
+import Link from "@/components/navigation/GuardedLink";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { t } from "@/lib/i18n";

@@ -13,8 +13,14 @@
  * the only way this stays safe as the composer changes.
  */
 
-/** Formatting the composer can produce. Anything else is unwrapped or dropped. */
-const ALLOWED_TAGS = new Set([
+/**
+ * Formatting the composer can produce. Anything else is unwrapped or dropped.
+ *
+ * Exported so the editor's own tests can assert that every tag its toolbar emits
+ * is permitted here — a format the allowlist does not cover is silently lost the
+ * first time the post is saved.
+ */
+export const ALLOWED_POST_TAGS = new Set([
   "P", "BR", "B", "STRONG", "I", "EM", "U", "S", "SPAN", "DIV",
   "UL", "OL", "LI", "BLOCKQUOTE", "A", "H1", "H2", "H3", "H4", "H5", "H6",
 ]);
@@ -51,7 +57,7 @@ function scrub(node: Element): void {
       continue;
     }
 
-    if (!ALLOWED_TAGS.has(tag)) {
+    if (!ALLOWED_POST_TAGS.has(tag)) {
       // Keep the text, lose the element.
       scrub(child);
       child.replaceWith(...Array.from(child.childNodes));

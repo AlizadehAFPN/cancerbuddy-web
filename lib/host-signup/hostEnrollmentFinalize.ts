@@ -234,12 +234,16 @@ export async function finalizeHostEnrollmentAfterBio(input: {
     if (typeof window !== "undefined" && window.localStorage) {
       if (supportWired) {
         window.localStorage.removeItem(PENDING_SUPPORT_CHANNEL_KEY);
-      } else if (bootstrapThrew) {
-        /* Same spirit as mobile `AllSetNotification` flag — HomeBuddies can retry. */
-        window.localStorage.setItem(PENDING_SUPPORT_CHANNEL_KEY, "true");
       } else {
-        /* Lambda returned nothing to wire (`connectChannelSupport` empty) — mobile clears pending. */
-        window.localStorage.removeItem(PENDING_SUPPORT_CHANNEL_KEY);
+        /*
+         * Not wired — set the marker either way, as mobile's
+         * `AllSetNotification` does, so the chat list can finish the job.
+         *
+         * It used to be cleared unless the bootstrap *threw*, but the common
+         * case is neither success nor an exception: enrolment has no Stream
+         * client, so provisioning defers by design and returns false.
+         */
+        window.localStorage.setItem(PENDING_SUPPORT_CHANNEL_KEY, "true");
       }
       for (const k of ENROLLMENT_ANALYTICS_SEED_KEYS) {
         window.localStorage.setItem(k, "false");

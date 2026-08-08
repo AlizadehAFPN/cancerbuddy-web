@@ -18,6 +18,7 @@ const GET_AVATAR_INFORMATION = /* GraphQL */ `
       id
       name
       userType
+      groupHostId
       ambassador
       Goal {
         image {
@@ -44,6 +45,8 @@ interface RawUser {
   id: string;
   name?: string | null;
   userType?: string | null;
+  /** Non-null on a group host, whatever their `userType`. See `isHost` below. */
+  groupHostId?: string | null;
   ambassador?: boolean | null;
   Goal?: { image?: { file?: S3FileRef | null } | null } | null;
   profilePic?: { file?: S3FileRef | null } | null;
@@ -89,7 +92,11 @@ export async function fetchContactProfile(
         name: u.name ?? undefined,
         userType: u.userType ?? undefined,
         isSupport: u.userType === "SUPPORT",
-        isHost: u.userType === "HOST",
+        // Mobile keys the Host pill off a non-null `groupHostId`, not `userType`
+        // — so a PATIENT who hosts a group is still a host, and is neither
+        // reportable nor removable. Keying off `userType` made the two clients
+        // disagree about which contacts a member could report.
+        isHost: !!u.groupHostId?.trim(),
         isAmbassador: u.ambassador === true,
         profilePicUrl,
         goalImageUrl,

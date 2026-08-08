@@ -1,3 +1,5 @@
+import type { FeedMediaAttachment } from "@/lib/groups/feedMedia";
+
 /**
  * Types for the Groups tab.
  *
@@ -83,6 +85,13 @@ export interface LiveCalendarEvent {
   status?: string | null;
   chatChannelId?: string | null;
   inLive?: boolean | null;
+  /**
+   * `false` once the host hides the session. Mobile drops those rows before
+   * rendering, so declaring the field is what stops it being discarded at the
+   * type boundary — see `isCalendarEventVisible`.
+   */
+  active?: boolean | null;
+  archived?: boolean | null;
 }
 
 /* ── Feed activities ────────────────────────────────────────────────────── */
@@ -97,14 +106,21 @@ export interface PostAuthor {
   goalImageUrl?: string;
   /** Set when this person hosts the group the post is in. */
   groupHostId?: string | null;
+  /**
+   * A snoozed member is not accepting new connections. Read when the author's
+   * name is tapped, so their profile does not offer a Connect they have opted
+   * out of — mobile checks the same flag at `usePostActions.ts:74`.
+   */
+  isSnooze?: boolean | null;
 }
 
-export interface PostAttachment {
-  type?: string | null;
-  url?: string | null;
-  mimeType?: string | null;
-  name?: string | null;
-}
+/**
+ * Media on a post or comment.
+ *
+ * Re-exported from `lib/groups/feedMedia.ts`, which owns the shape because it is
+ * a wire format the mobile app writes: an S3 object reference, not a URL.
+ */
+export type PostAttachment = FeedMediaAttachment;
 
 export interface FeedComment {
   id: string;
@@ -150,13 +166,9 @@ export interface FeedPage {
 
 export type JoinResult = "joined" | "code-required" | "wrong-code" | "failed";
 
-/** Report reasons offered for a post — same list as the mobile report screen. */
-export const POST_REPORT_REASONS = [
-  "Inappropriate comments",
-  "Spam",
-  "Made me feel uncomfortable",
-  "False profile",
-  "Other",
-] as const;
-
-export type PostReportReason = (typeof POST_REPORT_REASONS)[number];
+/**
+ * Report reasons live in `lib/groups/reporting.ts`, beside the submit gate and
+ * the payload they belong with — the list on its own was half a feature, and the
+ * missing half (the "Other" free text, the reported user, the content and the
+ * post/comment type) is exactly what moderators were not receiving.
+ */

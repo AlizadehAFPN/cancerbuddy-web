@@ -20,6 +20,7 @@ const GET_AUTHOR = /* GraphQL */ `
       userType
       ambassador
       groupHostId
+      isSnooze
       Goal {
         image {
           file {
@@ -47,6 +48,7 @@ interface RawAuthor {
   userType?: string | null;
   ambassador?: boolean | null;
   groupHostId?: string | null;
+  isSnooze?: boolean | null;
   Goal?: { image?: { file?: S3FileRef | null } | null } | null;
   profilePic?: { file?: S3FileRef | null } | null;
 }
@@ -96,6 +98,7 @@ export async function loadAuthor(
         userType: raw.userType ?? null,
         ambassador: raw.ambassador === true,
         groupHostId: raw.groupHostId ?? null,
+        isSnooze: raw.isSnooze === true,
         profilePicUrl,
         goalImageUrl,
       };

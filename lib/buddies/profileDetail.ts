@@ -207,6 +207,11 @@ export interface BuddyProfileDetail {
   desabilities: NamedRef[];
   sponsor?: { imageUrl?: string | null; description?: string | null } | null;
   gallery: GalleryPhoto[];
+  /**
+   * Photos whose signed URL could not be fetched. Surfaced rather than hidden:
+   * a gallery that is quietly two short reads as "they only posted three".
+   */
+  galleryFailures: number;
 }
 
 function named<T>(
@@ -235,7 +240,11 @@ export async function fetchBuddyProfileDetail(
       authWithUserPool: true,
     }),
     executeAppSyncGraphql<{
-      listPictures: { items?: { id: string; file?: S3FileRef | null }[] | null } | null;
+      listPictures: {
+        items?:
+          | { id: string; createdAt?: string | null; file?: S3FileRef | null }[]
+          | null;
+      } | null;
     }>({ query: GET_GALLERY(userId), variables: {}, authWithUserPool: true }),
   ]);
 
@@ -254,14 +263,34 @@ export async function fetchBuddyProfileDetail(
       ? (galleryResult.value.data?.listPictures?.items ?? [])
       : [];
 
-  const gallery = (
-    await Promise.all(
-      galleryRows.map(async (row) => {
+  const signed = await Promise.all(
+    galleryRows.map(async (row) => {
+      try {
         const url = await getS3ImageUrl(row.file);
-        return url ? { id: row.id, url } : null;
-      }),
-    )
-  ).filter((p): p is GalleryPhoto => !!p);
+        return url
+          ? { id: row.id, url, createdAt: row.createdAt ?? null }
+          : null;
+      } catch (err) {
+        // Mobile toasts a per-image failure (`GalleryScreen.tsx:66`); web dropped
+        // the photo silently, so a member saw a shorter gallery and no reason.
+        console.error("[buddies] gallery image failed to sign:", err);
+        return null;
+      }
+    }),
+  );
+
+  /**
+   * Newest first — mobile's `orderDates` sort (`GalleryScreen.tsx:75-78`). Web
+   * rendered whatever order `listPictures` happened to return, which is neither
+   * stable nor meaningful.
+   */
+  const gallery = signed
+    .filter((p): p is GalleryPhoto & { createdAt: string | null } => !!p)
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .map(({ id, url }) => ({ id, url }));
+
+  /** How many photos exist but could not be shown, so the screen can say so. */
+  const galleryFailures = signed.filter((p) => p === null).length;
 
   return {
     id: raw.id,
@@ -296,6 +325,7 @@ export async function fetchBuddyProfileDetail(
         }
       : null,
     gallery,
+    galleryFailures,
   };
 }
 

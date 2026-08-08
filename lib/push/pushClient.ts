@@ -375,6 +375,29 @@ export function subscribeForegroundPush(
   return () => navigator.serviceWorker.removeEventListener("message", handler);
 }
 
+/**
+ * The raw payload of every push this browser receives, in every open tab.
+ *
+ * Separate from {@link subscribeForegroundPush}, which is about *showing* one
+ * notification in the tab the member is looking at. This is about state the app
+ * keeps: a push about a group post marks that group unread, and a tab that
+ * happened not to be focused must still learn about it.
+ */
+export function subscribePushData(
+  onData: (data: Record<string, string | undefined>) => void,
+): () => void {
+  if (!browserCapable()) return () => {};
+
+  const handler = (event: MessageEvent) => {
+    const message = event.data;
+    if (!message || message.type !== "cancerbuddy:push-data") return;
+    onData(message.data ?? {});
+  };
+
+  navigator.serviceWorker.addEventListener("message", handler);
+  return () => navigator.serviceWorker.removeEventListener("message", handler);
+}
+
 /* ── Internals ────────────────────────────────────────────────────────── */
 
 async function registerPushDevice(cfg: PushConfig): Promise<void> {

@@ -21,13 +21,21 @@ import PostComposer from "@/components/groups/PostComposer";
 import PostThread from "@/components/groups/PostThread";
 import {
   ConfirmSheet,
+  GroupDetailBody,
   GroupInfoSheet,
   PostActionsSheet,
-  ReportPostSheet,
+  ReportSheet,
 } from "@/components/groups/GroupSheets";
+import GroupWidget from "@/components/groups/GroupWidget";
 import JoinGroupDialog from "@/components/groups/JoinGroupDialog";
 import { useGroups } from "@/lib/groups/GroupsProvider";
+import { patchCommentCount } from "@/lib/groups/likeStore";
+import type { FeedMediaAttachment } from "@/lib/groups/feedMedia";
+import { canModerateGroup, canReplyPrivately } from "@/lib/groups/moderation";
+import { ReportTargetType } from "@/lib/groups/reporting";
+import { clearGroupUnread } from "@/lib/groups/unreadPosts";
 import { useGroupFeed } from "@/lib/groups/useGroupFeed";
+import { useReplyPrivately } from "@/lib/groups/useReplyPrivately";
 import { fetchGroupById } from "@/lib/groups/groupQueries";
 import { leaveGroup, setGroupMuted } from "@/lib/groups/membership";
 import { createPost, replacePin, togglePin } from "@/lib/groups/posts";
@@ -92,6 +100,7 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
   const router = useRouter();
   const {
     userId,
+    role,
     joinedGroups,
     isMember,
     liveGroupIds,
@@ -110,6 +119,9 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
   const [editing, setEditing] = useState<FeedPost | null>(null);
   const [busy, setBusy] = useState(false);
   const [posting, setPosting] = useState(false);
+  /** Feed or the group's embedded page, when it has one. */
+  const [tab, setTab] = useState<"feed" | "widget">("feed");
+  const { replyPrivately, busy: replyingPrivately } = useReplyPrivately();
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -146,6 +158,15 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
     });
   }, [targetPostId, targetFeedId, targetReactionId, groupId, feed.posts]);
 
+  /**
+   * Opening a group clears its `NEW` marker, exactly as mobile does when a group
+   * row is tapped (`feeds/home.tsx:98`). Opening one of its posts from a
+   * notification counts too — the deep link lands here first.
+   */
+  useEffect(() => {
+    clearGroupUnread(groupId);
+  }, [groupId, targetPostId]);
+
   // The joined copy carries mute state and the membership row id, so prefer it.
   const joined = useMemo(
     () => joinedGroups.find((g) => g.id === groupId),
@@ -176,10 +197,19 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
     [group, joined],
   );
 
-  const canModerate = useMemo(() => {
-    if (!userId || !displayGroup) return false;
-    return displayGroup.hosts.some((h) => h.id === userId);
-  }, [userId, displayGroup]);
+  const canModerate = useMemo(
+    () =>
+      !!displayGroup &&
+      canModerateGroup({
+        userId,
+        userType: role.userType,
+        hosts: displayGroup.hosts,
+      }),
+    [userId, role.userType, displayGroup],
+  );
+
+  const hasWidget =
+    !!displayGroup?.widgetAvailable && !!displayGroup.widget?.url;
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -197,11 +227,11 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
   /* ── Actions ─────────────────────────────────────────────────────────── */
 
   const publish = useCallback(
-    async (html: string) => {
+    async (html: string, attachments: FeedMediaAttachment[]) => {
       setPosting(true);
       try {
         const session = await requireFeedSession();
-        await createPost({ session, groupId, html });
+        await createPost({ session, groupId, html, attachments });
         toast.success(t("app.groups.postCreated"));
         await feed.refresh();
       } catch (err) {
@@ -312,6 +342,24 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
     }
   }, [joined, userId, groupId, displayGroup, setGroupMutedLocal]);
 
+  /**
+   * The host's private route to a member. The predicate is mobile's — account
+   * type HOST or SUPPORT, never to a SUPPORT account, never to yourself — so the
+   * row is absent rather than disabled when it does not apply.
+   */
+  const handleReplyPrivately = useCallback(
+    async (post: FeedPost) => {
+      setSheet(null);
+      await replyPrivately({
+        authorId: post.actorId,
+        authorName: post.author?.name,
+        groupName: displayGroup?.name,
+        post: { id: post.id, feedId: post.feedId, actorId: post.actorId },
+      });
+    },
+    [replyPrivately, displayGroup?.name],
+  );
+
   const confirmLeave = useCallback(async () => {
     if (!joined?.userGroupId || !displayGroup) return;
     setBusy(true);
@@ -411,8 +459,63 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {/* The group's own embedded page, when it has one — mobile shows the same
+          two tabs over the feed, labelled from the widget record. */}
+      {hasWidget && (
+        <div
+          role="tablist"
+          aria-label={displayGroup.name}
+          className="flex shrink-0 gap-1 border-b border-cb-gray-200 px-4"
+        >
+          {(
+            [
+              { key: "feed", label: displayGroup.widget?.tab1 || t("app.groups.widgetTabFeed") },
+              { key: "widget", label: displayGroup.widget?.tab2 || t("app.groups.widgetTabExtra") },
+            ] as const
+          ).map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === entry.key}
+              onClick={() => setTab(entry.key)}
+              className={[
+                "-mb-px border-b-2 px-3 py-2.5 font-heading text-[13.5px] font-bold transition-colors",
+                tab === entry.key
+                  ? "border-cb-black text-cb-black"
+                  : "border-transparent text-cb-gray-500 hover:text-cb-black",
+              ].join(" ")}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {hasWidget && tab === "widget" && displayGroup.widget && (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <GroupWidget widget={displayGroup.widget} />
+        </div>
+      )}
+
+      <div
+        className={[
+          "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          hasWidget && tab === "widget" ? "hidden" : "",
+        ].join(" ")}
+      >
         <div className="mx-auto w-full max-w-3xl px-4 py-4">
+          {/* A group you have not joined opens as its detail: who hosts it, who
+              sponsors it, what it is about — the question a Join button on its
+              own cannot answer, and mobile answers it on the same screen before
+              joining. Join itself stays in the header, reachable from anywhere
+              in the feed; a second copy here would sit 100 px below the first. */}
+          {!member && (
+            <div className="mb-4 rounded-2xl border border-cb-gray-200 bg-white p-4">
+              <GroupDetailBody group={displayGroup} />
+            </div>
+          )}
+
           {member && !editing && (
             <div className="mb-4">
               <PostComposer
@@ -492,6 +595,8 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
           post={sheet.post}
           currentUserId={userId}
           canModerate={canModerate}
+          authorName={sheet.post.author?.name}
+          replyPrivatelyBusy={replyingPrivately}
           onClose={() => setSheet(null)}
           onEdit={(post) => {
             setSheet(null);
@@ -500,6 +605,16 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
           onDelete={(post) => setSheet({ kind: "delete", post })}
           onReport={(post) => setSheet({ kind: "report", post })}
           onTogglePin={handleTogglePin}
+          onReplyPrivately={
+            canReplyPrivately({
+              viewerType: role.userType,
+              authorType: sheet.post.author?.userType,
+              viewerId: userId,
+              authorId: sheet.post.actorId,
+            })
+              ? handleReplyPrivately
+              : undefined
+          }
         />
       )}
 
@@ -527,8 +642,13 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
       )}
 
       {sheet?.kind === "report" && userId && (
-        <ReportPostSheet
-          post={sheet.post}
+        <ReportSheet
+          target={{
+            id: sheet.post.id,
+            authorId: sheet.post.actorId,
+            body: sheet.post.html,
+            type: ReportTargetType.POST,
+          }}
           currentUserId={userId}
           onClose={() => setSheet(null)}
         />
@@ -537,12 +657,15 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
       {sheet?.kind === "thread" && (
         <PostThread
           post={sheet.post}
+          group={displayGroup}
           canModerate={canModerate}
           highlightCommentId={sheet.highlightCommentId}
           onClose={() => setSheet(null)}
-          onCommentCountChange={(postId, count) =>
-            feed.patchPost(postId, { commentCount: count })
-          }
+          onCommentCountChange={(postId, count) => {
+            feed.patchPost(postId, { commentCount: count });
+            patchCommentCount(postId, count);
+          }}
+          onOpenActions={(post) => setSheet({ kind: "actions", post })}
         />
       )}
 
@@ -550,6 +673,7 @@ export default function GroupFeed({ groupId }: { groupId: string }) {
         <GroupInfoSheet
           group={displayGroup}
           isMember={member}
+          userId={userId}
           muteBusy={busy}
           onClose={() => setSheet(null)}
           onToggleMute={handleToggleMute}

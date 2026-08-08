@@ -16,10 +16,18 @@ import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
 import BuddyAvatar from "@/components/buddies/BuddyAvatar";
+import AmbassadorBadge from "@/components/buddies/AmbassadorBadge";
 import { ageSuffix } from "@/lib/buddies/age";
-import { ROLE_BADGE_CLASS, ROLE_LABELS, formatName } from "@/lib/buddies/display";
+import {
+  ROLE_BADGE_CLASS,
+  ROLE_LABELS,
+  formatName,
+  matchSummary,
+} from "@/lib/buddies/display";
+import { useBuddies } from "@/lib/buddies/BuddiesProvider";
+import { setNeighbourQueue } from "@/lib/buddies/discoveryOrder";
 import { useRequests } from "@/lib/buddies/useRequests";
-import type { PendingRequest } from "@/lib/buddies/types";
+import type { CurrentUserData, PendingRequest } from "@/lib/buddies/types";
 
 /**
  * Exported so the Updates tab renders the identical card. The two surfaces
@@ -28,20 +36,42 @@ import type { PendingRequest } from "@/lib/buddies/types";
  */
 export function RequestCard({
   request,
+  viewer,
   busy,
   onAccept,
   onDismiss,
+  onOpen,
   wide = false,
 }: {
   request: PendingRequest;
+  /**
+   * The signed-in member's own relations, for the shared-attribute line. Null
+   * while they load — the subtitle shows `…` rather than flashing the wrong
+   * answer, which is what mobile does (`ConnectionRequest.tsx:215`).
+   */
+  viewer: CurrentUserData | null;
   busy: boolean;
   onAccept: () => void;
   onDismiss: () => void;
+  /** Seeds the profile's Previous/Next queue with every pending sender. */
+  onOpen?: () => void;
   wide?: boolean;
 }) {
   const { remitent } = request;
   const name = formatName(remitent.name);
   const role = ROLE_LABELS[remitent.userType] ?? "";
+
+  /**
+   * What you have in common with the sender — "New York, interests, medical
+   * center" — not their bio.
+   *
+   * This is the single most visible content divergence the audit found in this
+   * area: mobile computes the shared categories against the viewer
+   * (`getLabelCoincidencies`), and web showed free text the sender wrote about
+   * themselves. The helper already existed for discovery cards and was simply
+   * never called here.
+   */
+  const summary = viewer ? matchSummary(remitent, viewer) : "…";
 
   return (
     <article
@@ -59,8 +89,15 @@ export function RequestCard({
           size={52}
         />
         <div className="min-w-0 flex-1">
+          {/*
+            `connectionId` is what lets the profile offer "Maybe later" — it is
+            the incoming request's id, and the profile has no other way to know
+            which row to decline. Mobile passes it the same way
+            (`ConnectionRequest.tsx:194-196`).
+          */}
           <Link
-            href={`/buddies/${remitent.id}`}
+            href={`/buddies/${remitent.id}?connectionId=${request.id}`}
+            onClick={onOpen}
             className="font-heading text-[16px] font-bold leading-tight tracking-tight text-cb-black hover:underline"
           >
             {`${name}${ageSuffix(remitent.userType, remitent.birth)}`}
@@ -76,18 +113,17 @@ export function RequestCard({
                 {role}
               </span>
             )}
-            {remitent.ambassador && (
-              <span className="rounded-full bg-cb-bone px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wide text-cb-black">
-                {t("app.buddies.ambassador")}
-              </span>
-            )}
+            <AmbassadorBadge
+              ambassador={remitent.ambassador}
+              myName={viewer?.name}
+            />
           </div>
         </div>
       </div>
 
-      {remitent.bio && (
+      {summary && (
         <p className="mt-3 line-clamp-2 font-body text-[13px] leading-snug text-cb-gray-500">
-          {remitent.bio}
+          {summary}
         </p>
       )}
 
@@ -132,6 +168,7 @@ function RequestSkeleton() {
 
 export default function RequestsSection() {
   const { requests, loading, error, busyIds, accept, dismiss } = useRequests();
+  const { currentUser } = useBuddies();
   const [expanded, setExpanded] = useState(false);
 
   if (loading) {
@@ -212,7 +249,16 @@ export default function RequestsSection() {
           <div key={request.id} className={expanded ? "" : "snap-start"}>
             <RequestCard
               request={request}
+              viewer={currentUser}
               busy={busyIds.includes(request.id)}
+              /* Opening a sender's profile makes the other senders its
+                 Previous/Next queue — mobile seeds `usersList` the same way. */
+              onOpen={() =>
+                setNeighbourQueue(
+                  requests.map((r) => r.remitent.id),
+                  "requests",
+                )
+              }
               onAccept={() =>
                 handle(
                   accept,

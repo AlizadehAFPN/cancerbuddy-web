@@ -123,14 +123,34 @@ const GET_TOTAL_MEMBERS = (groupId: string) => /* GraphQL */ `
   }
 `;
 
+/**
+ * Groups broadcasting *right now*.
+ *
+ * The `inLive` filter is load-bearing and server-side, exactly as mobile does it
+ * (`cancerbuddyapp/src/graphql/queries/live-groups.ts:3-13`). A row is written when
+ * a session is *scheduled*, with `inLive: false`, and is flagged rather than
+ * deleted when the session ends — so an unfiltered list returns every session the
+ * group has ever had, past and future. Without the filter every such group wore a
+ * permanent LIVE badge pointing at an arbitrary one of those ids.
+ *
+ * `limit` matters for the opposite failure: with no limit AppSync applies its own
+ * default page size, and a genuinely-live group whose row falls outside the first
+ * page would get no badge at all. {@link fetchLiveGroups} also follows
+ * `nextToken`.
+ */
 const LIST_LIVE_GROUPS = /* GraphQL */ `
-  query listLiveGroups {
-    listLiveStreamingGroups {
+  query listLiveGroups($nextToken: String) {
+    listLiveStreamingGroups(
+      filter: { inLive: { eq: true } }
+      limit: ${RESULT_LIMIT}
+      nextToken: $nextToken
+    ) {
       items {
         id
         groupId
         inLive
       }
+      nextToken
     }
   }
 `;
@@ -296,10 +316,36 @@ export async function fetchGroupMemberCount(groupId: string): Promise<number> {
 
 export async function fetchLiveGroups(): Promise<LiveGroup[]> {
   try {
-    const { data } = await executeAppSyncGraphql<{
-      listLiveStreamingGroups: { items?: LiveGroup[] | null } | null;
-    }>({ query: LIST_LIVE_GROUPS, variables: {}, authWithUserPool: true });
-    return (data?.listLiveStreamingGroups?.items ?? []).filter((g) => g?.groupId);
+    const rows: LiveGroup[] = [];
+    let nextToken: string | undefined;
+    let pages = 0;
+
+    do {
+      const { data } = await executeAppSyncGraphql<{
+        listLiveStreamingGroups: {
+          items?: LiveGroup[] | null;
+          nextToken?: string | null;
+        } | null;
+      }>({
+        query: LIST_LIVE_GROUPS,
+        variables: { nextToken: nextToken ?? null },
+        authWithUserPool: true,
+      });
+
+      // The `inLive` test is redundant against the server-side filter and kept on
+      // purpose: a resolver or schema change that drops the filter would silently
+      // bring the permanent-badge bug back, and this is the last line of defence.
+      rows.push(
+        ...(data?.listLiveStreamingGroups?.items ?? []).filter(
+          (g) => g?.groupId && g.inLive === true,
+        ),
+      );
+
+      nextToken = data?.listLiveStreamingGroups?.nextToken ?? undefined;
+      pages += 1;
+    } while (nextToken && pages < MAX_PAGES);
+
+    return rows;
   } catch (err) {
     console.error("[groups] live groups query failed:", err);
     return [];

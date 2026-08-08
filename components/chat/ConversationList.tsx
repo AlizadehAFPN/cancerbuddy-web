@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Search, X, MailWarning } from "lucide-react";
 import type { Channel } from "stream-chat";
@@ -11,6 +11,14 @@ import { useChannelList } from "@/lib/chat/useChannelList";
 import { useUnreadChannels } from "@/lib/chat/useUnreadChannels";
 import { useConversationSearch } from "@/lib/chat/useConversationSearch";
 import ConversationListItem from "./ConversationListItem";
+import { useSupportChannelBootstrap } from "@/lib/chat/useSupportChannelBootstrap";
+import type { SupportStreamClient } from "@/lib/host-signup/bootstrapSupportChannel";
+import PhoneCaptureDialog from "@/components/profile/PhoneCaptureDialog";
+import {
+  PHONE_PROMPT_DISMISSED_KEY,
+  fetchPhone,
+  shouldPromptForPhone,
+} from "@/lib/profile/phoneStatus";
 
 /** Instant local match over already-loaded channels, shown until server results land. */
 function matchesQuery(channel: Channel, userId: string, q: string): boolean {
@@ -30,7 +38,45 @@ function matchesQuery(channel: Channel, userId: string, q: string): boolean {
 /** Left pane: the user's conversations, with search. */
 export default function ConversationList() {
   const pathname = usePathname();
-  const { userId, status, reconnect } = useStreamChat();
+  const { client, userId, status, reconnect } = useStreamChat();
+
+  /*
+   * Finishes the Support conversation when signup deferred it — enrolment has
+   * no Stream client, so it leaves a marker and this is where it is honoured.
+   */
+  useSupportChannelBootstrap(
+    client as unknown as SupportStreamClient | null,
+    userId,
+  );
+
+  /**
+   * An account with no phone number is asked for one.
+   *
+   * Read once per visit and only prompts when the answer is definitively "no
+   * number" — the read-failure sentinel counts as having one, so a network blip
+   * never interrupts someone with a modal.
+   */
+  const [phone, setPhone] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void fetchPhone(userId).then((value) => {
+      if (!cancelled) setPhone(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const [phoneDismissed, setPhoneDismissed] = useState(false);
+  const askForPhone =
+    phone !== undefined &&
+    shouldPromptForPhone(
+      phone,
+      phoneDismissed ||
+        (typeof window !== "undefined" &&
+          window.sessionStorage.getItem(PHONE_PROMPT_DISMISSED_KEY) === "true"),
+    );
   const { channels, loading, error, loadMore, hasMore, loadingMore } =
     useChannelList();
   const [query, setQuery] = useState("");
@@ -86,6 +132,9 @@ export default function ConversationList() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {askForPhone && (
+        <PhoneCaptureDialog onClose={() => setPhoneDismissed(true)} />
+      )}
       <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-5">
         <h1 className="font-heading text-xl font-bold text-cb-black">
           {t("app.chat.title")}

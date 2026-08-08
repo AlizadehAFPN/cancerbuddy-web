@@ -126,6 +126,28 @@ export const RESOURCE_LINKS: AccountLink[] = [
   { labelKey: "app.account.settings", Icon: Settings, href: "/settings" },
 ];
 
+/**
+ * The account menu a given account type gets.
+ *
+ * Settings is member-only. Everything behind it — snooze, change status, delete
+ * account — is meaningless or actively wrong for a **host** account: a host has
+ * no discovery presence to snooze, no patient/survivor/caregiver status to
+ * change, and their account is provisioned by the foundation rather than owned
+ * by them. Mobile never mounts the settings stack for one
+ * (`HamburgerMenu.tsx` gates the row on `userType !== HOST`), and web offered it
+ * to everybody.
+ *
+ * An unknown type is treated as a host would be: the surface is withheld until
+ * we know it is safe to show, and `/settings` guards itself as well.
+ */
+export function resourceLinksFor(
+  userType: string | null | undefined,
+): AccountLink[] {
+  const memberTypes = ["PATIENT", "SURVIVOR", "CAREGIVER"];
+  if (userType && memberTypes.includes(userType)) return RESOURCE_LINKS;
+  return RESOURCE_LINKS.filter((item) => item.href !== "/settings");
+}
+
 export const LOGOUT_LINK: AccountLink = {
   labelKey: "app.account.logout",
   Icon: LogOut,

@@ -172,6 +172,12 @@ function RegisterController() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawStep = searchParams.get("step");
+  /**
+   * Set by the login page when it bounces someone here because their enrolment
+   * is unfinished. Read once — the banner explains the arrival, and re-showing
+   * it as they move through the wizard would be noise.
+   */
+  const resumedFromLogin = searchParams.get("resumed") === "1";
   /** Intro is the landing step — same pattern as `/hosts-register`. */
   const requestedStep: UserRegisterStep = isUserRegisterStep(rawStep)
     ? rawStep
@@ -1007,6 +1013,15 @@ function RegisterController() {
             : goBackInUserFlow
         }
       >
+        {resumedFromLogin && step !== "allSet" ? (
+          <p
+            role="status"
+            className="mb-5 rounded-xl bg-cb-bone-300 px-4 py-3 font-body text-[13.5px] leading-snug text-cb-gray-800"
+          >
+            {t("register.enrollmentIncomplete")}
+          </p>
+        ) : null}
+
         {step === "intro" ? <StepIntro onStart={handleStart} /> : null}
 
         {step === "privacy" ? (

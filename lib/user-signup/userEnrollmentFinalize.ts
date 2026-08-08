@@ -354,10 +354,17 @@ export async function finalizeUserEnrollment(
     if (typeof window !== "undefined" && window.localStorage) {
       if (supportWired) {
         window.localStorage.removeItem(PENDING_SUPPORT_CHANNEL_KEY);
-      } else if (bootstrapThrew) {
-        window.localStorage.setItem(PENDING_SUPPORT_CHANNEL_KEY, "true");
       } else {
-        window.localStorage.removeItem(PENDING_SUPPORT_CHANNEL_KEY);
+        /*
+         * Not wired — set the marker either way.
+         *
+         * It used to be cleared unless the bootstrap *threw*, but the common
+         * case is neither success nor an exception: enrolment has no Stream
+         * client, so provisioning defers by design and returns false. Clearing
+         * the marker there meant the chat list never finished the job and the
+         * member simply had no Support conversation.
+         */
+        window.localStorage.setItem(PENDING_SUPPORT_CHANNEL_KEY, "true");
       }
       for (const k of ENROLLMENT_ANALYTICS_KEYS) {
         window.localStorage.setItem(k, "false");

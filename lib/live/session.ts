@@ -77,7 +77,9 @@ export function chatChannelIdFor(session: {
  * flips that flag, so treating "not live yet" as unjoinable would lock the
  * host out of starting their own session.
  */
-export function hasSessionEnded(session: LiveRoomSession): boolean {
+export function hasSessionEnded(
+  session: Pick<LiveRoomSession, "status" | "archived">,
+): boolean {
   return session.status === "ended" || session.archived === true;
 }
 

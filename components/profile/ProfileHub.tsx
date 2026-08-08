@@ -18,6 +18,7 @@
  */
 
 import Link from "next/link";
+import AmbassadorBadge from "@/components/buddies/AmbassadorBadge";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
@@ -223,11 +224,13 @@ export default function ProfileHub() {
                     {ROLE_LABELS[user.userType]}
                   </span>
                 )}
-              {user.ambassador && (
-                <span className="rounded-full bg-cb-bone px-2 py-0.5 font-body text-[10.5px] font-bold uppercase tracking-wide text-cb-black">
-                  {t("app.buddies.ambassador")}
-                </span>
-              )}
+              {/* Your own badge opens the thank-you variant of the explainer. */}
+              <AmbassadorBadge
+                ambassador={user.ambassador}
+                isSelf
+                myName={user.name}
+                className="!text-[10.5px]"
+              />
               {/* Mobile never passes the host badge, so a host shows none at
                   all. Web fills that gap. */}
               {user.userType === "HOST" && (

@@ -104,6 +104,14 @@ function MemberRow({ member }: { member: GroupMember }) {
               {location}
             </span>
           )}
+          {/* Mobile lists each member's diagnoses under their name — in a
+              support group it is the line that says whether this person is
+              going through what you are going through. */}
+          {member.diagnoses.length > 0 && (
+            <span className="mt-0.5 block truncate font-body text-[12.5px] text-cb-gray-600">
+              {member.diagnoses.join(", ")}
+            </span>
+          )}
         </div>
         <ChevronRightIcon
           size={18}

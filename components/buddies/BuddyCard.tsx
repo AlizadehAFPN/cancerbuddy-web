@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { t } from "@/lib/i18n";
 import BuddyAvatar from "@/components/buddies/BuddyAvatar";
+import AmbassadorBadge from "@/components/buddies/AmbassadorBadge";
 import { UserPlusIcon, XIcon } from "@/components/buddies/controls";
 import { ageSuffix } from "@/lib/buddies/age";
 import {
@@ -142,11 +143,10 @@ export default function BuddyCard({
           >
             {displayName}
           </Link>
-          {profile.ambassador && (
-            <span className="rounded-full bg-cb-bone px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wide text-cb-black">
-              {t("app.buddies.ambassador")}
-            </span>
-          )}
+          <AmbassadorBadge
+            ambassador={profile.ambassador}
+            myName={viewer?.name}
+          />
         </div>
 
         {role && (

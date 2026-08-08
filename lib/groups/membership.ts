@@ -12,6 +12,7 @@ import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 import { raiseUserLambda } from "@/lib/aws/raiseUserLambda";
 import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
 import type { FeedSession } from "@/lib/groups/feedClient";
+import type { ReportTargetTypeValue } from "@/lib/groups/reporting";
 
 function usersLambdaName(): string {
   const v = process.env.NEXT_PUBLIC_USERS_LAMBDA?.trim();
@@ -97,9 +98,28 @@ const REPORT_POST = /* GraphQL */ `
   }
 `;
 
+/**
+ * Files a report.
+ *
+ * Every field is **required**, and that is the point: the old signature took
+ * three, two of which were wrong. `reporterUser` is the schema's name for the
+ * person reporting — the previous `userId` is not a field on
+ * `CreateReportPostInput`, so AppSync rejected the whole input object and no
+ * report ever reached moderation. See `lib/groups/reporting.ts` for the
+ * introspected field list and mobile's matching payload.
+ *
+ * `post` is the reported content itself (the post body, or the comment text), so
+ * a moderator can act on a report about something that has since been deleted.
+ */
 export async function reportPost(params: {
   postId: string;
-  userId: string;
+  /** The author of the reported content. */
+  reportedUser: string;
+  /** The signed-in account filing the report. */
+  reporterUser: string;
+  /** The reported body — HTML for a post, text for a comment. */
+  post: string;
+  type: ReportTargetTypeValue;
   reason: string;
 }): Promise<void> {
   await executeAppSyncGraphql({
@@ -107,7 +127,10 @@ export async function reportPost(params: {
     variables: {
       input: {
         postId: params.postId,
-        userId: params.userId,
+        reportedUser: params.reportedUser,
+        reporterUser: params.reporterUser,
+        post: params.post,
+        type: params.type,
         reason: params.reason,
       },
     },

@@ -162,14 +162,16 @@ export default function LoginPage() {
         /* ── Phone not verified → resume phone-verification step ── */
         case "RESUME_PHONE":
           useUserSignupStore.getState().advanceFurthestStep("phone");
-          router.push("/register?step=phone");
+          // `resumed` is why the banner on /register can explain itself. Landing
+          // mid-wizard with no explanation reads like the sign-in failed.
+          router.push("/register?step=phone&resumed=1");
           // Keep loading=true; page unmounts as navigation completes.
           return;
 
         /* ── Phone verified but role not chosen → resume userRole step ── */
         case "RESUME_USER_ROLE":
           useUserSignupStore.getState().advanceFurthestStep("userRole");
-          router.push("/register?step=userRole");
+          router.push("/register?step=userRole&resumed=1");
           return;
 
         /* ── Email OTP never completed → show inline notice with register link ── */

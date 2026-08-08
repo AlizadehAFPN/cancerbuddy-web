@@ -1,0 +1,329 @@
+{
+ "demotion_batches": [
+  {
+   "batch": "ALREADY_PRESENT-5",
+   "reviewed": 33,
+   "confirmed_count": 33,
+   "overturned": []
+  },
+  {
+   "batch": "ALREADY_PRESENT-2",
+   "reviewed": 30,
+   "confirmed_count": 29,
+   "overturned": [
+    {
+     "id": "activeusers-15-connect-cta-params",
+     "area": "Groups",
+     "claimed_class": "ALREADY_PRESENT",
+     "capability": "Opening a member from a group's member list must not offer a Connect button for someone who has snoozed their profile — mobile suppresses the whole connect action bar for a snoozed member; web shows Connect and sends a buddy request that the snoozed member is supposed to be shielded from.",
+     "evidence": "MOBILE: /Users/wallex/cancerbuddyapp/src/screens/groups/user-active-list-groups/ActiveUsersListGroups.tsx:118 `const showButtons = !connections && !item?.isSnooze && item?.id !== userId;` passed at :125-129 into UserInfoScreenGroups, consumed at /Users/wallex/cancerbuddyapp/src/screens/buddies/userInfo/components/ConnectionButtonBar.tsx:39 `const shouldShow = showButtons || isBuddy || isPendingConnection || isAlreadyBuddy; if (!shouldShow) return null;`. WEB: the demotion's premise ('/buddies/[userId] owns the same inputs — connection lookup, isSnooze, age rules') is false. /Users/wallex/cancerbuddy-web/components/buddies/BuddyProfileScreen.tsx:448 gates the action bar on `profile && !isSelf && !isSupportAccount` only — grep for `isSnooze` in that file returns nothing, even though it is fetched and mapped at /Users/wallex/cancerbuddy-web/lib/buddies/profileDetail.ts:273 (`isSnooze: raw.isSnooze === true`). /Users/wallex/cancerbuddy-web/lib/buddies/useConnectAction.ts:30-57 sends createConnectionRequest with no isSnooze and no connectAgeRulesBuddySearching check; the only such guard on web is in components/buddies/BuddyIdSheet.tsx:60-64, which the group-member path never goes through. /Users/wallex/cancerbuddy-web/components/groups/GroupMembers.tsx also contains no isSnooze. Web's discovery grid is safe only because lib/buddies/discoveryFetch.ts:204 pre-filters `isSnooze: { ne: true }`; the group-member path bypasses that filter entirely. Not covered by any existing GAP: 'viewer-snooze-gate' is about the viewer's OWN snooze, 'snooze-toggle-and-backend' is the toggle/lambda/channel-freeze, and 'buddies-blocked-profile-guard' is the blocked-user check.",
+     "size": "xs",
+     "suggested_layer": "buddies — profile action bar / useConnectAction guard (read profile.isSnooze + connectAgeRulesBuddySearching before rendering Connect on /buddies/[userId])"
+    }
+   ]
+  },
+  {
+   "batch": "ALREADY_PRESENT-6",
+   "reviewed": 33,
+   "confirmed_count": 33,
+   "overturned": []
+  },
+  {
+   "batch": "ALREADY_PRESENT-4",
+   "reviewed": 33,
+   "confirmed_count": 31,
+   "overturned": [
+    {
+     "id": "summary-support-bootstrap-absent-on-web",
+     "area": "Chat",
+     "claimed_class": "ALREADY_PRESENT",
+     "capability": "A member who signs up on the web actually ends up with a Support conversation (the Ava welcome message) visible in their chat list, without ever opening the phone app.",
+     "evidence": "MOBILE creates the Stream channel itself as step 4 of the 5-step bootstrap: /Users/wallex/cancerbuddyapp/src/screens/buddies/homeBuddies/HomeBuddies.tsx:219-222 does `client.channel('messaging', channelId, {members: [id, idSupportUser]})` then `await channel.watch()` BEFORE firing the CREATE_SUPPORT_MESSAGE lambda at :224-228; it also pre-queries for an existing pair channel at HomeBuddies.tsx:165-179. WEB omits that step entirely: /Users/wallex/cancerbuddy-web/lib/host-signup/bootstrapSupportChannel.ts:194-235 goes straight from ACCEPT_CONNECTION to `raiseUserLambda(CREATE_SUPPORT_MESSAGE)` at :202, and the file's own header at lib/host-signup/bootstrapSupportChannel.ts:5-12 concedes this is unverified: 'No Stream `channel.watch` in the browser. ... The Lambda **should** upsert the channel and members before `sendMessage` when the channel is not created yet (web)'. The demotion's claim that the web happy path is complete rests on that unverified 'should'. Callers: lib/user-signup/userEnrollmentFinalize.ts:345 and lib/host-signup/hostEnrollmentFinalize.ts:214-222. If the lambda does not upsert, the channel is never created and lib/chat/useChannelList.ts returns no Support row. The rest of the demotion is correct — the bootstrap does run on web (the doc summary bullet was wrong) — only this step is missing.",
+     "size": "s",
+     "suggested_layer": "chat / support-bootstrap"
+    },
+    {
+     "id": "userinfogroups-2-3-4",
+     "area": "Groups",
+     "claimed_class": "ALREADY_PRESENT",
+     "capability": "A member who has snoozed their profile stops receiving new connect requests: on mobile the Connect action bar is hidden on their profile, on web anyone who opens them from a group's member list still gets a live Connect button.",
+     "evidence": "The demotion defers row 3 to /buddies/[userId] and to `activeusers-15-connect-cta-params`, whose stated reason (WORKLIST.md:556) is that web's profile 'owns the same inputs (connection lookup, isSnooze, age rules)'. It does not. MOBILE: /Users/wallex/cancerbuddyapp/src/screens/groups/user-active-list-groups/ActiveUsersListGroups.tsx:118 computes `showButtons = !connections && !item?.isSnooze && item?.id !== userId` and passes it at :125-128; /Users/wallex/cancerbuddyapp/src/screens/buddies/userInfo/components/ConnectionButtonBar.tsx:39 renders the bar only when `showButtons || isBuddy || isPendingConnection || isAlreadyBuddy`, so a snoozed member's Connect CTA is hidden. The post-author path adds the age band on top (/Users/wallex/cancerbuddyapp/src/components/layouts/Groups/post-fragment/hooks/usePostActions.ts:73-75, `connectAgeRules` from src/utils/birth.ts:202-223). WEB: /Users/wallex/cancerbuddy-web/components/groups/GroupMembers.tsx:47-49 links straight to /buddies/{id}, and /Users/wallex/cancerbuddy-web/components/buddies/BuddyProfileScreen.tsx:448 gates the whole action bar on only `profile && !isSelf && !isSupportAccount`. `profile.isSnooze` is fetched (lib/buddies/profileDetail.ts:273) and never read anywhere in BuddyProfileScreen.tsx (grep for isSnooze in that file returns nothing; only `profile.birth` at :229 for the age label), and `connectAgeRulesBuddySearching` (lib/buddies/age.ts:169) is imported by exactly one file, components/buddies/BuddyIdSheet.tsx:64. Web's snooze/age guards live only in discovery (lib/buddies/discoveryFetch.ts:204-206) and the buddy-ID lookup, neither of which is on the group-member-list path. Rows 2 and 4 of the demotion are correct.",
+     "size": "xs",
+     "suggested_layer": "buddies / connect-gating"
+    }
+   ]
+  },
+  {
+   "batch": "ALREADY_PRESENT-3",
+   "reviewed": 34,
+   "confirmed_count": 34,
+   "overturned": []
+  },
+  {
+   "batch": "ALREADY_PRESENT-1",
+   "reviewed": 34,
+   "confirmed_count": 33,
+   "overturned": [
+    {
+     "id": "register-email-verification-resume-modal",
+     "area": "Auth",
+     "claimed_class": "ALREADY_PRESENT",
+     "capability": "A person who comes back to finish a half-started signup gets a fresh, valid email verification code straight away instead of being told to type \"the code we sent you\" when none was sent and being locked out of Resend for 60 seconds.",
+     "evidence": "MOBILE sends a fresh code before offering the resume choice: /Users/wallex/cancerbuddyapp/src/context/auth/authUtils.ts:28-37 handleExistingUsername() calls Auth.resendSignUp(username), markCodeSent(username) and toasts VERIFICATION_CODE_SENT, and only then does /Users/wallex/cancerbuddyapp/src/screens/enrollment/enrollmentGroups/accountSetup/AccountSetupMailPass.tsx:129 render the 'Pick up where you left off' sheet (src/components/layouts/EmailVerification/EmailVerification.tsx:79,101). The client-side cooldown at src/context/auth/authUtils.ts:52-61 only suppresses a *second* send within the window, so the user always holds a code at most ~60s old. WEB never sends one on this branch: /Users/wallex/cancerbuddy-web/lib/user-signup/cognitoUserSignupService.ts:314-316 returns {status:'RESUME_UNCONFIRMED'} from the UserNotConfirmedException catch with no resendEmailCode call (resendEmailCode exists unused at :411-418), and /Users/wallex/cancerbuddy-web/app/register/page.tsx:684-688 handles it by setting emailResumeInfo, stashing the password and calling setEmailResendLeft(OTP_RESEND_COOLDOWN_SEC) before goToStep('emailOtp') — so the Resend control arrives already disabled behind a 60s countdown (app/register/_components/StepEmailOtp.tsx:91-96 shows the hint, :128-132 the Change email link). The copy at /Users/wallex/cancerbuddy-web/lib/i18n/locales/en.ts:223-224 says 'Enter the verification code we sent you', but nothing was sent this session and any earlier Cognito code expires in 24h. Identical omission in the host flow at /Users/wallex/cancerbuddy-web/app/become-a-host/page.tsx:459-464 (hint string at lib/i18n/locales/en.ts:425-426). The demotion's other half is genuinely fine — the resume hint and the 'Change email' escape hatch both exist; it is the code-send inside the resume path that is missing, and it falls in the seam between this record and register-code-recently-sent-alert so nothing else in the plan covers it.",
+     "size": "s",
+     "suggested_layer": "user-signup / register flow"
+    }
+   ]
+  },
+  {
+   "batch": "PRESENTATION-1",
+   "reviewed": 21,
+   "confirmed_count": 20,
+   "overturned": [
+    {
+     "id": "register-birth-why-we-ask-tooltip",
+     "area": "Auth",
+     "claimed_class": "PRESENTATION",
+     "capability": "While registering, a user can expand a \"Why do we ask this?\" note on the date-of-birth field and read why the app needs their age (\"Your age qualifies you to use this app and helps find buddies close to your age.\") — on web that explanation does not exist on either birth step.",
+     "evidence": "MOBILE: /Users/wallex/cancerbuddyapp/src/components/layouts/PersonalInfo/PersonalInfoLayout.tsx:171-178 renders <InputHint hint=\"(mm/yyyy)\" hintDescription={{title:'Why do we ask this?', description1:'Your age qualifies you to use this app and helps find buddies close to your age.'}}/>, mounted by /Users/wallex/cancerbuddyapp/src/screens/enrollment/enrollmentGroups/privacyTerms/PrivacyTermsIntroduction.tsx:58; the same hint is on the caregiver step via /Users/wallex/cancerbuddyapp/src/components/layouts/Age/AgeLayout.tsx:101-108, mounted by /Users/wallex/cancerbuddyapp/src/screens/enrollment/enrollmentGroups/profileSetup/ProfileSetupCGPatientAge.tsx:3. WEB: /Users/wallex/cancerbuddy-web/app/register/_components/StepProfile.tsx:91-98 passes only a formatted \"born\" confirmation hint, and /Users/wallex/cancerbuddy-web/app/register/_components/StepCGPatientAge.tsx:38 renders MonthYearPicker with no hint prop at all; no matching string exists in /Users/wallex/cancerbuddy-web/lib/i18n/locales/en.ts. The identical explainer was classified GAP on the profile side (docs/parity/_triage-raw.json item profile-field-help-text, sub-item \"Patient #3a\"), but that item's web_refs cover only components/profile/*Form.tsx — the two registration steps are not in its scope, so demoting this loses the note on registration for good.",
+     "size": "xs",
+     "suggested_layer": "forms-help-text — fold into profile-field-help-text (one shared expandable field-hint component + i18n key, reused by StepProfile and StepCGPatientAge)"
+    }
+   ]
+  },
+  {
+   "batch": "DEAD_CODE_DONT_PORT-2",
+   "reviewed": 14,
+   "confirmed_count": 14,
+   "overturned": []
+  },
+  {
+   "batch": "PRESENTATION-6",
+   "reviewed": 20,
+   "confirmed_count": 20,
+   "overturned": []
+  },
+  {
+   "batch": "DEAD_CODE_DONT_PORT-1",
+   "reviewed": 15,
+   "confirmed_count": 13,
+   "overturned": [
+    {
+     "id": "lambda-verbs-dead",
+     "area": "Cross-cutting",
+     "claimed_class": "DEAD_CODE_DONT_PORT",
+     "capability": "Tapping the ambassador check-mark on a buddy's profile and choosing \"learn more\" opens a support conversation that the backend seeds with the ambassador intro message — on web the ambassador mark is an inert pill and no such conversation can be started.",
+     "evidence": "MOBILE (live, not dead): src/types/utils/lambda.ts:23 `CREATE_AMBASSADOR_MESSAGE = 'ambassadorMessage'` is invoked at src/screens/buddies/userInfo/hooks/useUserInfoShared.ts:53-58 (`raiseUserLambda(CREATE_AMBASSADOR_MESSAGE, USERS_LAMBDA, ...)`); reached from src/screens/buddies/userInfo/UserInfo.tsx:91,420 and UserInfoConnect.tsx:85,222 -> components/layouts/AvataInfo/AvatarInfoLayout.tsx:193,232 (TouchableOpacity onPress={onPressVerify}, rendered whenever `isAmbassador && !isGroup`) -> components/elements/modal-ambassador/ModalAmbassador.tsx:120-123 (\"learn more\") -> :28,61,69 `sendMessageAmbassador?.(idChannel)`. Nothing on that chain is commented out or behind a flag. WEB: lib/aws/lambdaPayload.ts has no ambassador verb at all (full file read: LOGIN..NOTIFY_GROUP_LIVE, 20 entries, none ambassador), and `grep -rni ambassador app lib components` returns only badge/flag rendering (lib/chat/contactProfile.ts:93, lib/groups/members.ts:142, lib/notifications/fetch.ts:109). SECOND-ORDER DEFECT THIS DEMOTION CAUSED: because it declared `ambassadorMessage` dead, the surviving enabler docs/parity/WORKLIST.md:159 `lambda-verb-registry` lists the verb as `createAmbassadorMessage` and docs/parity/WORKLIST.md:294 `ambassador-explainer-and-cta` asserts `CREATE_AMBASSADOR_MESSAGE: \"createAmbassadorMessage\"` — the wrong string. Built as planned, the POST is rejected by the Lambda and the feature silently does nothing. The other nine verbs in this record hold: startStreaming/finishedStreaming reach only through TabsNavigator.tsx:32 (`route.name === TabsNav.Live ? null` — the Live tab is never mounted) and the dead permission fn in screens/feeds/group-details.tsx:60-85; createRoomUser/hasPinnedReactionsInGroup/unpinnedMessage/finduserbyname have zero `LambdaPayloadType.` references; getPostByGroup/getReactionsByPost are superseded by the NEW* variants actually called at activities-feed.tsx:106 and PostDetails.tsx:95; readNotifications has a call site (HomeNotifications.tsx:96) but is proven non-functional server-side (docs/UPDATES.md §2).",
+     "size": "xs",
+     "suggested_layer": "lambda-verbs"
+    },
+    {
+     "id": "row-125-persist-token-to-backend-table",
+     "area": "Chat",
+     "claimed_class": "DEAD_CODE_DONT_PORT",
+     "capability": "A phone user receives push notifications for new group posts, a live session starting, a buddy request and a buddy acceptance; a browser-only member receives push for chat messages and nothing else, because the browser's device token is never written to the table the notification sender reads.",
+     "evidence": "MOBILE (live, actively written): src/context/auth/useAuth.ts:80-129 `createOrUpdateFCMToken` runs FIND_EXISTENT_TOKEN_IN_ANOTHER_ACCOUNTS -> DELETE_USER_DEVICE_TOKEN -> createUserDeviceToken, and is called on every login and on every token refresh at src/context/stream/StreamProvider.tsx:125 and :132; the row is deleted on sign-out at useAuth.ts:161-195, called from :280. WEB: `grep -rni UserDeviceToken` over app/ lib/ components/ public/ returns zero matches; lib/push/pushClient.ts:410-430 is the whole registration path and stops at Stream's `client.addDevice(token, \"firebase\", userId, providerName)`. THE CLAIM IS REFUTED BY THIS REPO'S OWN LATER FINDING: docs/PARITY.md:156-170 (Q3, \"Which sink does the push pipeline read?\") settles it from mobile's comment at cancerbuddyapp/src/context/auth/useAuth.ts:159-160 — chat messages come from Stream, but \"Group posts, live starting, buddy requests\" are sent by the `notifications-demo` Lambda reading `UserDeviceToken`, a table with \"3,427+ rows across 3,191 distinct users, most recent write the same day this was checked\". docs/PUSH.md, which this demotion cites, predates that and only establishes there is no FCM sender *inside the two client repos*. NOTE FOR THE MERGE STEP: the capability is already scheduled as `push-backend-token-registration` (docs/parity/WORKLIST.md:412, size l, layer lambda-verbs) whose sub-items #4 and #8 are exactly these writes — so the fix is to delete this demotion row, NOT to descope that item. Leaving a DEAD_CODE_DONT_PORT verdict sitting next to an l-sized item in the same document is how the item gets cut. Backend prerequisite stands (no platform column on UserDeviceToken; web is Firebase project cancerbuddy-web-73c0d vs the sender's cancerbuddy-demo, docs/PARITY.md:174-185) — that is a sequencing blocker, not evidence of dead code.",
+     "size": "l",
+     "suggested_layer": "lambda-verbs"
+    }
+   ]
+  },
+  {
+   "batch": "WEB_AHEAD_PRESERVE-2",
+   "reviewed": 37,
+   "confirmed_count": 37,
+   "overturned": []
+  },
+  {
+   "batch": "PRESENTATION-4",
+   "reviewed": 21,
+   "confirmed_count": 20,
+   "overturned": [
+    {
+     "id": "architecture-and-perf-no-capability-delta",
+     "area": "Cross-cutting",
+     "claimed_class": "PRESENTATION",
+     "capability": "A member can find and pick their hospital/medical centre and their diagnosis by typing the name and having the whole catalogue searched — on web only the first 1000 rows are ever loaded, so anyone whose hospital or diagnosis falls outside that slice cannot select it at all, during registration or when editing their medical info.",
+     "evidence": "MOBILE searches the catalogue server-side, unbounded: cancerbuddyapp/src/components/layouts/MedicalCenter/MedicalCenterLayout.tsx:43-46 wires queryToSearch=GET_HOSPITALS_WITH_FILTER / keyQueryCatalogue='findHospitals', defined at cancerbuddyapp/src/graphql/queries/hospitals.ts:10-19 as findHospitals(name:\"…\", from:0, size:100); the same pattern for diagnoses at cancerbuddyapp/src/components/layouts/PatientDiagnosis/PatientDiagnosisLayout.tsx:186 over cancerbuddyapp/src/graphql/queries/diagnosis.ts:12. That layout is live enrollment (cancerbuddyapp/src/screens/enrollment/enrollmentGroups/profileSetup/ProfileSetupPatientMedicalCenter.tsx:2,53). Mobile's list-style preload is also 1000x larger: cancerbuddyapp/src/graphql/queries/forms.ts:77,99 uses ${resultLimit} = 1000000 (cancerbuddyapp/src/graphql/queries/queryParams.ts:1). WEB preloads a capped list and filters it in the client: cancerbuddy-web/lib/aws/appsyncPicklistQueries.ts:26 listDiagnoses(limit: 1000) and :58 listHospitals(limit: 1000), consumed by cancerbuddy-web/app/register/_components/StepMedicalCenter.tsx:36, cancerbuddy-web/app/register/_components/StepDiagnosis.tsx:89 and cancerbuddy-web/components/profile/MedicalInfoForm.tsx:138,141 into MultiSelectField (MedicalInfoForm.tsx:293,363). The demotion's own words for this row were 'unverified against mobile's queryParams, and no observed capability delta' — the limits are demonstrably NOT equal and the mechanism is not the same, so the 'no capability delta' claim rests on an unverified assumption about catalogue size. Everything else in this bucket (SWR, cache layering, uuid, debounce values, cooldowns, charset validation, error centralisation, state shape, video resolution, deep-link scheme, uncentralised literals) I checked and it stands.",
+     "size": "s",
+     "suggested_layer": "none"
+    }
+   ]
+  },
+  {
+   "batch": "PRESENTATION-3",
+   "reviewed": 20,
+   "confirmed_count": 20,
+   "overturned": []
+  }
+ ],
+ "liveness_batches": [
+  {
+   "batch": "REACH-3",
+   "verdicts": [
+    {
+     "id": "feed-media-normaliser-and-render",
+     "verdict": "LIVE",
+     "evidence": "Feeds tab (TabsScreens → FeedsNavigation) → FeedsHomeScreen → group row → ActivitiesFeed (`src/screens/feeds/activities-feed.tsx`) → `ActivitiesList` → `ActivityItem` (`src/components/layouts/Groups/post-fragment/Post.fragment.tsx:43,271-276`), which renders `<FeedMediaAttachments attachments={isComment ? post.data.attachments : post.attachments} />`. `src/components/layouts/Post/FeedMediaAttachments.tsx` (436 lines, last touched 2026-07-09) resolves each attachment via `resolveFeedMediaUrl` in `src/utils/feedMedia.ts` (S3 `Storage.get`, expires 900, 14-min cache) and renders image tiles, `react-native-video` for video and `PdfAttachment` for files. Authoring side is live too: `src/screens/feeds/NewPostScreen.tsx:53,183-200` uploads via `uploadFeedMedia` and passes `attachments` into `addActivityUser`.",
+     "note": "Migration check done. There are two post renderers: `@layouts/Post/Post.tsx` (used only by `src/screens/groups/feed/FeedActivityList.tsx` and `src/screens/groups/post-details/PostDetails.tsx`, both under the orphaned `GroupsNavigation`) and `Post.fragment.tsx` (used by the live Feeds stack). The live one is `Post.fragment.tsx`, and it renders the same `FeedMediaAttachments` component, so the capability survives either way. Note the mobile shape is `{type,bucket,region,key,mime,width,height,duration,name,size}` — the web normaliser must key off `key`+`bucket`, not a URL."
+    },
+    {
+     "id": "groups-delete-via-deletemessage-lambda",
+     "verdict": "LIVE",
+     "evidence": "Feeds tab → ActivitiesFeed or PostDetail → post/comment overflow `ButtonIcon name=\"three-dots\"` (`Post.fragment.tsx:299`) → `openReportPostModal` (`Post.fragment.tsx:132-190`) → `ReportPostOptions` renders a `Delete my {post|comment|reply}` CTA (`ReportPost.modal.tsx:159-170`) whose `deletePost` prop (`Post.fragment.tsx:148`) opens `ConfirmRemovePost` with `headerText: 'Delete {this|my} {reply|comment|post}'` (`Post.fragment.tsx:190`). `ConfirmPost.modal.tsx:36-63` then calls `raiseUserLambda(LambdaPayloadType.DELETEMESSAGE, Config.public.USERS_LAMBDA, {type, feedId, postId, commentId, isPost})` and shows the YES, DELETE confirm at 71-84. `raiseUserLambda` is a real AWS `LambdaClient.InvokeCommand` (`src/utils/lambda.ts:16-60`), not a stub.",
+     "note": "Both halves of the item are live: the confirmation sheet and the deleteMessage Lambda call. The host/moderator variant is the same code path — `isHostPost` only flips the copy from 'my' to 'this'."
+    },
+    {
+     "id": "buddies-connection-map-indexed-read",
+     "verdict": "LIVE",
+     "evidence": "`ConnectionMapProvider` is mounted around the whole authenticated tree (`src/navigation/drawer/MainDrawerNavigator.tsx:56`), so every buddies surface reads it. `refreshConnectionFor` (`ConnectionMapProvider.tsx:203-237`) calls `FETCH_CONNECTION_STATUS`, and `src/graphql/mutations/connections.ts:89-130` walks BOTH `byRemitentId` and `byRecipientId` page by page via `fetchAllPages(...nextToken)`, with an in-source comment: 'the previous scan-based version read a single page of listConnections, which DynamoDB truncates before applying the filter, so an accepted connection was frequently missing from the result and the UI stayed on \"Pending\"'. It also filters `ignored` client-side because DynamoDB `ne` never matches an absent attribute.",
+     "note": "Also a pure web-correctness fix — mobile already carries the fixed implementation and documents the exact bug web still has. Port the two-index paginated read plus the client-side `ignored` filter; do not reproduce a filtered `listConnections`."
+    },
+    {
+     "id": "chat-host-badge-detection",
+     "verdict": "LIVE",
+     "evidence": "Buddies tab → HomeBuddies conversation list → `ChatListMessagesPreview.tsx:62-65` computes `{isSupport: userType === SUPPORT, isHost: !!userData.groupHostId, isAmbassador}` from the AppSync `getUser`. Same signal inside a conversation: `ChatMessagesHeader.tsx:45-48` sets `isHost: !!user.groupHostId`, and `ChatMessagesHeader.tsx:180` gates the overflow menu on `!userProfile?.isSupport && !userProfile?.isHost`, so a PATIENT carrying a `groupHostId` gets the Host treatment and no Remove/Block affordance.",
+     "note": "Both rows of the item (badge detection and the menu suppression that keys off it) come from the same `groupHostId` field, so one fix covers both."
+    },
+    {
+     "id": "login-short-password-and-resume-orientation",
+     "verdict": "LIVE",
+     "evidence": "Password rule: `src/model/forms/EnrollmentFormValidations.ts:140-151` — `LoginSchema` password is `Yup.string().trim().required(...)` with no `.min()`; it is the schema actually bound to the login form (`src/screens/signIn/Login/Login.tsx:93 validationSchema={LoginSchema}`). Resume orientation: `src/context/auth/useAuth.ts:207-218` — on a signed-in Cognito user whose record has no `userType`, mobile stores the un-enrollment, then `Toast.show({type:'alert', text1:'Please complete your profile to finish your enrollment/registration.'})` BEFORE `navigate('SignUp')`.",
+     "note": "Two independent, tiny changes; both confirmed against the live login screen. The toast copy is a literal to reuse verbatim."
+    },
+    {
+     "id": "buddies-revalidate-on-focus",
+     "verdict": "LIVE",
+     "evidence": "All four mobile refs check out. Discovery: `src/screens/buddies/recommended/Recommended.tsx:96-119` — `useFocusEffect` → `screenMutate()`, then a follow-up effect calls `refreshConnectionMap()` + `refreshUserData()` once data lands. Buddy profile: `src/screens/buddies/userInfo/UserInfo.tsx:191-195` — `useFocusEffect(() => refreshConnectionFor(targetUserId))` with the comment 'so a request the other user already accepted (or declined) never stays on \"Pending\"'. Its sibling `UserInfoConnect.tsx:99-104` does the same via `refetchConnectionStatus()` ('SWR does not revalidate on focus in React Native'). Requests: `src/screens/requestBuddies/HomeRequestBuddies.tsx:43-48` — `useFocusEffect(() => { getPersonalInformation(); handleClear(); })` → `refetch()`.",
+     "note": "Both UserInfo and UserInfoConnect are separately mounted (FeedsScreens/UpdatesScreens/ProfileScreens/DeepLinkScreens use UserInfo; RequestBuddiesScreens:44-45 mounts UserInfoConnect), so this is not one dead duplicate — both are live."
+    },
+    {
+     "id": "post-char-limit",
+     "verdict": "LIVE",
+     "evidence": "Posts: `src/screens/feeds/NewPostScreen.tsx:359-361` renders `<TextCounter limit={2000} value={post.length} handleIsValid={setIsValid} />` only when `post.length >= 1920`, and the submit is disabled at `331-332`. Comments and replies: `src/screens/feeds/PostDetails.tsx:448-449` — the identical `message.length >= 1920` gate and `<TextCounter limit={2000} …>`. Both screens are in the live Feeds stack (`FeedsScreens.tsx:35-36` and `:39-40`).",
+     "note": "The 1920 show-threshold and 2000 hard limit are confirmed literals on both surfaces. The comment at PostDetails.tsx:59-60 also documents that `isValid` starts true so media-only comments are not blocked — worth mirroring."
+    },
+    {
+     "id": "chat-media-render",
+     "verdict": "LIVE",
+     "evidence": "Buddies tab → conversation → `ChatScreen` → `ChatMessagesLayout.tsx:18,80` → `useChatMessageRenderer` → `ChatMessageRenderer.tsx:200-206` routes any attachment of type image/video/file to `<ChatMediaAttachment>`. `ChatMediaAttachment.tsx` (254 lines, last touched 2026-07-09) destructures `{type,image_url,thumb_url,asset_url,original_width,original_height,title,file_size}` at :167, returns `<PdfAttachment url name size={file_size} />` for PDFs at :171-172 ('download-then-open in an in-app PDF viewer (never a browser)'), plays video inline via `react-native-video` at :175, and has an explicit 'Fit the media into the bubble while preserving aspect ratio' helper at :37.",
+     "note": "All four sub-capabilities (inline video, file size on the card, aspect-ratio-preserving images, in-app PDF viewer) are in one live component."
+    },
+    {
+     "id": "unsaved-changes-guard",
+     "verdict": "LIVE",
+     "evidence": "`GuardProvider` is mounted in `src/navigation/profile/ProfileNavigation.tsx:22` and `src/navigation/requestBuddies/RequestBuddiesNavigation.tsx:20`. Five live profile forms consume it: `personalInformation/usePersonalInformation.ts:44`, `medicalInformation/useMedicalInformation.ts:60`, `languages/Languages.tsx:42`, `interests/Interests.tsx:41`, `personalInformation/CaregiverPatientPersonalInformation.tsx:38`. The mechanism is real, not decorative: e.g. `Languages.tsx:97-120` registers a React Navigation `beforeRemove` listener that calls `e.preventDefault()`, stashes `setEvent({action: () => navigation.dispatch(e.data.action)})` and `setShowModal(true)`; `Languages.tsx:90-95` then re-dispatches the stored action once `event.onPressLeave` flips true. `GuardProvider.tsx:48-71` renders the 'Unsaved changes' modal with the `LEAVE_WITHOUT_CHANGES` body and a 'YES, Leave' button.",
+     "note": "One dead-ish detail worth knowing while porting: the context exposes `guardControl` but nothing outside the provider ever reads it — only `setGuardControl` is called. The blocking is done entirely by the per-screen `beforeRemove` listener plus `event.onPressLeave`. Do not build a web equivalent of `guardControl` as a gate; build the pending-navigation/confirm handshake."
+    },
+    {
+     "id": "chat-context-entry-points",
+     "verdict": "LIVE",
+     "evidence": "All three entry points traced. (1) AskToHost: Feeds → Discover row → FeedDetail → `ConnectionGroup.tsx:58-82` JOIN on a private group opens `ModalPrivateGroup`, which finds-or-creates the host channel and navigates `BuddiesScreen.Chat` with `{type:'AskToHost', dataGroup}` (`modal-private-group.tsx:78-96`). (2) ReplyHost: post overflow → 'Reply privately' → `usePostActions.ts:143-151` navigates Chat with `{type:'ReplyHost', namePrivatly, dataGroup, post}`. (3) Ambassador intro: buddy profile ambassador badge → `useUserInfoShared.ts:65-81` opens `ModalAmbassador` with `client` + `sendMessageAmbassador`; its 'learn more' button (`ModalAmbassador.tsx:118-123`) → `sendMessageDirect()` → support channel → `navigate(BuddiesScreen.Chat,{channelId})` and fires `CREATE_AMBASSADOR_MESSAGE`. The receiving side is live: `ChatMessagesInput.tsx:70-79` sets the exact prefills, and `:154-181` builds `attachments:[{type:'ReplyHost',post}]` / `[{type:'AskToHost',group}]` and fires `REPLYMESSAGE` for ReplyHost.",
+     "note": "Prefill literals to copy verbatim: ReplyHost = `Hi ${namePrivatly}, related to your post on \"${dataGroup.name}\", take a look at the responses.`; AskToHost = `Could you provide me with the access code to join the ${dataGroup.name} private group?`"
+    },
+    {
+     "id": "chat-header-profile-link",
+     "verdict": "LIVE",
+     "evidence": "Inside any conversation, `ChatMessagesHeader.tsx:150-158` wraps the avatar + name block in `<TouchableOpacity onPress={redirectToProfile}>`. `redirectToProfile` (`:90-104`) sets the connect context's `currentUser` (skipped when `params.type === 'ListNotifications'`) and calls `navigation.navigate(BuddiesScreen.UserInfo, {userId: contact.user_id, showButtons:false, closeButtonGoesBack:true})`.",
+     "note": "Note the two params mobile passes: `showButtons:false` (no Connect CTA, since you are already in a conversation) and `closeButtonGoesBack:true`. Reproduce that variant, not the full discovery profile."
+    },
+    {
+     "id": "phone-verify-post-signup",
+     "verdict": "LIVE",
+     "evidence": "Buddies tab home (`src/screens/buddies/homeBuddies/HomeBuddies.tsx`) runs `useQuery(GET_USER_PHONE_PATH, GET_USER_PHONE, {variables:{id}})` at :117-119; the effect at :121-127 fires once per mount (`phoneModalShownRef`) when `getUser.phone` is falsy and calls `showModalVerifyNumber()` (:129-136), which opens `<ModalVerifyYourPhone/>` in the shared dialog with `hideHeader`. `ModalVerifyYourPhone.tsx:18-27` chains to `<ModalSavePhoneNumber/>` via its 'Verify me' button, and `src/components/layouts/VerificationPhone/` also contains `ModalOTP.tsx` and `SuccessPhoneVerification.tsx` completing the chain.",
+     "note": "The prompt is not a one-off legacy migration — it fires on any account whose `getUser.phone` is empty, once per session, gated by a ref rather than persisted state."
+    },
+    {
+     "id": "groups-reply-privately",
+     "verdict": "LIVE",
+     "evidence": "Post overflow menu → `ReportPost.modal.tsx:180-196`: a 'Reply privately' CTA rendered only when `(userType === HOST || userType === SUPPORT) && userInfo.userType !== SUPPORT && post.actor !== userId` — i.e. host/support only, never to another support user, never to yourself. Its `replyPost` handler runs `usePostActions.ts:93-155`: `ExistsChannelCreated()` queries Stream for a `messaging` channel with members `[userId, post.actor]`; on miss it chains `createConnectionUser` → `AcceptConnection` → `client.channel('messaging', idChannel, {members, name: '<FirstName> Host'})`; then `sendMessageDirectly` captures the post view with `captureRef(...base64)`, fetches the group via `getGroupById`, and `navigation.replace(BuddiesScreen.Chat, {channelId, image, type:'ReplyHost', namePrivatly, dataGroup, post})`.",
+     "note": "Find-or-create is genuinely find-or-create: it reuses any existing 1:1 channel before minting a Connection record. The `captureRef` screenshot is presentation-only — web can attach the post object without rasterising it."
+    },
+    {
+     "id": "groups-feed-empty-page-retry",
+     "verdict": "LIVE",
+     "evidence": "`src/screens/feeds/activities-feed.tsx:34` declares `const MAX_EMPTY_RETRIES = 3`; the effect at :170-194 checks `hasFinishedLoading && hasPages && !hasPosts && emptyRetryCount.current < MAX_EMPTY_RETRIES`, increments the counter, sets `isRetrying`, and re-`mutate()`s after 1500ms, resetting the counter once posts arrive. `showLoadingIndicator = isValidating || isLoading || isRetrying` (:290-291) keeps the spinner up instead of flashing the empty state. Comment in source: 'This handles the intermittent issue where the Lambda returns empty on first call'.",
+     "note": "The same defence exists a second time in `src/screens/feeds/PostDetails.tsx:108-124` (one 1200ms re-fetch before believing a post is deleted) — same known Lambda intermittent, worth porting alongside. Pure backend-flakiness workaround; no product decision involved."
+    },
+    {
+     "id": "groups-discover-pre-join-detail",
+     "verdict": "LIVE",
+     "evidence": "Feeds tab → Discover (`FeedsRecomendedScreen` → `GroupsRecommended` → `GroupsRecommendedList`). Every row is a `GroupListItemLayout` whose `onSelect` calls `redirectToGroupDetails` (`GroupsRecommendedList.tsx:63-71`, invoked at :99-105 and :119-127), navigating to `FeedScreens.FeedDetail` with `{id, total, showButtons:true, idHost, isSecureGroup}`. That screen (`src/screens/feeds/group-details.tsx:103`) renders `GroupDetailsLayout`, which shows member count + View members (`GroupDetails.tsx:122-135`), ABOUT (:137-146), a HOSTED BY block with each host's avatar, occupation, pronoun, ambassador badge and bio (:148-178), and SPONSORED BY with the sponsor logo and description (:181-195) — with `ConnectionGroupLayout`'s JOIN button underneath.",
+     "note": "So on mobile the row is a link to a full pre-join detail screen and Join lives inside it; on web the row is a bare Join button. The presentation (screen vs. expanded sheet) is free — the missing capability is hosts + sponsor + member count + View members before joining."
+    },
+    {
+     "id": "comment-reply-push",
+     "verdict": "AMBIGUOUS",
+     "note": "What I saw: mobile fires `replyMessage` in exactly ONE place — `ChatMessagesInput.tsx:185-200`, inside `createNotification()`, and only on the ReplyHost chat send (`:154-166`). That path is already covered by `chat-context-entry-points`. It is never fired for a feed comment. Separately, `createGroupPost` (the AppSync mutation whose only purpose is to trigger the push/subscription) is fired exactly once, in `useFeedActivities.ts:43-53`, immediately after `feed.addActivity` — i.e. for POSTS only. Neither `addComment` nor `addThreadComment` (`useFeedReactions.ts:49-102`) fires any notification verb; they just POST a Stream reaction. Yet comment pushes clearly do arrive on mobile — `push-notification.provider.tsx:442-450` handles `msg.data.activityId` pushes as the 'group' kind. That means the comment→push trigger is server-side (most likely a Stream reaction webhook), not client-side. THE QUESTION FOR THE PRODUCT OWNER: does the backend already raise the comment push from a Stream reaction webhook — in which case web comments are notified for free and there is nothing to build — or does mobile get comment pushes through some path outside this repo that web must replicate? I will not guess, because building it wrong means web double-notifies on every comment.",
+     "evidence": "Reachability of the surface is not in doubt — Feeds tab → PostDetail → comment composer → `addComment` (`src/screens/feeds/PostDetails.tsx:290` → `useFeedReactions.ts:49-73`) is live. What is missing is any mobile client-side push trigger on that path: `grep -rn 'REPLYMESSAGE|replyMessage' src/` returns only `types/utils/lambda.ts:25` (the enum) and `ChatMessagesInput.tsx:189,192` (the ReplyHost chat send). `grep -rn 'createGroupPost' src/` returns only `hooks/feed/useFeedActivities.ts:12`, called at :43-53 after `addActivityUser`."
+    },
+    {
+     "id": "requests-shared-interest-line",
+     "verdict": "LIVE",
+     "evidence": "Requests tab (`RequestBuddiesNavigation` in `TabsScreens`) → `HomeRequestBuddies.tsx:158-166` renders `<ConnectionRequest connection={item} currentId={id} userInfo={userInfo} …/>` for each pending connection. `ConnectionRequest.tsx:58-67` calls `getLabelCoincidencies(Remitent.id, userInfo)` on mount and stores it; `:215` passes it as the card's `description={labelsCoincidence === null ? '...' : labelsCoincidence || ' '}` — the sender's bio is never rendered. `src/utils/coincidences.ts:26-95` re-fetches the sender via `GET_USER_USERS_DATA`, intersects Interests/Hospitals/Treatments/Diagnosis by id, and prefixes the sender's `State.name`, returning e.g. 'NY, Interests, Medical center'.",
+     "note": "The line names the CATEGORIES that overlap, not the individual values — `labelsAvatarDescripcion` maps the non-empty keys to labels. Note `HomeRequestBuddies.tsx:234` is a commented-out second `ConnectionRequest`; the live one is at :158."
+    },
+    {
+     "id": "app-store-share-qr",
+     "verdict": "LIVE",
+     "evidence": "Drawer (`MainDrawerNavigator` → `DrawerMenu.tsx:114-119`) → 'Share with a friend' → `DrawerScreens.Share` (`DrawerScreens.tsx:43-44`) → `src/screens/drawer/share/Share.tsx` → `<QrShare/>`. `src/components/elements/qr-share/qr-share.tsx:21-38` fetches `GET_LINK` from Contentful via SWR, builds `url = data.data.appStoreLinkCollection.items[0].appLink`, renders `<QRCode value={url} size={280}/>`, and the 'COPY LINK' button writes `url || BONE_MARROW_WEBSITE` to the clipboard and shows a `COPY_TO_CLIPBOARD` success toast.",
+     "note": "The same `Share` component is also reached from `Recommended.tsx:216-219` as the no-buddies-found empty state, with overridden title/description — so the QR surface has two live entry points. The BMCF-website fallback is real and belongs in the port."
+    },
+    {
+     "id": "medical-info-help-flow",
+     "verdict": "LIVE",
+     "evidence": "Profile tab → 'Medical' → `MedicalInformationScreen`. Its header has a help `TouchableOpacity` (`MedicalInformation.tsx:148-160`) calling `openReportPostModal()`, which opens a `ReportPostOptions` sheet whose single CTA is titled 'Medical Information' / \"I can't find my Medical information\" (`MedicalInformation.tsx:138-155`). Choosing it calls `setModalData(true,'')` → renders `<ModalMedicalInformation onClose={…}/>` (`:65-68`). `ModalMedicalInformation.tsx:57-61` reads the signed-in email from `authStorage.getCognitoUserValue()`, and its submit (`:63-98`) fires `raiseUserLambda(SENDEMAILHELP, USERS_LAMBDA, {type, email, name: values.helpFullName, textIfAdded: values.option, reason: values.reason ?? ' ', subject: 'Medical Information'})`, with success/failure toasts and a 200-status check.",
+     "note": "Payload shape confirmed exactly as the acceptance criteria describe, including the literal `subject: 'Medical Information'` and the `reason ?? ' '` space fallback."
+    },
+    {
+     "id": "profile-live-session-timestamps",
+     "verdict": "LIVE",
+     "evidence": "Profile tab → `HomeProfile.tsx:120-131` renders a 'Manage Lives' ContentButton when `userType === UserType.HOST`, navigating to `ProfileScreen.ManageLives` (`ProfileScreens.tsx:141-142`) → session row → `ManageLivesDetail` (`ProfileScreens.tsx:146-147`). That screen queries `createdAt` and `updatedAt` (`ManageLivesDetail.tsx:89-90`), formats them at :259-260, and renders `• Created {createdLabel}` in the header card (:342) and `Last updated {updatedLabel}` under the Delete row (:444).",
+     "note": "HOST-gated, but HOST is a real, exercised account type across this codebase (drawer hides Settings for it, ReportPost branches on it, MainDrawerNavigator disables swipe for it), so this is not a dead user-type gate. Session data is Twilio-era — `services/streaming/live-groups.ts` returns `twilioRoomSid` — not the dead IVS path."
+    },
+    {
+     "id": "forced-signout-return",
+     "verdict": "LIVE",
+     "evidence": "Two live flows both end in sign-out-and-return. Change status: Settings → Change status → `change-status-confirmation.tsx:44-58` — after `ChangeUserTypeService` succeeds it calls `signOut(setIsLoading)`, then `setUser(undefined); setUnEnrolledUser(undefined); setEmail(null)` and toasts. `ChangeStatusConfirmationLayout.tsx:44-66` does the same on the close button, with a source comment explaining the ordering: it switches to the Auth stack IMMEDIATELY 'because signOut makes flaky GetStream/GraphQL calls after Auth.signOut() that can hang forever and would otherwise strand the user on this screen'. Delete account: Settings → Delete account → `DeleteAccountSuccess.tsx:24,58` — both the X and 'GOT IT' call `setUser(null)`. `Main.tsx:80-84` keys the App-vs-Auth stack off `user`, so clearing it lands the member on a working signed-out screen.",
+     "note": "The load-bearing detail is the ordering: clear the session state FIRST, fire the backend sign-out cleanup in the background, and never let a hanging cleanup call block the redirect. Both mobile call sites do this deliberately."
+    },
+    {
+     "id": "settings-build-identification",
+     "verdict": "LIVE",
+     "evidence": "Drawer → 'Settings' (`DrawerMenu.tsx:143-149`, shown for every `userType` except HOST) → `HomeSettings.tsx:56-73` renders a centred footer: `Version ${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})` plus `Platform.OS === 'ios' ? 'iOS' : 'Android'`.",
+     "note": "The mobile values are native (`react-native-device-info`); web has no build number of its own, so the port is an equivalent build identifier (e.g. app version + commit/build id) rendered in the same Settings footer. Capability — 'a member can tell support which build they are running' — is live and portable; the exact string is not."
+    },
+    {
+     "id": "live-calendar-visibility-and-status",
+     "verdict": "LIVE",
+     "evidence": "Feeds tab home has a two-tab switch (`src/screens/feeds/home.tsx:32,40,128-135`); selecting 'calendar' renders `<LiveGroupCalendar userGroupIds groupsReady/>` (`home.tsx:159-165`). That screen fetches via `getLiveGroupCalendarService()` then filters `events.filter(e => e.active !== false && !e.archived)` (`LiveGroupCalendar.tsx:186-194`) before the membership-privacy filter and section build. Its `StatusBadge` (`:119-136`) renders a LIVE pill for `status==='live'`, a grey ENDED pill for `status==='ended'`, and null otherwise.",
+     "note": "Not the dead IVS path. `getLiveGroupCalendarService` (`src/services/streaming/live-groups.ts:35-55`) hits the `GET_LIVE_CALENDAR` USERS_LAMBDA verb, and the sibling `createLiveSession` returns `twilioRoomSid` — this is the Twilio-era calendar. Distinct from the `Live` TAB, which `TabsNavigator.tsx:34` still returns null for."
+    },
+    {
+     "id": "register-verified-phone-echo",
+     "verdict": "LIVE",
+     "evidence": "`AccountSetupVerifiedSuccessfully` is registered as a real enrollment step (`enrollmentGroupsModel.tsx:157-163`) and appears in BOTH live paths: `enrollmentPath` via `...accountSetupGroup` and `unrolledPath` explicitly as `accountSetupGroup[4]` (`EnrollmentProvider.utils.tsx:25-43`). The whole screen body is the number: `AccountSetupVerifiedSuccessfully.tsx:6-17` seeds state from `enrollmentState.userData.phone` and renders `<Typography text={phoneNumber} variant=\"heading-3\" weight=\"bold\"/>`, wrapped by `EnrollmentControlsContext` which supplies the step title/subtitle.",
+     "note": "Trivially small and confirmed on the live wizard for both fresh signup and resume-from-unenrolled."
+    },
+    {
+     "id": "updates-live-refresh",
+     "verdict": "LIVE",
+     "evidence": "Updates tab (`TabsScreens` → `UpdatesNavigation` → `UpdatesScreens.tsx:11,22` → `HomeNotifications`) refetches on every foreground push: `HomeNotifications.tsx:139-141` is `useEffect(() => { refetch(); }, [hasPostMessage])`. The producer is `push-notification.provider.tsx:437-469`: `handleLocalNotification` appends to `hasPostMessage` on all three branches — chat/group pushes (`msg.data.channel || channelId || activityId`), `LIVE_NOTIFY`, and the generic connect branch — and the connect branch additionally calls `invalidateConnectionMap()` (:460) with the comment 'the cached connection statuses are now stale, so refresh them while the app is open'. The nav badge is driven from the same signal: `tab-bar.tsx:138-150` recomputes `notificationCount` from `hasPostMessage.length` and `hasVisitedNotificationsScreen`.",
+     "note": "So one push signal feeds three consumers on mobile: the Updates list refetch, the tab badge, and the connection-map invalidation. Web already has a live AppSync subscription for the requests tab only — the asymmetry the item describes is real."
+    },
+    {
+     "id": "register-login-analytics-events",
+     "verdict": "LIVE",
+     "evidence": "Enrollment event: `LoadingPersonalInformation.tsx:139-144` calls `setAnalyticsFlags()` then `emitEvent({event: localStorageAnalytics.bmcf_enrollment, eventParams:{timestamp: Date.now()}})` right after the user record is created; `src/analytics/events.ts:108-112` maps that to `analytics().logEvent('bmcf_enrollment', {timestamp})`. Login flags: `src/screens/signIn/Login/Login.tsx:41-57` defines `setAnalyticsFlags` writing 'true' to all five keys (chatWithFirstBuddy, connectWithFirstBuddy, joinFirstGroup, comment, post), and it is awaited on every successful sign-in at :68-72. `@react-native-firebase/analytics` is a real dependency (package.json:39).",
+     "note": "Behavioural detail the port must preserve: setting the five flags to 'true' on login SUPPRESSES the first-action events (events.ts:36-86 early-returns when the flag reads 'true'), so first-action events only ever fire for a session that just enrolled. That is mobile's semantics, odd as it looks — mirror it rather than 'fixing' it."
+    },
+    {
+     "id": "buddy-id-qr-scanner",
+     "verdict": "LIVE",
+     "evidence": "Buddies tab → `Recommended.tsx:223-226` renders `<SearchBuddy/>`, whose 'SCAN QR' quick-search button (`SearchBuddy.tsx:116-120`) calls `handleNavigation('Scanner')` → `navigate(BuddiesScreen.QrIdentificationBuddies, {screen:'SCANQR'})` (`:29-33`), routed by `BuddiesScreens.tsx:142-143` to `QrIdentification`. With `params.screen === 'SCANQR'` that screen renders `<BuddyIdQr handleReadScanner showQr={false}/>` (`QrIdentification.tsx:70-73`), which mounts `<BuddyIdScanner/>` (`BuddyIdQr.tsx:59-70`). The scanner is a real `react-native-vision-camera` `useCodeScanner({codeTypes:['qr']})` with a camera-permission gate (`BuddyIdScanner.tsx:4,31-63`); `react-native-vision-camera` ^4.7.2 is in package.json:115. Decoded value flows into `handleReadScanner` (`QrIdentification.tsx:37-58`), which strips the deep-link prefix (`event.split('/').at(-1)` when the string contains LOCAL_DEEP_LINK/UNIVERSAL_DEEP_LINK) and hands the bare id to `getId` → `useValidateRules`, the SAME guard ladder the typed Buddy ID input uses.",
+     "note": "Note the package signal: `@mgcrea/vision-camera-barcode-scanner` is in package.json but imported nowhere — the live scanner uses vision-camera's own built-in `useCodeScanner`. Also, the QR entry point exists twice: 'SCAN QR' from Buddies discovery (above) and the 'Scan buddy's qr code' toggle on the own-QR screen reached from the hamburger header (`HamburgerHeader.tsx:69` → `BuddyIdQr.tsx:88-100`). Both are live."
+    }
+   ]
+  }
+ ]
+}

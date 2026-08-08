@@ -14,19 +14,15 @@ import { useRouter } from "next/navigation";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
 import { Sheet } from "@/components/buddies/controls";
-import { findUserByBuddyId } from "@/lib/buddies/profileDetail";
-import { connectAgeRulesBuddySearching } from "@/lib/buddies/age";
-import { formatName } from "@/lib/buddies/display";
 import type { CurrentUserData } from "@/lib/buddies/types";
+import {
+  maskBuddyId,
+  useBuddyIdLookup,
+} from "@/lib/buddies/useBuddyIdLookup";
+import { useBuddies } from "@/lib/buddies/BuddiesProvider";
+import { connectionContextFor } from "@/lib/buddies/connectContext";
 
 const ID_LENGTH = 10;
-
-/** `BI00001234` → `BI-0000-1234`. */
-function formatBuddyId(raw: string): string {
-  if (raw.length <= 2) return raw;
-  if (raw.length <= 6) return `${raw.slice(0, 2)}-${raw.slice(2)}`;
-  return `${raw.slice(0, 2)}-${raw.slice(2, 6)}-${raw.slice(6)}`;
-}
 
 /** Mounted only while open, so every visit starts with an empty field. */
 export default function BuddyIdSheet({
@@ -38,45 +34,31 @@ export default function BuddyIdSheet({
 }) {
   const router = useRouter();
   const [raw, setRaw] = useState("");
-  const [status, setStatus] = useState<"idle" | "searching">("idle");
-  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * The ladder itself lives in `useBuddyIdLookup` and is shared with
+   * `/profile/buddy-id`. This sheet used to run its own copy — which drifted:
+   * it stopped on an age-bracket mismatch where mobile opens the profile with
+   * the connect action withheld and the reason on screen.
+   */
+  const { connectionMap } = useBuddies();
+  const { searching, error, clearError, lookup } = useBuddyIdLookup(
+    currentUser ? { id: currentUser.id, birth: currentUser.birth } : null,
+    // What we already know about the pair, so the profile can open saying
+    // "you two are already Buddies!" rather than offering Connect again.
+    useCallback(
+      (id: string) => connectionContextFor(connectionMap[id]),
+      [connectionMap],
+    ),
+  );
 
   const submit = useCallback(async () => {
     if (raw.length !== ID_LENGTH || !currentUser) return;
-    setStatus("searching");
-    setError(null);
-
-    try {
-      const match = await findUserByBuddyId(formatBuddyId(raw));
-
-      if (!match) {
-        setError(t("app.buddies.buddyIdNotFound"));
-        return;
-      }
-      if (match.id === currentUser.id) {
-        setError(t("app.buddies.buddyIdSelf"));
-        return;
-      }
-      if (match.isSnooze) {
-        setError(t("app.buddies.buddyIdSnoozed"));
-        return;
-      }
-      if (!connectAgeRulesBuddySearching(currentUser.birth, match.birth)) {
-        setError(
-          t("app.buddies.buddyIdAgeRule", { name: formatName(match.name) }),
-        );
-        return;
-      }
-
-      onClose();
-      router.push(`/buddies/${match.id}`);
-    } catch (err) {
-      console.error("[buddies] buddy id lookup failed:", err);
-      setError(t("app.buddies.buddyIdError"));
-    } finally {
-      setStatus("idle");
-    }
-  }, [raw, currentUser, onClose, router]);
+    const href = await lookup(raw);
+    if (!href) return;
+    onClose();
+    router.push(href);
+  }, [raw, currentUser, onClose, router, lookup]);
 
   return (
     <Sheet
@@ -89,7 +71,7 @@ export default function BuddyIdSheet({
           fullWidth
           onClick={submit}
           disabled={raw.length !== ID_LENGTH}
-          loading={status === "searching"}
+          loading={searching}
         >
           {t("app.buddies.buddyIdFind")}
         </Button>
@@ -104,7 +86,7 @@ export default function BuddyIdSheet({
         </label>
         <input
           id="buddy-id-input"
-          value={formatBuddyId(raw)}
+          value={maskBuddyId(raw)}
           onChange={(e) => {
             setRaw(
               e.target.value
@@ -112,7 +94,7 @@ export default function BuddyIdSheet({
                 .toUpperCase()
                 .slice(0, ID_LENGTH),
             );
-            setError(null);
+            clearError();
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") void submit();

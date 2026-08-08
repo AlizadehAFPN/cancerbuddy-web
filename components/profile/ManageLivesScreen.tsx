@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
@@ -20,6 +21,8 @@ import { Button, Textarea } from "@/components/ui";
 import { FieldLabel } from "@/components/ui/form";
 import { ArrowLeftIcon } from "@/components/ui/icons";
 import { ConfirmSheet } from "@/components/groups/GroupSheets";
+import LiveScheduleField from "@/components/profile/LiveScheduleField";
+import { hasSessionEnded } from "@/lib/live/session";
 import { useProfile } from "@/lib/profile/ProfileProvider";
 import { UserType } from "@/lib/profile/types";
 import {
@@ -33,9 +36,12 @@ import {
   updateLiveSession,
   type LiveSession,
 } from "@/lib/profile/manageLives";
-
-const DEFAULT_DURATION = 30;
-const DURATIONS = [15, 30, 45, 60, 90, 120];
+import {
+  DEFAULT_DURATION_CREATE,
+  DEFAULT_DURATION_EDIT,
+  scheduleBounds,
+  scheduleProblem,
+} from "@/lib/profile/liveSchedule";
 
 type Editing =
   | { mode: "create" }
@@ -80,8 +86,15 @@ export default function ManageLivesScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [duration, setDuration] = useState(DEFAULT_DURATION);
+  const [duration, setDuration] = useState(DEFAULT_DURATION_CREATE);
   const [active, setActive] = useState(true);
+
+  /**
+   * The clock the schedule bounds are measured from. Read when the editor is
+   * opened rather than on every render: a `new Date()` in the render body would
+   * make the server's `min` differ from the client's.
+   */
+  const [now, setNow] = useState<Date | null>(null);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -134,26 +147,40 @@ export default function ManageLivesScreen() {
   const groupName = sessions[0]?.groupName ?? undefined;
 
   const openCreate = useCallback(() => {
+    setNow(new Date());
     setEditing({ mode: "create" });
     setTitle("");
     setDescription("");
     setScheduledAt("");
-    setDuration(DEFAULT_DURATION);
+    setDuration(DEFAULT_DURATION_CREATE);
     setActive(true);
   }, []);
 
   const openEdit = useCallback((session: LiveSession) => {
+    setNow(new Date());
     setEditing({ mode: "edit", session });
     setTitle(session.title ?? "");
     setDescription(session.description ?? "");
     setScheduledAt(isoToLocalInput(session.scheduledAt));
-    setDuration(Number(session.duration) || DEFAULT_DURATION);
+    setDuration(Number(session.duration) || DEFAULT_DURATION_EDIT);
     setActive(session.active !== false);
   }, []);
+
+  /**
+   * `min` / `max` / `step` on the input are advisory outside a submitted form,
+   * so the same rules gate Save. Without this a pasted or keyboard-typed value
+   * still reaches the Lambda.
+   */
+  const bounds = useMemo(() => (now ? scheduleBounds(now) : null), [now]);
+  const problem = useMemo(
+    () => (now ? scheduleProblem(scheduledAt, now) : null),
+    [scheduledAt, now],
+  );
 
   const canSubmit =
     title.trim().length > 0 &&
     (editing?.mode === "edit" || scheduledAt.length > 0) &&
+    !problem &&
     !saving;
 
   const submit = useCallback(async () => {
@@ -347,6 +374,31 @@ export default function ManageLivesScreen() {
                           </p>
                         )}
                       </button>
+
+                      {/*
+                        A host had no way to *start* their own session: the row
+                        only opened the editor and the LIVE NOW pill was plain
+                        text. `inLive` is flipped by the first host joining, so
+                        gating this on live state would make starting a session
+                        impossible. Sibling of the button, not a child — an
+                        anchor inside a button is invalid HTML.
+                      */}
+                      {!hasSessionEnded(session) && (
+                        <div className="mt-1.5 flex justify-end">
+                          <Link
+                            href={`/live/${session.id}`}
+                            className={
+                              session.inLive || session.status === "live"
+                                ? "rounded-full bg-cb-danger px-4 py-1.5 font-body text-[12.5px] font-bold text-white transition-[filter] hover:brightness-110"
+                                : "rounded-full border-2 border-cb-black px-3.5 py-1.5 font-body text-[12.5px] font-bold text-cb-black transition-colors hover:bg-cb-gray-100"
+                            }
+                          >
+                            {session.inLive || session.status === "live"
+                              ? t("app.groups.joinLive")
+                              : t("app.groups.openSession")}
+                          </Link>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -386,36 +438,14 @@ export default function ManageLivesScreen() {
                   />
                 </div>
 
-                <div>
-                  <FieldLabel>{t("app.profile.liveWhen")}</FieldLabel>
-                  <input
-                    type="datetime-local"
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
-                    className="h-12 w-full rounded-xl border-[1.5px] border-cb-gray-300 bg-white px-4 font-body text-[15px] text-cb-black outline-none transition-colors hover:border-cb-gray-400 focus:border-cb-black"
-                  />
-                </div>
-
-                <div>
-                  <FieldLabel>{t("app.profile.liveDuration")}</FieldLabel>
-                  <div className="flex flex-wrap gap-1.5">
-                    {DURATIONS.map((mins) => (
-                      <button
-                        key={mins}
-                        type="button"
-                        onClick={() => setDuration(mins)}
-                        className={[
-                          "rounded-full border-[1.5px] px-3 py-1.5 font-body text-[13px] transition-colors",
-                          duration === mins
-                            ? "border-cb-black bg-cb-yellow/25 font-semibold text-cb-black"
-                            : "border-cb-gray-200 text-cb-gray-600 hover:border-cb-gray-400",
-                        ].join(" ")}
-                      >
-                        {t("app.profile.liveMinutes", { count: mins })}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <LiveScheduleField
+                  scheduledAt={scheduledAt}
+                  duration={duration}
+                  bounds={bounds}
+                  problem={problem}
+                  onScheduledAtChange={setScheduledAt}
+                  onDurationChange={setDuration}
+                />
 
                 {editing.mode === "edit" && (
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-cb-gray-100 p-3">

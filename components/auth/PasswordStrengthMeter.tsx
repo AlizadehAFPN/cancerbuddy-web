@@ -35,21 +35,30 @@ const RULES = [
   { key: "uppercase" as const, label: t("forms.passwordRules.uppercase") },
   { key: "lowercase" as const, label: t("forms.passwordRules.lowercase") },
   { key: "number" as const, label: t("forms.passwordRules.number") },
+  { key: "special" as const, label: t("forms.passwordRules.special") },
 ];
+
+/**
+ * Derived, never hard-coded. The meter used to compare against a literal `4`
+ * while the schema enforced five rules, which is how a password could show every
+ * segment filled and still be rejected on submit.
+ */
+const RULE_COUNT = RULES.length;
 
 interface Props {
   value: string;
 }
 
 /**
- * Live, four-rule strength meter. Stays subtle (small dots) until the user
- * starts typing, then shows pass/fail per rule and a colour-graded progress
- * bar. Becomes a single confirmation pill when all four rules pass.
+ * Live strength meter over every rule `credentialsSchema` enforces. Stays subtle
+ * (small dots) until the user starts typing, then shows pass/fail per rule and a
+ * colour-graded progress bar, and becomes a single confirmation pill once they
+ * all pass.
  */
 export function PasswordStrengthMeter({ value }: Props) {
   const checks = checkPassword(value);
   const passed = Object.values(checks).filter(Boolean).length;
-  const allPass = passed === 4;
+  const allPass = passed === RULE_COUNT;
 
   if (allPass) {
     return (
@@ -65,14 +74,17 @@ export function PasswordStrengthMeter({ value }: Props) {
   return (
     <div className="mt-1 space-y-2">
       <div className="flex h-1 overflow-hidden rounded-full bg-cb-gray-200">
-        {[0, 1, 2, 3].map((i) => {
+        {RULES.map((_, i) => {
+          // Thresholds as fractions of the rule count, so adding a rule cannot
+          // silently turn a weak password green.
+          const ratio = passed / RULE_COUNT;
           const fillClass =
             i < passed
-              ? passed >= 3
+              ? ratio >= 0.75
                 ? "bg-cb-success"
-                : passed === 2
-                ? "bg-cb-warning"
-                : "bg-cb-danger"
+                : ratio >= 0.5
+                  ? "bg-cb-warning"
+                  : "bg-cb-danger"
               : "bg-transparent";
           return (
             <div

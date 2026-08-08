@@ -2,10 +2,11 @@
  * Group members and host detail.
  *
  * Members are paged through `userGroupsByGroupId`. Mobile's query pulls a very
- * wide user record for each row — diagnoses, treatments, interests, hospitals —
- * because it reuses the same card component as buddy discovery. A list row here
- * needs far less, so this asks for the fields the row actually renders; the
- * full profile is one click away and already has its own fetch.
+ * wide user record for each row — treatments, interests, hospitals, support
+ * organisations — because it reuses the same card component as buddy discovery.
+ * This asks for the fields the row actually renders, **including diagnoses**,
+ * which mobile shows under each name and web used to omit; the rest of the
+ * profile is one click away and already has its own fetch.
  *
  * Tapping a member splits two ways, as on mobile: anyone with a `groupHostId`
  * is a host and opens the host page, everyone else opens their buddy profile.
@@ -27,6 +28,13 @@ export interface GroupMember {
   groupHostId?: string | null;
   /** Snoozed accounts can't be connected with. */
   isSnooze: boolean;
+  /**
+   * Diagnosis names, as the row shows them. Mobile lists them under the avatar
+   * (`ActiveUsersListGroups.tsx:168-170`) — it is the one attribute that says
+   * whether this member is going through what you are going through, and web
+   * left it out, so the list read as a directory of names and cities.
+   */
+  diagnoses: string[];
   relationshipName?: string | null;
   city?: string | null;
   stateAbbreviation?: string | null;
@@ -53,6 +61,13 @@ const LIST_MEMBERS = (withToken: boolean) => /* GraphQL */ `
           isSnooze
           Relationship {
             name
+          }
+          Diagnosis {
+            list: items {
+              item: diagnosis {
+                name
+              }
+            }
           }
           City {
             name
@@ -94,6 +109,7 @@ interface RawMember {
     groupHostId?: string | null;
     isSnooze?: boolean | null;
     Relationship?: { name?: string | null } | null;
+    Diagnosis?: { list?: ({ item?: { name?: string | null } | null } | null)[] | null } | null;
     City?: { name?: string | null } | null;
     State?: { stateAbbreviation?: string | null } | null;
     ProfilePic?: { file?: S3FileRef | null } | null;
@@ -142,6 +158,9 @@ export async function fetchGroupMembers(params: {
         ambassador: u.ambassador === true,
         groupHostId: u.groupHostId ?? null,
         isSnooze: u.isSnooze === true,
+        diagnoses: (u.Diagnosis?.list ?? [])
+          .map((entry) => entry?.item?.name?.trim())
+          .filter((name): name is string => !!name),
         relationshipName: u.Relationship?.name ?? null,
         city: u.City?.name ?? null,
         stateAbbreviation: u.State?.stateAbbreviation ?? null,

@@ -4,7 +4,12 @@ import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useStreamChat } from "@/lib/chat/StreamChatProvider";
-import { subscribeForegroundPush, syncPushDevice } from "@/lib/push/pushClient";
+import {
+  subscribeForegroundPush,
+  subscribePushData,
+  syncPushDevice,
+} from "@/lib/push/pushClient";
+import { markGroupUnread } from "@/lib/groups/unreadPosts";
 import { t } from "@/lib/i18n";
 
 /**
@@ -41,6 +46,26 @@ export default function PushBridge() {
     if (status !== "ready" || !userId) return;
     void syncPushDevice();
   }, [status, userId]);
+
+  /**
+   * A pushed group post marks that group `NEW` in the sidebar, and opening the
+   * group clears it — mobile keeps the same marker from the same signal
+   * (`push-notification.provider.tsx:264`, `GroupsList.tsx:81-84`).
+   *
+   * Deliberately not gated on the chat connection: a push about a post has
+   * nothing to do with Stream Chat being ready, and waiting for it would drop
+   * the marker for anyone who never opens the chat tab.
+   */
+  useEffect(
+    () =>
+      subscribePushData((data) => {
+        const feedId = data.feedId || data.groupId;
+        if (feedId && pathnameRef.current !== `/groups/${feedId}`) {
+          markGroupUnread(feedId);
+        }
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (status !== "ready") return;

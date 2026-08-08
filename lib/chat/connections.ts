@@ -21,8 +21,14 @@ export async function removeConnection(connectionId: string): Promise<void> {
       variables: { input: { id: connectionId } },
       authWithUserPool: true,
     });
-  } catch {
-    /* best-effort — the channel delete is the primary effect */
+  } catch (err) {
+    /*
+     * Rethrown, not swallowed. The AppSync row is what "remove from my buddies"
+     * actually means — swallowing a failure here left the person still
+     * connected while the UI said otherwise, with nothing to retry.
+     */
+    console.error("[chat] removeConnection failed:", err);
+    throw err;
   }
 }
 

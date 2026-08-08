@@ -15,6 +15,7 @@ export default function ChatHeader({
   image,
   icon,
   profile,
+  otherUserId,
   typing,
   onRemove,
   onReport,
@@ -23,10 +24,17 @@ export default function ChatHeader({
   image?: string;
   icon?: string;
   profile: ContactProfile | null;
+  /**
+   * The other participant, so the header can link to their profile. The chat
+   * pane was a dead end without it — mobile makes the whole header tappable.
+   */
+  otherUserId?: string;
   typing: boolean;
   onRemove?: () => void;
   onReport?: () => void;
 }) {
+  const linkToProfile = !!otherUserId && !profile?.isSupport;
+
   // The menu is hidden for Support/Host conversations, mirroring mobile.
   const showMenu =
     !!onRemove && !!onReport && !profile?.isSupport && !profile?.isHost;
@@ -40,6 +48,34 @@ export default function ChatHeader({
       >
         <ArrowLeft className="h-5 w-5" />
       </Link>
+      {/*
+        Avatar and name link to the profile, as mobile's header does. Not
+        rendered for a Support conversation: Ava is not a member with a profile,
+        and the link would 404.
+      */}
+      {linkToProfile ? (
+        <Link
+          href={`/buddies/${otherUserId}`}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg transition-colors hover:bg-cb-gray-100"
+        >
+          <ChatAvatar name={name || "…"} image={image} icon={icon} size={40} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate font-heading text-[0.95rem] font-semibold text-cb-black">
+                {name || "…"}
+              </p>
+              <RoleBadges profile={profile} />
+            </div>
+            {typing && (
+              <span className="flex items-center gap-1.5 text-xs text-cb-gray-500">
+                <TypingIndicator />
+                {t("app.chat.typing")}
+              </span>
+            )}
+          </div>
+        </Link>
+      ) : (
+        <>
       <ChatAvatar name={name || "…"} image={image} icon={icon} size={40} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -55,6 +91,8 @@ export default function ChatHeader({
           </span>
         )}
       </div>
+        </>
+      )}
 
       {showMenu && <HeaderMenu onRemove={onRemove!} onReport={onReport!} />}
     </div>

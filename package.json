@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "NODE_OPTIONS=--max-http-header-size=131072 next dev",
     "build": "next build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "next start",
     "lint": "eslint"
   },
@@ -34,7 +36,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "happy-dom": "^20.11.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^3.2.7"
   }
 }

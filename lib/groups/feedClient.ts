@@ -205,7 +205,16 @@ export interface EnrichedActivity {
   reaction_counts?: Record<string, number>;
   latest_reactions?: Record<string, StreamReaction[]>;
   own_reactions?: Record<string, StreamReaction[]>;
+  /**
+   * Paging cursors for the reaction lists — `comment.next` is the rest of the
+   * thread beyond {@link RECENT_REACTIONS_LIMIT}. It was always in the response
+   * and never read, which is why a busy post stopped at 25 comments.
+   */
+  latest_reactions_extra?: Record<string, { next?: string } | undefined>;
 }
+
+/** How many comments the first thread request returns — mobile asks for 25 too. */
+export const RECENT_REACTIONS_LIMIT = 25;
 
 /**
  * Fetches one activity with its reactions — the source for a post's comment
@@ -223,7 +232,7 @@ export async function fetchEnrichedActivity(
     query: {
       ids: activityId,
       withRecentReactions: "true",
-      recentReactionsLimit: "25",
+      recentReactionsLimit: String(RECENT_REACTIONS_LIMIT),
       withReactionCounts: "true",
       withOwnReactions: "true",
     },
@@ -231,13 +240,29 @@ export async function fetchEnrichedActivity(
   return result?.results?.[0] ?? null;
 }
 
+/**
+ * Stream returns `next` in three shapes depending on which response it came
+ * from: absolute (`https://stream-io-api.com/api/v1.0/enrich/reaction/…`),
+ * root-relative (`/api/v1.0/enrich/reaction/…`), or already trimmed. Mobile
+ * strips the first two by hand at each call site
+ * (`groups/post-details/PostDetails.tsx:195-214`); doing it here means a caller
+ * can pass through whatever it was given.
+ */
+export function relativeStreamPath(nextUrl: string): string {
+  return nextUrl
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .replace(/^\/?api\/v1\.0\//i, "")
+    .replace(/^\//, "");
+}
+
 /** Follows the paging URL Stream returns for long comment threads. */
 export async function fetchNextReactions(
   session: FeedSession,
   nextUrl: string,
 ): Promise<{ results?: StreamReaction[]; next?: string }> {
-  const separator = nextUrl.includes("?") ? "&" : "?";
-  const url = `${REST_BASE}/${nextUrl.replace(/^\//, "")}${separator}api_key=${session.apiKey}`;
+  const path = relativeStreamPath(nextUrl);
+  const separator = path.includes("?") ? "&" : "?";
+  const url = `${REST_BASE}/${path}${separator}api_key=${session.apiKey}`;
   const res = await fetch(url, {
     headers: { Authorization: session.feedToken, "stream-auth-type": "jwt" },
   });

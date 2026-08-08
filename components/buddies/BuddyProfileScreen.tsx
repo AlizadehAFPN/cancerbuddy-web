@@ -15,21 +15,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
 import BuddyAvatar from "@/components/buddies/BuddyAvatar";
 import JournalPreview from "@/components/buddies/JournalPreview";
-import {
-  ArrowLeftIcon,
-  ChevronRightIcon,
-  XIcon,
-} from "@/components/buddies/controls";
+import ProfileActionBar from "@/components/buddies/ProfileActionBar";
+import ProfileNoticeBanner from "@/components/buddies/ProfileNoticeBanner";
+import PhotoViewer from "@/components/buddies/PhotoViewer";
+import AmbassadorBadge from "@/components/buddies/AmbassadorBadge";
+import { ArrowLeftIcon, XIcon } from "@/components/buddies/controls";
 import { ageSuffix, formatRemissionDate } from "@/lib/buddies/age";
 import { nextAdOrNull } from "@/lib/buddies/adRotation";
 import { useBuddies } from "@/lib/buddies/BuddiesProvider";
-import { deleteConnection } from "@/lib/buddies/connections";
+import { deleteConnection, isPairBlocked } from "@/lib/buddies/connections";
 import { prefetchAds } from "@/lib/contentful/ads";
 import {
   ROLE_BADGE_CLASS,
@@ -38,13 +38,25 @@ import {
   formatName,
 } from "@/lib/buddies/display";
 import {
-  getDiscoveryNeighbours,
+  getNeighbours,
   type DiscoveryNeighbours,
 } from "@/lib/buddies/discoveryOrder";
 import {
   fetchBuddyProfileDetail,
   type BuddyProfileDetail,
 } from "@/lib/buddies/profileDetail";
+import { shouldShowActionBar } from "@/lib/buddies/actionBar";
+import {
+  connectionContextFor,
+  isProfileNotice,
+  noticeForConnectionContext,
+  showConnectAction,
+} from "@/lib/buddies/connectContext";
+import {
+  resolveBuddyChannelId,
+  type ChatClientLike,
+} from "@/lib/chat/resolveBuddyChannel";
+import { useStreamChat } from "@/lib/chat/StreamChatProvider";
 import { useConnectAction } from "@/lib/buddies/useConnectAction";
 import type { NamedRef } from "@/lib/buddies/types";
 
@@ -132,6 +144,7 @@ function ProfileSkeleton() {
 
 export default function BuddyProfileScreen({ userId }: { userId: string }) {
   const router = useRouter();
+  const { client } = useStreamChat();
   const { currentUser, connectionMap, connectionsLoaded, clearConnection } =
     useBuddies();
   const { connect, busyIds } = useConnectAction();
@@ -140,12 +153,14 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
+  /** Which photo is open full-size, if any. */
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [neighbours, setNeighbours] = useState<DiscoveryNeighbours>({});
 
   // Read after mount, not during render: the discovery order is client-only
   // module state, so reading it while rendering would mismatch the SSR output.
   useEffect(() => {
-    setNeighbours(getDiscoveryNeighbours(userId));
+    setNeighbours(getNeighbours(userId));
   }, [userId]);
 
   // Warm the partner resources here rather than on the interstitial: by the
@@ -199,24 +214,179 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
     };
   }, [userId]);
 
-  const connection = connectionMap[userId];
   const isSelf = currentUser?.id === userId;
   const isSupportAccount = profile?.userType === "SUPPORT";
 
-  const withdraw = useCallback(async () => {
+  const searchParams = useSearchParams();
+
+  /**
+   * `?connect=0` — the caller has already decided that connecting is not
+   * allowed, and says so rather than letting this screen offer a request the
+   * rules would refuse. Groups sets it when a post author is snoozed or outside
+   * the viewer's age bracket, which is what mobile passes as `showButtons:false`
+   * when the same avatar is tapped (`usePostActions.ts:61-88`).
+   *
+   * Only the **Connect** action is suppressed. Mobile hides the whole bar, which
+   * would also remove Chat from an existing buddy's profile — a link web has and
+   * mobile reaches another way.
+   */
+  const connectSuppressed = searchParams.get("connect") === "0";
+
+  /**
+   * `?notice=…` — why the bar looks the way it does, written by whoever sent the
+   * member here. Mobile passes the same thing as a `message` navigation param
+   * from its Buddy-ID ladder (`useValidateRules.ts:95-133,209-224`) and renders
+   * it as a card under the name; web had transient toasts, which are gone in
+   * four seconds and never fire at all on a page opened from a link.
+   */
+  const noticeParam = searchParams.get("notice");
+  const connection = connectionMap[userId];
+
+  /**
+   * An explicit notice wins; otherwise a pending invite speaks for itself.
+   *
+   * Mobile's two profile screens split this: `UserInfoConnect` renders whatever
+   * the caller passed, and `UserInfo` derives the waiting-to-connect card from
+   * the connection alone (`UserInfo.tsx:197,390-392`). Web has one screen, so it
+   * does both — and the derived half is what makes the explanation appear on
+   * *every* route into a pending profile rather than only the scanner's.
+   */
+  const notice = isProfileNotice(noticeParam)
+    ? noticeParam
+    : noticeForConnectionContext(connectionContextFor(connection)).notice ===
+        "sentInvite"
+      ? "sentInvite"
+      : null;
+
+  /**
+   * `?connectionId=…` — set when this profile was opened from that person's own
+   * buddy request, and the only context in which "Maybe later" exists. Mobile
+   * passes it the same way (`ConnectionRequest.tsx:194-196`).
+   */
+  const incomingConnectionId = searchParams.get("connectionId");
+
+  /**
+   * A new invite is refused for a snoozed member and across age brackets — the
+   * gate mobile applies on the profile itself, which web applied only in the
+   * discovery query. Anyone reached another way (a group's member list, a Buddy
+   * ID, a post author) therefore still saw a live Connect button.
+   */
+  const canConnect =
+    !!profile &&
+    !connectSuppressed &&
+    notice !== "ageRule" &&
+    showConnectAction({
+      viewerId: currentUser?.id,
+      viewerBirth: currentUser?.birth,
+      target: {
+        id: profile.id,
+        isSnooze: profile.isSnooze,
+        birth: profile.birth,
+      },
+      connection,
+    });
+
+  /**
+   * Either direction of a block. `fetchBlockedUserIds` only knows who *this*
+   * account has blocked, so someone who blocked *you* still got a live Connect
+   * button here. Mobile asks the pair question with an `or` over both directions.
+   *
+   * Starts true-unknown as `false` so the bar is not hidden while it resolves;
+   * the request is cheap (`limit: 1`) and settles before an interaction.
+   */
+  const [isBlocked, setIsBlocked] = useState(false);
+  useEffect(() => {
+    const viewerId = currentUser?.id;
+    if (!viewerId || !userId || viewerId === userId) {
+      setIsBlocked(false);
+      return;
+    }
+    let cancelled = false;
+    isPairBlocked(viewerId, userId).then((blocked) => {
+      if (!cancelled) setIsBlocked(blocked);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id, userId]);
+
+  /**
+   * Opens the pair's real conversation, not `/chat/<current connection id>`.
+   *
+   * Those differ for anyone who connected, disconnected and reconnected, and for
+   * pairs older than the id-sharing convention — sending them to the connection
+   * id opens an empty chat beside the one holding their history.
+   */
+  const [openingChat, setOpeningChat] = useState(false);
+  const openChat = useCallback(async () => {
+    if (!client || !currentUser?.id) return;
+    setOpeningChat(true);
+    try {
+      const channelId = await resolveBuddyChannelId({
+        client: client as unknown as ChatClientLike,
+        me: currentUser.id,
+        them: userId,
+        connectionId: connection?.connectionId,
+        myName: currentUser.name,
+        theirName: profile?.name,
+      });
+      if (!channelId) {
+        toast.error(t("app.buddies.chatUnavailable"));
+        return;
+      }
+      router.push(`/chat/${channelId}`);
+    } catch (err) {
+      console.error("[buddies] could not open chat:", err);
+      toast.error(t("app.buddies.chatUnavailable"));
+    } finally {
+      setOpeningChat(false);
+    }
+  }, [client, currentUser?.id, currentUser?.name, userId, connection?.connectionId, profile?.name, router]);
+
+  /**
+   * Cancelling an invite you sent — reached only through the two-step Pending
+   * dialog, never from a single click.
+   */
+  const cancelRequest = useCallback(async () => {
     if (!connection) return;
     setWithdrawing(true);
     try {
       await deleteConnection(connection.connectionId);
       clearConnection(userId);
-      toast.success(t("app.buddies.withdrawn"));
+      toast.success(
+        t("app.buddies.requestCancelled", { name: formatName(profile?.name) }),
+      );
     } catch (err) {
-      console.error("[buddies] withdraw failed:", err);
+      console.error("[buddies] cancel request failed:", err);
       toast.error(t("app.buddies.withdrawError"));
     } finally {
       setWithdrawing(false);
     }
-  }, [connection, clearConnection, userId]);
+  }, [connection, clearConnection, userId, profile?.name]);
+
+  /**
+   * Declining *their* request from their profile — mobile's `handleMaybeLater`.
+   * Deletes the connection id the request card handed over, names them in the
+   * toast, and goes back to where the member came from.
+   */
+  const [declining, setDeclining] = useState(false);
+  const maybeLater = useCallback(async () => {
+    if (!incomingConnectionId) return;
+    setDeclining(true);
+    try {
+      await deleteConnection(incomingConnectionId);
+      clearConnection(userId);
+      toast.success(
+        t("app.buddies.dismissedToast", { name: formatName(profile?.name) }),
+      );
+      router.back();
+    } catch (err) {
+      console.error("[buddies] maybe later failed:", err);
+      toast.error(t("app.buddies.dismissError"));
+    } finally {
+      setDeclining(false);
+    }
+  }, [incomingConnectionId, clearConnection, userId, profile?.name, router]);
 
   const infoCards = useMemo(
     () => (profile ? buildInfoCards(profile) : []),
@@ -303,11 +473,12 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
                     {ROLE_LABELS[profile.userType]}
                   </span>
                 )}
-                {profile.ambassador && (
-                  <span className="rounded-full bg-cb-bone px-2.5 py-0.5 font-body text-[11px] font-bold uppercase tracking-wide text-cb-black">
-                    {t("app.buddies.ambassador")}
-                  </span>
-                )}
+                <AmbassadorBadge
+                  ambassador={profile.ambassador}
+                  isSelf={isSelf}
+                  myName={currentUser?.name}
+                  className="!px-2.5 !text-[11px]"
+                />
                 {profile.pronoun && (
                   <span className="rounded-full border border-cb-gray-200 px-2.5 py-0.5 font-body text-[11.5px] text-cb-gray-600">
                     {profile.pronoun}
@@ -327,6 +498,12 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
               )}
             </div>
           </header>
+
+          {/* Why the action bar looks the way it does. Sits directly under the
+              identity block, where mobile's FeedbackCard sits. */}
+          {notice && (
+            <ProfileNoticeBanner notice={notice} name={formatName(profile.name)} />
+          )}
 
           {/* About */}
           {profile.bio?.trim() && (
@@ -367,19 +544,49 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
                 {t("app.buddies.photos")}
               </h2>
               <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {profile.gallery.map((photo) => (
+                {profile.gallery.map((photo, i) => (
                   <li key={photo.id}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo.url}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      className="aspect-square w-full rounded-xl bg-cb-gray-100 object-cover"
-                    />
+                    {/* Opening a photo is the whole of mobile's GalleryScreen;
+                        the grid was inert here. */}
+                    <button
+                      type="button"
+                      onClick={() => setViewerIndex(i)}
+                      aria-label={t("app.buddies.photoOf", {
+                        name: formatName(profile.name),
+                      })}
+                      className="block w-full overflow-hidden rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-cb-black"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.url}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="aspect-square w-full bg-cb-gray-100 object-cover transition-transform hover:scale-[1.03]"
+                      />
+                    </button>
                   </li>
                 ))}
               </ul>
+
+              {/* Photos that exist but could not be signed. Mobile toasts each
+                  one; saying it once, in place, is the web equivalent. */}
+              {profile.galleryFailures > 0 && (
+                <p
+                  role="status"
+                  className="mt-2 font-body text-[12.5px] text-cb-gray-500"
+                >
+                  {t(
+                    profile.galleryFailures === 1
+                      ? "app.buddies.photosUnavailableOne"
+                      : "app.buddies.photosUnavailable",
+                    {
+                      count: profile.galleryFailures,
+                      name: formatName(profile.name),
+                    },
+                  )}
+                </p>
+              )}
             </section>
           )}
 
@@ -445,71 +652,54 @@ export default function BuddyProfileScreen({ userId }: { userId: string }) {
 
       {/* Action bar */}
       {/* Sits above the mobile tab bar (h-16) and clears the lg sidebar (w-64). */}
-      {profile && !isSelf && !isSupportAccount && (
-        <div className="fixed inset-x-0 bottom-16 z-30 border-t border-cb-gray-200 bg-white/95 px-4 pb-3 pt-3 backdrop-blur lg:bottom-0 lg:left-64 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
-            <div className="flex-1">
-              {!connectionsLoaded ? (
-                <div className="h-11 animate-pulse rounded-full bg-cb-gray-100" />
-              ) : connection?.status === "connected" ? (
-                <Button
-                  fullWidth
-                  onClick={() =>
-                    router.push(`/chat/${connection.connectionId}`)
-                  }
-                >
-                  {t("app.buddies.chatWithBuddy")}
-                </Button>
-              ) : connection?.status === "pending" ? (
-                <Button
-                  fullWidth
-                  variant="secondary"
-                  onClick={withdraw}
-                  loading={withdrawing}
-                >
-                  {t("app.buddies.withdrawInvite")}
-                </Button>
-              ) : (
-                <Button
-                  fullWidth
-                  onClick={() =>
-                    void connect({ id: profile.id, name: profile.name })
-                  }
-                  loading={busyIds.includes(profile.id)}
-                >
-                  {t("app.buddies.connect")}
-                </Button>
-              )}
-            </div>
+      {profile && isBlocked && !isSelf && (
+        <p
+          role="status"
+          className="mx-auto mb-4 max-w-3xl rounded-xl bg-cb-gray-100 px-4 py-3 text-center font-body text-[13.5px] text-cb-gray-700"
+        >
+          {t("app.buddies.profileBlocked")}
+        </p>
+      )}
 
-            {(neighbours.previousId || neighbours.nextId) && (
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  disabled={!neighbours.previousId}
-                  onClick={() =>
-                    neighbours.previousId &&
-                    router.push(`/buddies/${neighbours.previousId}`)
-                  }
-                  aria-label={t("app.buddies.previousBuddy")}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-cb-black text-cb-black transition-colors hover:bg-cb-gray-100 disabled:cursor-not-allowed disabled:border-cb-gray-200 disabled:text-cb-gray-300"
-                >
-                  <ArrowLeftIcon />
-                </button>
-                <button
-                  type="button"
-                  disabled={!neighbours.nextId}
-                  onClick={goToNext}
-                  aria-label={t("app.buddies.nextBuddy")}
-                  className="flex h-11 items-center gap-1.5 rounded-full border-2 border-cb-black px-4 font-body text-[14px] font-bold text-cb-black transition-colors hover:bg-cb-gray-100 disabled:cursor-not-allowed disabled:border-cb-gray-200 disabled:text-cb-gray-300"
-                >
-                  {t("app.buddies.next")}
-                  <ChevronRightIcon />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+      {profile &&
+        shouldShowActionBar({
+          viewerGroupHostId: currentUser?.groupHostId,
+          targetUserType: profile.userType,
+          isSelf,
+          isBlocked,
+        }) && (
+          <ProfileActionBar
+            connection={connection}
+            connectionsLoaded={connectionsLoaded}
+            canConnect={canConnect}
+            incomingConnectionId={incomingConnectionId}
+            name={formatName(profile.name)}
+            busy={busyIds.includes(profile.id)}
+            openingChat={openingChat}
+            cancelling={withdrawing}
+            decliningRequest={declining}
+            onConnect={() => void connect({ id: profile.id, name: profile.name })}
+            onOpenChat={() => void openChat()}
+            onCancelRequest={() => void cancelRequest()}
+            onMaybeLater={() => void maybeLater()}
+            previousId={neighbours.previousId}
+            nextId={neighbours.nextId}
+            onPrevious={() =>
+              neighbours.previousId &&
+              router.push(`/buddies/${neighbours.previousId}`)
+            }
+            onNext={goToNext}
+          />
+        )}
+
+      {profile && viewerIndex !== null && (
+        <PhotoViewer
+          photos={profile.gallery}
+          index={viewerIndex}
+          name={formatName(profile.name)}
+          onClose={() => setViewerIndex(null)}
+          onIndexChange={setViewerIndex}
+        />
       )}
     </div>
   );

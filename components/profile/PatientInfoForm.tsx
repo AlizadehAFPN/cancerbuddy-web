@@ -12,7 +12,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
@@ -25,6 +24,10 @@ import {
 import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
 import { useProfile } from "@/lib/profile/ProfileProvider";
 import { UserType } from "@/lib/profile/types";
+import {
+  useDirtyForm,
+  useUnsavedChanges,
+} from "@/lib/navigation/UnsavedChangesProvider";
 import {
   formatMonthYearInput,
   monthYearToStoredDate,
@@ -50,7 +53,7 @@ const UPDATE_PATIENT_INFO = /* GraphQL */ `
 `;
 
 export default function PatientInfoForm() {
-  const router = useRouter();
+  const { guardedPush } = useUnsavedChanges();
   const { userId, user, status, refresh } = useProfile();
 
   const [patientBirth, setPatientBirth] = useState("");
@@ -133,12 +136,13 @@ export default function PatientInfoForm() {
 
   const canSave = dirty && !validationError && !saving;
 
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  /*
+   * Route-change guard. This was a `beforeunload` listener, which never fires on
+   * client-side navigation — so the back arrow, a sidebar link and browser back
+   * all discarded the form silently. The provider covers all three, and keeps
+   * `beforeunload` for the refresh and tab-close case.
+   */
+  useDirtyForm(dirty);
 
   const save = useCallback(async () => {
     if (!userId || !canSave) return;
@@ -179,7 +183,7 @@ export default function PatientInfoForm() {
         <p className="font-heading text-[18px] font-bold text-cb-black">
           {t("app.profile.patientOnlyCaregivers")}
         </p>
-        <Button variant="secondary" onClick={() => router.push("/profile")}>
+        <Button variant="secondary" onClick={() => void guardedPush("/profile")}>
           {t("app.profile.back")}
         </Button>
       </div>
@@ -200,7 +204,7 @@ export default function PatientInfoForm() {
         <p className="font-heading text-[18px] font-bold text-cb-black">
           {t("app.profile.loadError")}
         </p>
-        <Button variant="secondary" onClick={() => router.push("/profile")}>
+        <Button variant="secondary" onClick={() => void guardedPush("/profile")}>
           {t("app.profile.back")}
         </Button>
       </div>
@@ -212,7 +216,7 @@ export default function PatientInfoForm() {
       <header className="mb-5 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => router.push("/profile")}
+          onClick={() => void guardedPush("/profile")}
           aria-label={t("app.profile.back")}
           className="-ml-1 flex h-9 w-9 items-center justify-center rounded-full text-cb-gray-600 transition-colors hover:bg-cb-gray-100 hover:text-cb-black"
         >

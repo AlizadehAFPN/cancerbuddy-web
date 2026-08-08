@@ -122,7 +122,15 @@ export function countActiveFilters(
  */
 export interface CurrentUserData {
   id: string;
+  /** Display name; the first word of it names a 1:1 chat channel. */
+  name?: string | null;
   userType: UserTypeName;
+  /**
+   * Non-null on a host account. Distinct from `userType`: it marks someone who
+   * hosts a group whatever their type, and it suppresses the profile action bar
+   * because a host browses members to moderate, not to make buddies.
+   */
+  groupHostId?: string | null;
   birth: string;
   patientBirth?: string | null;
   isSnooze?: boolean | null;
@@ -211,6 +219,17 @@ export interface PendingRequest {
     birth?: string | null;
     userType: UserTypeName;
     ambassador: boolean;
+    /**
+     * The card's subtitle is what you have **in common** with the sender, not
+     * their bio — so these four are required, not optional. Mobile computes the
+     * same four categories in `utils/coincidences.ts`, and a card that quietly
+     * fell back to nothing would look like two people with nothing in common.
+     */
+    stateAbbreviation?: string | null;
+    interests: NamedRef[];
+    hospitals: NamedRef[];
+    treatments: NamedRef[];
+    diagnosis: NamedRef[];
     profilePicUrl?: string;
     goalImageUrl?: string;
   };

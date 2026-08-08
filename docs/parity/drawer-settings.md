@@ -40,7 +40,9 @@ below the shell is where the gaps are.
 - **Legal is the one place web is ahead**: three real routes with proper SEO
   and cross-links, versus mobile's single screen with a modal.
 
-Totals: **31 ❌ missing**, **12 ⚠️ partial**.
+Totals across every classified row in this document: **63 ❌ missing**,
+**18 ⚠️ partial**, 15 ✅ present, 4 🆕 web-only. Plus 8 cross-screen gaps that
+do not belong to a single row.
 
 ---
 

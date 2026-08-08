@@ -56,8 +56,12 @@ function parsePush(event) {
   const body = n.body || data.body || "";
 
   /* Collapse repeated pushes from the same conversation into one notification
-     instead of stacking five of them, but re-alert so the user still notices. */
-  const tag = data.cid || data.channel_id || data.group_id || "cancerbuddy";
+     instead of stacking five of them, but re-alert so the user still notices.
+
+     Shared with `lib/push/targetPath.ts`: the backend sends a conversation under
+     three different payload shapes, and computing the tag from only some of them
+     meant one thread could raise three separate banners. */
+  const tag = notificationTag(data);
 
   return {
     title,
@@ -72,25 +76,82 @@ function parsePush(event) {
   };
 }
 
-/**
- * Where a click on this notification should land.
- *
- * Stream channels come in two types across the product: `messaging` (buddy and
- * group conversations, the only type the web app renders) and `livestream` (the
- * chat attached to a live session, mobile-only). A livestream push therefore has
- * no web destination, so it falls back to the app home rather than a route that
- * would render an empty conversation. Once `/notifications` is a real screen
- * instead of a placeholder, that becomes the better catch-all.
- */
-function targetPath(data) {
-  if (data.channel_type === "messaging" && data.channel_id) {
-    return `/chat/${data.channel_id}`;
+/* ── ROUTING START ── */
+function chatIdFrom(data) {
+  if (data.type === "CHAT_MESSAGE" && data.channelId) return data.channelId;
+  if (data.channelId) return data.channelId;
+  if (data.channel_type === "messaging" && data.channel_id) return data.channel_id;
+  if (data.channel) {
+    try {
+      const parsed = JSON.parse(data.channel);
+      if (parsed && parsed.id) return parsed.id;
+    } catch {
+      return "";
+    }
   }
+  return "";
+}
+
+function targetPath(data) {
+  if (!data) return "/groups";
+
+  const chatId = chatIdFrom(data);
+  if (chatId) return "/chat/" + chatId;
+
+  // Before the activityId branch: these carry a Connection id in activityId and
+  // feedId, so the post-detail branch would open a post that does not exist.
+  if (data.type === "FRIEND_REQUEST") return "/notifications?tab=requests";
+  if (data.type === "BUDDY") {
+    return data.userId ? "/buddies/" + data.userId : "/notifications";
+  }
+
+  if (data.type === "LIVE_NOTIFY") {
+    return data.eventId ? "/live/" + data.eventId : "/groups";
+  }
+
+  if (data.activityId && data.feedId) {
+    const params = new URLSearchParams({ post: data.activityId, feed: data.feedId });
+    if (data.parentReactionId) params.set("reaction", data.parentReactionId);
+    const group = data.groupId || data.feedId;
+    return "/groups/" + group + "?" + params.toString();
+  }
+
+  if (data.type === "POST") {
+    return data.groupId ? "/groups/" + data.groupId : "/groups";
+  }
+
+  if (data.activityId) return "/notifications";
+
   return "/groups";
 }
 
+/**
+ * Notifications that collapse into one banner.
+ *
+ * All three chat payload shapes name the same conversation, so without a shared
+ * tag a member gets three separate banners for one thread.
+ */
+function notificationTag(data) {
+  if (!data) return "cancerbuddy";
+  const chatId = chatIdFrom(data);
+  if (chatId) return "chat:" + chatId;
+  if (data.eventId) return "live:" + data.eventId;
+  if (data.activityId) return "post:" + data.activityId;
+  return "cancerbuddy:" + (data.type || "general");
+}
+/* ── ROUTING END ── */
+
 /** The message this worker posts to a focused tab; `lib/push/pushClient.ts` listens. */
 const FOREGROUND_MESSAGE = "cancerbuddy:push";
+
+/**
+ * Posted to **every** open tab, focused or not, carrying the raw payload.
+ *
+ * The toast above is for the tab the member is looking at; this one is for state
+ * that every tab holds — today the per-group `NEW` marker, which a background
+ * tab must also update or its sidebar disagrees with the one in front.
+ */
+const PUSH_DATA_MESSAGE = "cancerbuddy:push-data";
 
 self.addEventListener("push", (event) => {
   /* A push that arrives but fails to display and a push that never arrives look
@@ -115,6 +176,12 @@ self.addEventListener("push", (event) => {
         includeUncontrolled: true,
       });
       const focused = clients.find((client) => client.focused);
+
+      /* Every tab hears the payload, whether or not it is the one being looked
+         at — the `NEW` badge is per-tab state and must not depend on focus. */
+      for (const client of clients) {
+        client.postMessage({ type: PUSH_DATA_MESSAGE, data: options.data });
+      }
 
       if (focused) {
         focused.postMessage({

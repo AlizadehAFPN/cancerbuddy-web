@@ -133,6 +133,11 @@ export function EmptyResults({ query }: { query: string }) {
  * Searchable list over a preloaded catalogue. `multiple` toggles ids in and out
  * of `selected` rather than replacing it.
  */
+/** Long enough to not fire per keystroke, short enough to feel immediate. */
+const CATALOG_SEARCH_DEBOUNCE_MS = 250;
+/** Below this a prefix search returns most of the catalogue. */
+const CATALOG_MIN_SEARCH_CHARS = 3;
+
 export function CatalogPicker({
   items,
   selected,
@@ -140,6 +145,7 @@ export function CatalogPicker({
   multiple,
   searchPlaceholder,
   loading,
+  onSearch,
 }: {
   items: PicklistItem[];
   selected: string[];
@@ -147,14 +153,54 @@ export function CatalogPicker({
   multiple?: boolean;
   searchPlaceholder?: string;
   loading?: boolean;
+  /**
+   * Server-side search, for catalogues too large to hold client-side — hospitals
+   * and diagnoses. Filtering a preloaded slice meant an entry outside it could not
+   * be selected at all. Mirrors mobile's `findHospitals` / `findDiagnosis`.
+   */
+  onSearch?: (query: string) => Promise<PicklistItem[]>;
 }) {
   const [query, setQuery] = useState("");
+  const [remote, setRemote] = useState<PicklistItem[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  /** Drops a slow response that lands after a newer one. */
+  const generation = useRef(0);
+  useEffect(() => {
+    if (!onSearch) return;
+    const term = query.trim();
+    if (term.length < CATALOG_MIN_SEARCH_CHARS) {
+      setRemote(null);
+      setSearching(false);
+      return;
+    }
+
+    const mine = ++generation.current;
+    setSearching(true);
+    const id = setTimeout(() => {
+      onSearch(term)
+        .then((rows) => {
+          if (generation.current === mine) setRemote(rows);
+        })
+        .catch(() => {
+          if (generation.current === mine) setRemote([]);
+        })
+        .finally(() => {
+          if (generation.current === mine) setSearching(false);
+        });
+    }, CATALOG_SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(id);
+  }, [query, onSearch]);
 
   const visible = useMemo(() => {
+    // The server already applied the term; re-filtering would drop matches it
+    // found on fields the label does not show.
+    if (remote) return remote;
     const q = query.trim().toLowerCase();
     if (!q) return items;
     return items.filter((i) => i.label.toLowerCase().includes(q));
-  }, [items, query]);
+  }, [items, query, remote]);
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
 
@@ -171,7 +217,7 @@ export function CatalogPicker({
 
       <div className="flex shrink-0 items-center justify-between border-b border-cb-gray-100 px-5 pb-2.5">
         <span className="font-body text-[11px] font-medium text-cb-gray-400">
-          {loading
+          {loading || searching
             ? t("app.buddies.loading")
             : t(
                 visible.length === 1
@@ -525,6 +571,7 @@ export function MultiSelectField({
   addLabel,
   searchPlaceholder,
   loading,
+  onSearch,
 }: {
   label: string;
   catalogItems: PicklistItem[];
@@ -533,6 +580,8 @@ export function MultiSelectField({
   addLabel: string;
   searchPlaceholder?: string;
   loading?: boolean;
+  /** See {@link CatalogPicker}'s `onSearch`. */
+  onSearch?: (query: string) => Promise<PicklistItem[]>;
 }) {
   const [open, setOpen] = useState(false);
   const ids = useMemo(
@@ -601,6 +650,7 @@ export function MultiSelectField({
             onToggle={toggle}
             multiple
             loading={loading}
+            onSearch={onSearch}
             searchPlaceholder={searchPlaceholder ?? t("app.buddies.search")}
           />
         </div>

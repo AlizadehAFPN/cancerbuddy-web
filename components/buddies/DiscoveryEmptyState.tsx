@@ -9,9 +9,9 @@
  * QR code here; on the web an invite link is the equivalent affordance.
  */
 
-import { useState } from "react";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
+import ShareAppPanel from "@/components/buddies/ShareAppPanel";
 
 export default function DiscoveryEmptyState({
   hasFilters,
@@ -20,29 +20,6 @@ export default function DiscoveryEmptyState({
   hasFilters: boolean;
   onClearFilters: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const shareUrl =
-    typeof window === "undefined" ? "" : `${window.location.origin}/register`;
-
-  const share = async () => {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "CancerBuddy",
-          text: t("app.buddies.shareText"),
-          url: shareUrl,
-        });
-        return;
-      }
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      /* the user dismissed the share sheet — nothing to report */
-    }
-  };
-
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-cb-gray-200 bg-white px-6 py-14 text-center">
       <span
@@ -64,16 +41,22 @@ export default function DiscoveryEmptyState({
           : t("app.buddies.emptySub")}
       </p>
 
-      <div className="mt-2 flex w-full flex-col gap-2.5 sm:flex-row sm:justify-center">
-        {hasFilters && (
+      {/*
+        Filters that matched nobody are fixed by loosening them; a genuinely
+        empty pool is fixed by inviting someone. Only the second case gets the
+        share panel — mobile shows its QR in exactly that situation.
+      */}
+      {hasFilters ? (
+        <div className="mt-2 flex w-full flex-col gap-2.5 sm:flex-row sm:justify-center">
           <Button variant="primary" onClick={onClearFilters}>
             {t("app.buddies.clearFilters")}
           </Button>
-        )}
-        <Button variant={hasFilters ? "secondary" : "primary"} onClick={share}>
-          {copied ? t("app.buddies.linkCopied") : t("app.buddies.shareWithFriend")}
-        </Button>
-      </div>
+        </div>
+      ) : (
+        <div className="mt-2 w-full border-t border-cb-gray-200 pt-6">
+          <ShareAppPanel />
+        </div>
+      )}
     </div>
   );
 }

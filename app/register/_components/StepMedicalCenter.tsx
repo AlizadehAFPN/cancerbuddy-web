@@ -6,6 +6,7 @@ import { Button } from "@/components/ui";
 import type { UserRegisterFormValues } from "@/lib/user-signup/validation";
 import {
   fetchHospitals,
+  searchHospitals,
   fetchSupportOrganizations,
 } from "@/lib/aws/appsyncPicklistQueries";
 import { t } from "@/lib/i18n";
@@ -89,6 +90,7 @@ export function StepMedicalCenter({ onContinue, onSkip }: Props) {
             modalTitle={t("register.medicalCenter.hospitalsLabel")}
             searchPlaceholder={t("register.medicalCenter.searchHospitals")}
             items={hospitals}
+            onSearch={searchHospitals}
             selectedIds={hospitalIds}
             onAdd={addHospital}
             onRemove={removeHospital}

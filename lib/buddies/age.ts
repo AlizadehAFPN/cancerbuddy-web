@@ -185,6 +185,45 @@ export function connectAgeRulesBuddySearching(
   return false;
 }
 
+/**
+ * The **strict** bracket rule — the one mobile applies when you tap the author of
+ * a post, comment or reply (`usePostActions.ts:73`, its only two call sites).
+ *
+ * Stricter than {@link connectAgeRulesBuddySearching} in exactly one place: the
+ * middle band is closed at both ends, so a 13–17 year-old and an adult do not
+ * match, where the Buddy-ID rule would have let them. Mobile's own truth table:
+ * 18+/18+ true, 18/15 false, 15/16 true, 8/11 true, 12/13 false.
+ *
+ * Kept as a separate function rather than a flag on the other one: the two
+ * differ by a single comparison, and a boolean parameter is exactly the kind of
+ * thing that gets passed the wrong way round in a guard nobody re-reads.
+ */
+export function connectAgeRules(
+  userBirth?: string | null,
+  connectBirth?: string | null,
+): boolean {
+  const first = displayAge(userBirth);
+  const second = displayAge(connectBirth);
+  if (first >= MAXAGE && second >= MAXAGE) return true;
+  if (
+    first < MAXAGE &&
+    second < MAXAGE &&
+    first >= MINAGE &&
+    second >= MINAGE
+  ) {
+    return true;
+  }
+  if (
+    first < MINAGE &&
+    second < MINAGE &&
+    first >= INFANTILE_AGE &&
+    second >= INFANTILE_AGE
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** `MM/YYYY` → `YYYY-MM-DD` for the `inRemissionSince: { ge: … }` filter. */
 export function remissionSinceToIsoDate(value: string): string | null {
   const m = /^(\d{1,2})\/(\d{4})$/.exec(value.trim());

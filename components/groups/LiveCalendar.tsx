@@ -19,30 +19,57 @@ import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
 import { useGroups } from "@/lib/groups/GroupsProvider";
 import {
+  badgeFor,
   buildCalendarMonths,
   fetchLiveCalendar,
   filterCalendarForPrivacy,
   formatEventWhen,
   type CalendarMonth,
 } from "@/lib/groups/liveGroups";
+import { hasSessionEnded } from "@/lib/live/session";
 import type { LiveCalendarEvent } from "@/lib/groups/types";
 
 function EventRow({
   event,
-  liveEventId,
+  isLive,
   isMember,
 }: {
   event: LiveCalendarEvent;
   /**
-   * The session to join, when one in this group is running. Usually this row,
-   * but a group can have a session live while a *different* row is the one
-   * broadcasting — the badge follows the group, the link must follow the id.
+   * Whether a session in this group is broadcasting *now* — drives the red pill
+   * only. Whether the row can be entered is a separate question, answered below.
    */
-  liveEventId: string | null;
+  isLive: boolean;
   isMember: boolean;
 }) {
   const when = formatEventWhen(event);
-  const live = liveEventId !== null;
+
+  /**
+   * `isLive` folds in the group-level live set, so it is passed *as* `inLive`
+   * rather than checked alongside it — the badge has one input.
+   */
+  const badge = badgeFor({
+    status: event.status,
+    archived: event.archived,
+    inLive: isLive,
+  });
+  const live = badge === "LIVE";
+
+  /**
+   * A member may open any session that has not ended, live or not.
+   *
+   * Gating this on live state would lock a host out of starting their own
+   * session, because `inLive` is only flipped once the first host joins. Mobile
+   * makes the whole card pressable and navigates straight to the room
+   * (`LiveGroupCalendar.tsx:166-173`) with no live check at all — the token
+   * Lambda is the authority on who may enter, and it refuses early sessions and
+   * non-members itself.
+   */
+  const enterEventId =
+    isMember &&
+    !hasSessionEnded({ status: event.status, archived: event.archived ?? null })
+      ? event.id
+      : null;
 
   return (
     <li className="rounded-2xl border border-cb-gray-200 bg-white p-4">
@@ -52,15 +79,25 @@ function EventRow({
             <h3 className="font-heading text-[16px] font-bold leading-tight text-cb-black">
               {event.title}
             </h3>
-            {live ? (
-              <span className="rounded-full bg-cb-danger px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wide text-white">
-                {t("app.groups.calendarLive")}
-              </span>
-            ) : (
-              <span className="rounded-full bg-cb-gray-100 px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wide text-cb-gray-600">
-                {t("app.groups.calendarUpcoming")}
-              </span>
-            )}
+            <span
+              data-badge={badge}
+              className={[
+                "rounded-full px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wide",
+                badge === "LIVE"
+                  ? "bg-cb-danger text-white"
+                  : badge === "ENDED"
+                    ? "bg-cb-gray-200 text-cb-gray-600"
+                    : "bg-cb-gray-100 text-cb-gray-600",
+              ].join(" ")}
+            >
+              {t(
+                badge === "LIVE"
+                  ? "app.groups.calendarLive"
+                  : badge === "ENDED"
+                    ? "app.groups.calendarEnded"
+                    : "app.groups.calendarUpcoming",
+              )}
+            </span>
           </div>
 
           {event.groupName && (
@@ -81,12 +118,16 @@ function EventRow({
           )}
         </div>
 
-        {liveEventId ? (
+        {enterEventId ? (
           <Link
-            href={`/live/${liveEventId}`}
-            className="shrink-0 rounded-full bg-cb-danger px-4 py-1.5 font-body text-[12.5px] font-bold text-white transition-[filter] hover:brightness-110"
+            href={`/live/${enterEventId}`}
+            className={
+              live
+                ? "shrink-0 rounded-full bg-cb-danger px-4 py-1.5 font-body text-[12.5px] font-bold text-white transition-[filter] hover:brightness-110"
+                : "shrink-0 rounded-full border-2 border-cb-black px-3.5 py-1.5 font-body text-[12.5px] font-bold text-cb-black transition-colors hover:bg-cb-gray-100"
+            }
           >
-            {t("app.groups.joinLive")}
+            {live ? t("app.groups.joinLive") : t("app.groups.openSession")}
           </Link>
         ) : (
           event.groupId && (
@@ -206,12 +247,9 @@ export default function LiveCalendar() {
                         <EventRow
                           key={event.id}
                           event={event}
-                          liveEventId={
-                            event.inLive === true
-                              ? event.id
-                              : liveGroupIds.has(event.groupId)
-                                ? liveEventIdFor(event.groupId)
-                                : null
+                          isLive={
+                            event.inLive === true ||
+                            liveGroupIds.has(event.groupId)
                           }
                           isMember={isMember(event.groupId)}
                         />

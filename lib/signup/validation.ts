@@ -66,6 +66,15 @@ export const profileSchema = z
 const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
 
+/**
+ * The special-character set the password must contain.
+ *
+ * Exported and shared with {@link checkPassword} on purpose: the schema enforced
+ * this rule while the strength meter did not check it, so `Abcdefg1` showed a
+ * full-green meter and was then rejected on submit.
+ */
+export const PASSWORD_SPECIAL_CHARS = /[!?¿@#$%^&*_]/;
+
 export const credentialsSchema = z
   .object({
     email: z
@@ -91,7 +100,7 @@ export const credentialsSchema = z
       )
       .regex(/\d/, t("validation.credentials.passwordNoDigit"))
       .regex(
-        /[!?¿@#$%^&*_]/,
+        PASSWORD_SPECIAL_CHARS,
         t("validation.credentials.passwordNoSpecial"),
       ),
     confirmPassword: z
@@ -118,14 +127,21 @@ export interface PasswordChecks {
   uppercase: boolean;
   lowercase: boolean;
   number: boolean;
+  special: boolean;
 }
 
+/**
+ * Every rule {@link credentialsSchema} enforces, so an all-green meter always
+ * means the form will accept the password. The two are asserted equivalent in
+ * `lib/signup/passwordRules.test.ts`.
+ */
 export function checkPassword(value: string): PasswordChecks {
   return {
     minLength: value.length >= PASSWORD_MIN_LENGTH,
     uppercase: /[A-Z]/.test(value),
     lowercase: /[a-z]/.test(value),
     number: /\d/.test(value),
+    special: PASSWORD_SPECIAL_CHARS.test(value),
   };
 }
 

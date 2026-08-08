@@ -15,6 +15,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { RequestCard } from "@/components/buddies/RequestsSection";
+import { useBuddies } from "@/lib/buddies/BuddiesProvider";
+import { setNeighbourQueue } from "@/lib/buddies/discoveryOrder";
 import { formatName } from "@/lib/buddies/display";
 import type { RequestsResult } from "@/lib/buddies/useRequests";
 import type { PendingRequest } from "@/lib/buddies/types";
@@ -40,6 +42,7 @@ function Skeleton() {
 
 export default function RequestsPanel({ requests }: { requests: RequestsResult }) {
   const { requests: items, loading, error, busyIds, accept, dismiss } = requests;
+  const { currentUser } = useBuddies();
 
   const onAccept = async (request: PendingRequest) => {
     try {
@@ -101,8 +104,15 @@ export default function RequestsPanel({ requests }: { requests: RequestsResult }
         <li key={request.id}>
           <RequestCard
             request={request}
+            viewer={currentUser}
             wide
             busy={busyIds.includes(request.id)}
+            onOpen={() =>
+              setNeighbourQueue(
+                items.map((r) => r.remitent.id),
+                "requests",
+              )
+            }
             onAccept={() => void onAccept(request)}
             onDismiss={() => void onDismiss(request)}
           />

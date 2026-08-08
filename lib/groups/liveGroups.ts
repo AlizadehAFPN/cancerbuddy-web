@@ -1,9 +1,9 @@
 /**
  * Live sessions: which groups are broadcasting now, and what's scheduled.
  *
- * Joining the video room itself is deliberately not implemented here — that's
- * Twilio and a separate piece of work. The web shows the same LIVE badges and
- * calendar the mobile app does so members know a session is happening.
+ * The room itself is `/live/[eventId]` (`docs/LIVE.md`); this file only decides
+ * what the calendar advertises — which sessions a member may see at all, and
+ * what state each one is in.
  */
 
 import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
@@ -36,13 +36,48 @@ function parseCalendarResponse(raw: unknown): LiveCalendarEvent[] {
   return [];
 }
 
+/**
+ * Whether a session should be advertised at all.
+ *
+ * A host who unticks "Visible to members" sets `active: false`, and an archived
+ * row is a session that is over and put away. Mobile drops both before it does
+ * anything else (`LiveGroupCalendar.tsx:192-194`); web was keeping them,
+ * because the two fields were not even declared on `LiveCalendarEvent` and so
+ * never survived the type boundary.
+ */
+export function isCalendarEventVisible(
+  event: Pick<LiveCalendarEvent, "active" | "archived">,
+): boolean {
+  return event.active !== false && event.archived !== true;
+}
+
+export type CalendarBadge = "ENDED" | "LIVE" | "UPCOMING";
+
+/**
+ * The state pill for a calendar row.
+ *
+ * Mobile shows LIVE and ENDED and nothing at all otherwise
+ * (`LiveGroupCalendar.tsx:119-135`); web keeps its UPCOMING pill, which is the
+ * one divergence here. `ENDED` wins over `LIVE`: a session whose row still
+ * carries a stale `inLive` is finished, not running.
+ */
+export function badgeFor(
+  event: Pick<LiveCalendarEvent, "status" | "inLive" | "archived">,
+): CalendarBadge {
+  if (event.status === "ended" || event.archived === true) return "ENDED";
+  if (event.inLive === true || event.status === "live") return "LIVE";
+  return "UPCOMING";
+}
+
 export async function fetchLiveCalendar(): Promise<LiveCalendarEvent[]> {
   const raw = await raiseUserLambda(
     LambdaPayloadType.GET_LIVE_CALENDAR,
     usersLambdaName(),
     {},
   );
-  return parseCalendarResponse(raw).filter((e) => e?.id && e?.scheduledAt);
+  return parseCalendarResponse(raw).filter(
+    (e) => e?.id && e?.scheduledAt && isCalendarEventVisible(e),
+  );
 }
 
 /**

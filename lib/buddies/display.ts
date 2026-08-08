@@ -85,10 +85,29 @@ const MATCH_LABELS = {
   university: t("app.buddies.matchUniversity"),
 } as const;
 
-function sharesAny(theirs: NamedRef[], mine: string[]): boolean {
-  if (mine.length === 0 || theirs.length === 0) return false;
+function sharesAny(theirs: NamedRef[] | undefined, mine: string[]): boolean {
+  if (!theirs || mine.length === 0 || theirs.length === 0) return false;
   const set = new Set(mine);
   return theirs.some((t) => set.has(t.id));
+}
+
+/**
+ * Anyone the summary can be computed for.
+ *
+ * Structural rather than `BuddyProfile` because a **buddy request's sender** is
+ * the other caller, and that row carries only the four categories mobile's
+ * `getLabelCoincidencies` compares. The last three stay optional so an absent
+ * list simply never matches.
+ */
+export interface MatchSubject {
+  stateAbbreviation?: string | null;
+  collegeId?: string | null;
+  interests: NamedRef[];
+  hospitals: NamedRef[];
+  treatments: NamedRef[];
+  diagnosis: NamedRef[];
+  desabilities?: NamedRef[];
+  supportOrganizations?: NamedRef[];
 }
 
 /**
@@ -96,7 +115,7 @@ function sharesAny(theirs: NamedRef[], mine: string[]): boolean {
  * person has in common with the viewer, in the same order mobile uses.
  */
 export function matchSummary(
-  profile: BuddyProfile,
+  profile: MatchSubject,
   viewer: CurrentUserData | null,
 ): string {
   const location = profile.stateAbbreviation ?? "";

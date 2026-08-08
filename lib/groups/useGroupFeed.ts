@@ -8,7 +8,9 @@
  * an AppSync subscription and trigger a reload of the first page (the Lambda
  * doesn't stream, and a full reload is cheap next to reconciling by hand).
  * Likes are optimistic — the count and heart flip immediately and roll back if
- * the request fails, because a like that lags reads as a broken button.
+ * the request fails, because a like that lags reads as a broken button. They go
+ * through `lib/groups/likeStore.ts` rather than this hook's own list, so the
+ * comment thread shows the same number as the feed behind it.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,10 +21,10 @@ import {
   deletePost,
   editPost,
   fetchGroupPosts,
-  likePost,
+  fetchGroupPostsWithEmptyRetry,
   sortPosts,
-  unlikePost,
 } from "@/lib/groups/posts";
+import { useToggleLike } from "@/lib/groups/useLikes";
 import type { FeedPost } from "@/lib/groups/types";
 
 const ON_CREATE_POST = /* GraphQL */ `
@@ -79,11 +81,22 @@ export function useGroupFeed(groupId: string | null): GroupFeed {
       else setLoadingMore(true);
 
       try {
-        const result = await fetchGroupPosts({
-          groupId,
-          currentUserId: userId,
-          offset: pageIndex * POSTS_PER_PAGE,
-        });
+        /**
+         * The first page is retried while the Lambda answers empty — a known
+         * intermittent that otherwise renders "no posts yet" over a busy group.
+         * Later pages are not: an empty page there is simply the end of the feed.
+         */
+        const result =
+          pageIndex === 0
+            ? await fetchGroupPostsWithEmptyRetry({
+                groupId,
+                currentUserId: userId,
+              })
+            : await fetchGroupPosts({
+                groupId,
+                currentUserId: userId,
+                offset: pageIndex * POSTS_PER_PAGE,
+              });
         if (!mountedRef.current || runId !== runIdRef.current) return;
 
         setPosts((prev) => {
@@ -174,44 +187,23 @@ export function useGroupFeed(groupId: string | null): GroupFeed {
     );
   }, []);
 
-  const toggleLike = useCallback(
-    async (post: FeedPost) => {
-      const liked = !!post.myLikeReactionId;
+  /**
+   * Delegated to the shared store so the thread renders the same number.
+   *
+   * The local optimistic patch this used to do was the source of the mismatch:
+   * it wrote into this hook's own list, which the thread never sees.
+   */
+  const toggleLike = useToggleLike(requireFeedSession);
 
-      // Optimistic flip.
-      patchPost(post.id, {
-        myLikeReactionId: liked ? undefined : "pending",
-        likeCount: Math.max(0, post.likeCount + (liked ? -1 : 1)),
-      });
-
-      try {
-        const session = await requireFeedSession();
-        if (liked) {
-          await unlikePost(session, post.myLikeReactionId!);
-        } else {
-          const reactionId = await likePost(session, post.id);
-          patchPost(post.id, { myLikeReactionId: reactionId });
-        }
-      } catch (err) {
-        console.error("[groups] like failed:", err);
-        patchPost(post.id, {
-          myLikeReactionId: post.myLikeReactionId,
-          likeCount: post.likeCount,
-        });
-        throw err;
-      }
-    },
-    [patchPost, requireFeedSession],
-  );
-
-  const removePost = useCallback(
-    async (post: FeedPost) => {
-      const session = await requireFeedSession();
-      await deletePost(session, post.id);
-      setPosts((prev) => prev.filter((p) => p.id !== post.id));
-    },
-    [requireFeedSession],
-  );
+  /**
+   * The optimistic removal happens *after* the Lambda confirms, not before: the
+   * whole point of routing through `deleteMessage` is that the call can fail, and
+   * dropping the row first would show a success the server never granted.
+   */
+  const removePost = useCallback(async (post: FeedPost) => {
+    await deletePost(post);
+    setPosts((prev) => prev.filter((p) => p.id !== post.id));
+  }, []);
 
   const updatePostBody = useCallback(
     async (post: FeedPost, html: string) => {

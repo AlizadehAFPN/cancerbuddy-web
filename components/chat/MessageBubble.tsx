@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MoreHorizontal,
   Copy,
@@ -14,6 +14,9 @@ import { messageTime } from "@/lib/chat/helpers";
 import type { UIMessage } from "@/lib/chat/useChannelMessages";
 import ReactionPicker from "./ReactionPicker";
 import ReactionPills from "./ReactionPills";
+import { sanitizePostHtml } from "@/lib/groups/sanitizeHtml";
+import { formatFileSize } from "@/lib/groups/feedMedia";
+import ContextAttachment from "@/components/chat/ContextAttachment";
 
 /** A single message bubble: attachments, text, time, status, reactions, actions. */
 export default function MessageBubble({
@@ -32,6 +35,8 @@ export default function MessageBubble({
   onReact?: (id: string, type: string) => void;
 }) {
   const mine = message.mine;
+  /** The reaction this member already gave — at most one, as mobile allows. */
+  const myReactionType = message.reactions.find((r) => r.mine)?.type;
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -55,7 +60,37 @@ export default function MessageBubble({
 
   const canActOnSelf = mine && message.status === "sent";
 
-  // The hover controls (react + actions). Kept visible while a popover is open.
+  /** Matches the platform convention and mobile's own long-press threshold. */
+  const LONG_PRESS_MS = 500;
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }, []);
+
+  const startLongPress = useCallback(() => {
+    longPressFired.current = false;
+    cancelLongPress();
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
+      setMenuOpen(true);
+    }, LONG_PRESS_MS);
+  }, [cancelLongPress]);
+
+  useEffect(() => cancelLongPress, [cancelLongPress]);
+
+  /**
+   * The react + actions controls.
+   *
+   * `opacity-0 group-hover:opacity-100` alone made these unreachable on a phone
+   * or tablet: there is no hover, so edit, delete, copy and react had no path at
+   * all. `pointer-coarse:opacity-100` reveals them on touch devices, and a
+   * long-press on the bubble opens the action menu the way mobile does.
+   *
+   * Kept visible while either popover is open, on any device.
+   */
   const controls =
     message.status === "sent" ? (
       <div
@@ -63,7 +98,7 @@ export default function MessageBubble({
         className={`flex items-center gap-0.5 self-center transition-opacity ${
           menuOpen || pickerOpen
             ? "opacity-100"
-            : "opacity-0 group-hover:opacity-100"
+            : "opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100"
         }`}
       >
         {mine ? (
@@ -72,6 +107,7 @@ export default function MessageBubble({
               <ReactionPicker
                 open={pickerOpen}
                 setOpen={setPickerOpen}
+                currentType={myReactionType}
                 align="right"
                 onPick={(type) => onReact?.(message.id, type)}
               />
@@ -81,7 +117,14 @@ export default function MessageBubble({
               setOpen={setMenuOpen}
               align="right"
               message={message}
-              canEdit={canActOnSelf && message.text.length > 0}
+              // No Edit on a message carrying a quoted group or post: the
+              // attachment cannot be re-authored, so editing would strip it.
+              // Mobile applies the same rule (`ChatMessageRenderer.tsx:93-96`).
+              canEdit={
+                canActOnSelf &&
+                message.text.length > 0 &&
+                message.context.length === 0
+              }
               canDelete={canActOnSelf}
               onEdit={onEdit}
               onRequestDelete={() => setConfirmDelete(true)}
@@ -103,6 +146,7 @@ export default function MessageBubble({
               <ReactionPicker
                 open={pickerOpen}
                 setOpen={setPickerOpen}
+                currentType={myReactionType}
                 align="left"
                 onPick={(type) => onReact?.(message.id, type)}
               />
@@ -115,11 +159,31 @@ export default function MessageBubble({
   return (
     <div
       className={`group flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}
+      // Long-press opens the action menu, as it does on mobile. Without it a
+      // touch device has no way to reach edit, delete, copy or react — the
+      // controls are otherwise hover-only.
+      onTouchStart={message.status === "sent" ? startLongPress : undefined}
+      onTouchEnd={cancelLongPress}
+      onTouchMove={cancelLongPress}
+      onTouchCancel={cancelLongPress}
+      // A long press selects text on some browsers; the menu is the intent here.
+      onContextMenu={(e) => {
+        if (longPressFired.current) e.preventDefault();
+      }}
     >
       {mine && controls}
 
       <div className="max-w-[80%] sm:max-w-[68%]">
         <div className="relative">
+          {/* The group or post this message refers to. */}
+          {message.context.length > 0 && (
+            <div className={mine ? "self-end" : "self-start"}>
+              {message.context.map((c, i) => (
+                <ContextAttachment key={i} attachment={c} />
+              ))}
+            </div>
+          )}
+
           {/* Attachments */}
           {message.attachments.length > 0 && (
             <div
@@ -137,9 +201,26 @@ export default function MessageBubble({
                     <img
                       src={a.url}
                       alt={a.name || ""}
-                      className="max-h-64 max-w-full rounded-2xl object-cover"
+                      // `contain`, not `cover`: a tall photo was being cropped
+                      // to a square and the sender's point lost with it. The
+                      // intrinsic size reserves space so the thread does not
+                      // jump as each image loads.
+                      width={a.width}
+                      height={a.height}
+                      className="max-h-64 max-w-full rounded-2xl object-contain"
                     />
                   </a>
+                ) : a.type === "video" ? (
+                  // Plays inline. This used to fall through to the file branch
+                  // and render as a download link.
+                  <video
+                    key={i}
+                    src={a.url}
+                    controls
+                    preload="metadata"
+                    playsInline
+                    className="max-h-64 max-w-full rounded-2xl bg-black"
+                  />
                 ) : (
                   <a
                     key={i}
@@ -149,14 +230,40 @@ export default function MessageBubble({
                     className="flex items-center gap-2 rounded-xl border border-cb-gray-200 bg-white px-3 py-2 transition-colors hover:bg-cb-gray-50"
                   >
                     <FileText className="h-5 w-5 shrink-0 text-cb-gray-500" />
-                    <span className="max-w-[12rem] truncate font-body text-sm text-cb-black">
-                      {a.name || t("app.chat.file")}
+                    <span className="min-w-0">
+                      <span className="block max-w-[12rem] truncate font-body text-sm text-cb-black">
+                        {a.name || t("app.chat.file")}
+                      </span>
+                      {formatFileSize(a.size) && (
+                        <span className="block font-body text-[11.5px] text-cb-gray-500">
+                          {formatFileSize(a.size)}
+                        </span>
+                      )}
                     </span>
                     <Download className="h-4 w-4 shrink-0 text-cb-gray-400" />
                   </a>
                 ),
               )}
             </div>
+          )}
+
+          {/*
+            Server-authored HTML body — support, ambassador and system messages
+            arrive with an empty `text` and their content here. Sanitised through
+            the same allowlist the feed uses, because this is markup the client
+            did not write.
+          */}
+          {message.text.length === 0 && !!message.html?.trim() && (
+            <div
+              className={[
+                "break-words rounded-2xl px-3.5 py-2 font-body text-[0.95rem] leading-snug",
+                mine
+                  ? "rounded-br-md bg-cb-black text-white"
+                  : "rounded-bl-md bg-cb-gray-100 text-cb-black",
+                "[&_a]:underline",
+              ].join(" ")}
+              dangerouslySetInnerHTML={{ __html: sanitizePostHtml(message.html) }}
+            />
           )}
 
           {/* Text */}

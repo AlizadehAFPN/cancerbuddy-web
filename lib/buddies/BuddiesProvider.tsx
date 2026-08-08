@@ -30,6 +30,11 @@ import {
   getSignedInUserId,
 } from "@/lib/buddies/currentUser";
 import { invalidateAudienceBase } from "@/lib/buddies/audience";
+import {
+  reduceConnectionEvent,
+  subscribeToConnectionLiveness,
+} from "@/lib/buddies/connectionLiveness";
+import { useVisibilityResync } from "@/lib/hooks/useVisibilityResync";
 import type {
   ConnectionEntry,
   ConnectionMap,
@@ -145,6 +150,55 @@ export default function BuddiesProvider({ children }: { children: ReactNode }) {
   }, [loadAll]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
+
+  /**
+   * Live connection state. Web only subscribed to *new incoming* requests, so an
+   * accept or a withdrawal by the other side never reached the screen — a
+   * request they had already accepted still read "Pending" until a hard reload.
+   *
+   * Mounted here rather than per-screen because several surfaces read the same
+   * map, and each opening its own pair of subscriptions would mean duplicate
+   * websockets for one user.
+   */
+  useEffect(() => {
+    if (!userId || status !== "ready") return;
+
+    return subscribeToConnectionLiveness(userId, (event) => {
+      if (!mounted.current) return;
+      const next = reduceConnectionEvent(event);
+
+      setConnectionMap((prev) => {
+        if (next.status === null) {
+          if (!(next.userId in prev)) return prev;
+          const copy = { ...prev };
+          delete copy[next.userId];
+          return copy;
+        }
+        const existing = prev[next.userId];
+        if (existing?.status === next.status) return prev;
+        return {
+          ...prev,
+          [next.userId]: {
+            status: next.status,
+            connectionId: event.frame.id,
+          },
+        };
+      });
+      setConnectionsRevision((n) => n + 1);
+    });
+  }, [userId, status]);
+
+  /**
+   * Coming back to the tab re-reads the map. The subscriptions above cover the
+   * time the tab was open; this covers the frames that were missed while it was
+   * hidden, which is when a websocket is most likely to have been dropped.
+   */
+  useVisibilityResync(
+    useCallback(() => {
+      void refresh();
+    }, [refresh]),
+    { enabled: status === "ready" && !!userId },
+  );
 
   const setConnection = useCallback((id: string, entry: ConnectionEntry) => {
     setConnectionMap((prev) => ({ ...prev, [id]: entry }));

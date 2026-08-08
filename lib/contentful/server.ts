@@ -14,7 +14,7 @@
  * every visitor — the ad list changes a few times a year.
  */
 
-import { GET_ADS } from "@/lib/contentful/queries";
+import { GET_ADS, GET_APP_STORE_LINK } from "@/lib/contentful/queries";
 import { normalizeAds, type ContentfulAd, type RawAdCollection } from "@/lib/contentful/types";
 
 /** Ads are marketing copy, not live data — an hour stale is fine. */
@@ -107,4 +107,25 @@ async function runContentfulQuery<TData>(
 export async function fetchAds(): Promise<ContentfulAd[]> {
   const data = await runContentfulQuery<RawAdCollection>(GET_ADS, ADS_REVALIDATE_SECONDS);
   return normalizeAds(data);
+}
+
+/**
+ * The app-store link, or null when the entry is missing.
+ *
+ * Cached for a day: this changes when a store listing moves, which is roughly
+ * never, and a stale value here is a link to the right app either way.
+ */
+export const APP_LINK_REVALIDATE_SECONDS = 86_400;
+
+interface RawAppStoreLink {
+  appStoreLinkCollection?: { items?: ({ appLink?: string | null } | null)[] | null } | null;
+}
+
+export async function fetchAppStoreLink(): Promise<string | null> {
+  const data = await runContentfulQuery<RawAppStoreLink>(
+    GET_APP_STORE_LINK,
+    APP_LINK_REVALIDATE_SECONDS,
+  );
+  const link = data.appStoreLinkCollection?.items?.[0]?.appLink?.trim();
+  return link || null;
 }

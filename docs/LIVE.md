@@ -29,6 +29,37 @@ fails the entire query.
 `inLive` on that row is what turns the LIVE badges on across the app. It is
 flipped by the token Lambda when the first host joins.
 
+### Scheduling guard rails
+
+The picker on `/profile/lives` is bounded the way mobile's `LiveScheduleField`
+is: no earlier than now, no later than the end of the calendar day one year out,
+and only on a 15-minute mark. The last one matters beyond tidiness — mobile's
+time picker is `minuteInterval={15}`, so a web-scheduled 7:07 PM is a session
+the phone can display but never produce or re-pick.
+
+The rules are three pure functions in `lib/profile/liveSchedule.ts`, and both
+consumers ask the same one:
+
+| | |
+| --- | --- |
+| `scheduleBounds(now)` | `{min, max, step: 900}` → straight onto the `<input type="datetime-local">` |
+| `scheduleProblem(value, now)` | `'past' \| 'tooFar' \| 'offGrid' \| null` → gates **Save**, and names the reason under the field |
+| `endsAtLabel(value, minutes)` | `Ends at 8:30 PM`, or `Ends Mar 18 at 12:15 AM` past midnight |
+
+`min` / `max` / `step` alone are advisory: outside a submitted form nothing
+enforces them, and a pasted or keyboard-typed value walks past all three. That
+is why Save asks `scheduleProblem` rather than trusting the attributes.
+
+`endsAtLabel` builds its clock time by hand rather than through
+`toLocaleTimeString`. ICU 72 and later insert U+202F (narrow no-break space)
+before AM/PM, which would make the rendered label depend on which Node or
+browser produced it.
+
+Durations carry **two** label sets, because mobile does: the chips read
+`15 min … 1h, 1.5h, 2h` while you pick, and a scheduled session's card reads
+`1h 30m`. A new session starts at 60 minutes; an existing row with no duration
+falls back to 30. Neither number is arbitrary — both are mobile's.
+
 ---
 
 ## The four Lambda calls
@@ -157,7 +188,26 @@ Each of these is a decision, not drift.
 | Speaker / network quality | Requested, never shown | **Shown** | Mobile asks Twilio for both and ignores them. Five grey bars answer "why is the audio breaking up" before anyone types it into the chat. |
 | Moderation entry | Long-press a tile | Tile `⋯` **and a People panel** | A long-press is undiscoverable, and impossible once the grid is taller than the screen. |
 | Failed chat message | Looks sent | **Marked, retryable** | |
-| Calendar row while live | Opens the room; Lambda rejects early arrivals | **"Join live"** only when a session is running | Learning a session hasn't started from a connection error is a poor way to learn it. |
+| Calendar row | Every row opens the room; the Lambda rejects early arrivals and non-members | **"Join live"** while running, **"Open session"** before it starts, and the group page for a non-member | Learning that a session hasn't started, or that you can't get in, from a connection error is a poor way to learn it. A host still needs the pre-live route, since joining is what marks a session live. |
+| Calendar row state | LIVE, ENDED, or no pill at all | LIVE / ENDED / **UPCOMING** | A row with no pill reads as a rendering gap on a wide screen, where the whole month is visible at once. |
+
+## What the calendar advertises
+
+`/groups/calendar` drops a session before anything else if the host has hidden
+it (`active: false`) or it has been archived — mobile's filter
+(`LiveGroupCalendar.tsx:192-194`), now `isCalendarEventVisible` in
+`lib/groups/liveGroups.ts`.
+
+This was invisible rather than wrong: `LiveCalendarEvent` declared neither
+field, so the Lambda's values were discarded at the type boundary and no filter
+could have seen them. Both are declared now, which is what keeps the predicate
+honest — dropping either fails `tsc --noEmit`.
+
+The state pill is one answer from `badgeFor()`. `ENDED` beats `LIVE`, so a
+finished row still carrying a stale `inLive` cannot advertise itself as running.
+Privacy filtering (`filterCalendarForPrivacy`) runs after visibility, in mobile's
+order: the calendar Lambda returns every scheduled session platform-wide, so a
+private group the viewer isn't in is removed there.
 
 ## Things that are matched on purpose
 

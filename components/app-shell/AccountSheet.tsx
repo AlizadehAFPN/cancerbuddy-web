@@ -1,18 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
+// Guarded so a half-finished profile form is not discarded silently when
+// someone taps a nav item. Behaves exactly like `Link` when nothing is dirty.
+import Link from "@/components/navigation/GuardedLink";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { toast } from "sonner";
 import { t } from "@/lib/i18n";
+import { getShareUrl } from "@/lib/contentful/appLink";
 import { signOut } from "@/lib/auth-client";
 import { disconnectStream } from "@/lib/chat/streamClient";
 import { unregisterPushDevice } from "@/lib/push/pushClient";
 import {
-  RESOURCE_LINKS,
+  resourceLinksFor,
   LOGOUT_LINK,
   type AccountLink,
 } from "@/lib/navigation/appNav";
+import { useAccount } from "@/lib/account/AccountProvider";
 
 /**
  * Account menu — the web equivalent of the mobile hamburger drawer. Resources,
@@ -28,6 +33,7 @@ export default function AccountSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { userType } = useAccount();
 
   // Lock body scroll + close on Escape while open.
   useEffect(() => {
@@ -44,14 +50,22 @@ export default function AccountSheet({
     };
   }, [open, onClose]);
 
+  /**
+   * "Share the app" shares the **store listing**, not this page.
+   *
+   * It used to share `window.location.origin`, which sends a friend to the web
+   * app's front page — the one place they cannot install the app from. Mobile
+   * shares the Contentful `appLink`, and so does this now.
+   */
   const handleShare = async () => {
-    const url = window.location.origin;
-    const data = { title: "CancerBuddy", url };
+    const url = await getShareUrl();
+    const data = { title: t("common.appName"), url };
     try {
       if (navigator.share) {
         await navigator.share(data);
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(url);
+        toast.success(t("app.buddies.linkCopied"));
       }
     } catch {
       /* user cancelled / unsupported — no-op */
@@ -113,7 +127,7 @@ export default function AccountSheet({
             {t("app.account.resourcesHeading")}
           </p>
           <ul className="flex flex-col">
-            {RESOURCE_LINKS.map((item) => (
+            {resourceLinksFor(userType).map((item) => (
               <li key={item.labelKey}>
                 <AccountRow item={item} onClose={onClose} onShare={handleShare} />
               </li>

@@ -17,7 +17,9 @@ const GET_MAIN_DATA_FILTERS = /* GraphQL */ `
   query getMainDataFilters($id: ID!) {
     getUser(id: $id) {
       id
+      name
       userType
+      groupHostId
       birth
       patientBirth
       isSnooze
@@ -78,7 +80,9 @@ interface JoinRow {
 
 interface RawMainData {
   id: string;
+  name?: string | null;
   userType?: string | null;
+  groupHostId?: string | null;
   birth?: string | null;
   patientBirth?: string | null;
   isSnooze?: boolean | null;
@@ -126,7 +130,9 @@ export async function fetchCurrentUserData(
 
   return {
     id: row.id,
+    name: row.name ?? null,
     userType: (row.userType ?? "PATIENT") as UserTypeName,
+    groupHostId: row.groupHostId?.trim() || null,
     birth: row.birth ?? "",
     patientBirth: row.patientBirth ?? null,
     isSnooze: row.isSnooze ?? false,

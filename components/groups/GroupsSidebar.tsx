@@ -16,6 +16,7 @@ import { t } from "@/lib/i18n";
 import { SearchIcon, XIcon } from "@/components/ui/icons";
 import GroupAvatar from "@/components/groups/GroupAvatar";
 import { useGroups } from "@/lib/groups/GroupsProvider";
+import { useGroupHasUnread } from "@/lib/groups/useUnreadGroups";
 import type { Group } from "@/lib/groups/types";
 
 /** Matches a group on the same fields mobile's group search does. */
@@ -60,6 +61,13 @@ function GroupRow({
   live: boolean;
   active: boolean;
 }) {
+  /**
+   * `NEW` when a pushed post for this group has not been opened yet — mobile
+   * badges the same row from the same signal (`GroupsList.tsx:81-84`). Opening
+   * the group clears it.
+   */
+  const unread = useGroupHasUnread(group.id);
+
   return (
     <Link
       href={`/groups/${group.id}`}
@@ -92,6 +100,14 @@ function GroupRow({
               aria-label={t("app.groups.muted")}
             >
               <MutedIcon />
+            </span>
+          )}
+          {unread && (
+            <span
+              aria-label={t("app.groups.newPostsLabel", { name: group.name })}
+              className="ml-auto shrink-0 rounded-full bg-cb-yellow px-1.5 py-0.5 font-body text-[9.5px] font-bold uppercase tracking-wide text-cb-black"
+            >
+              {t("app.groups.newPosts")}
             </span>
           )}
         </div>

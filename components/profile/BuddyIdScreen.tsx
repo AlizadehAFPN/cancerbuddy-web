@@ -21,6 +21,7 @@ import { Button } from "@/components/ui";
 import { ArrowLeftIcon } from "@/components/ui/icons";
 import { FieldLabel } from "@/components/ui/form";
 import { useProfile } from "@/lib/profile/ProfileProvider";
+import { useBuddyIdLookup } from "@/lib/buddies/useBuddyIdLookup";
 import { findUserByBuddyId } from "@/lib/buddies/profileDetail";
 
 /** Must match mobile's `formatBuddyIdURL`. */
@@ -37,7 +38,9 @@ export default function BuddyIdScreen() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [lookup, setLookup] = useState("");
   const [searching, setSearching] = useState(false);
-  const [notFound, setNotFound] = useState(false);
+  const buddyIdLookup = useBuddyIdLookup(
+    user?.id ? { id: user.id, birth: user.birth ?? null } : null,
+  );
 
   const buddyId = user?.buddyId ?? "";
 
@@ -82,28 +85,19 @@ export default function BuddyIdScreen() {
     }
   }, [buddyId]);
 
+  /**
+   * The full guard ladder, shared with the Buddies sheet.
+   *
+   * This screen used to run a bare not-found check, so pasting an id opened the
+   * profile of someone snoozed or outside the permitted age bracket — a profile
+   * you must not connect with, presented as though you could.
+   */
   const search = useCallback(async () => {
     const value = lookup.trim();
     if (!value || searching) return;
-    setSearching(true);
-    setNotFound(false);
-    try {
-      // Accept a pasted link as well as a bare id — mobile's scanner does the
-      // same split, and people share the link more often than the id.
-      const id = value.includes("/") ? (value.split("/").pop() ?? value) : value;
-      const match = await findUserByBuddyId(id);
-      if (!match) {
-        setNotFound(true);
-        return;
-      }
-      router.push(`/buddies/${match.id}`);
-    } catch (err) {
-      console.error("[profile] buddy id lookup failed:", err);
-      toast.error(t("app.profile.lookupError"));
-    } finally {
-      setSearching(false);
-    }
-  }, [lookup, searching, router]);
+    const userId = await buddyIdLookup.lookup(value);
+    if (userId) router.push(`/buddies/${userId}`);
+  }, [lookup, searching, buddyIdLookup, router]);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
@@ -166,7 +160,7 @@ export default function BuddyIdScreen() {
               value={lookup}
               onChange={(e) => {
                 setLookup(e.target.value);
-                setNotFound(false);
+                buddyIdLookup.clearError();
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void search();
@@ -175,13 +169,13 @@ export default function BuddyIdScreen() {
               autoComplete="off"
               className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-cb-gray-300 bg-white px-4 font-body text-[15px] text-cb-black outline-none transition-colors placeholder:text-cb-gray-400 hover:border-cb-gray-400 focus:border-cb-black"
             />
-            <Button onClick={search} disabled={!lookup.trim()} loading={searching}>
+            <Button onClick={search} disabled={!lookup.trim()} loading={buddyIdLookup.searching}>
               {t("app.profile.findBuddy")}
             </Button>
           </div>
-          {notFound && (
+          {buddyIdLookup.error && (
             <p role="alert" className="mt-2 font-body text-[13px] text-cb-danger">
-              {t("app.profile.buddyIdNotFound")}
+              {buddyIdLookup.error}
             </p>
           )}
         </div>

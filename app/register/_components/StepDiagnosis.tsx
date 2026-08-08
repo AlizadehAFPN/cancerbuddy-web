@@ -7,6 +7,7 @@ import { MonthYearPicker } from "@/components/auth";
 import type { UserRegisterFormValues } from "@/lib/user-signup/validation";
 import {
   fetchDiagnoses,
+  searchDiagnoses,
   fetchTreatments,
   fetchTreatmentStatuses,
   fetchDisabilities,
@@ -199,6 +200,7 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
           modalTitle={t("register.diagnosis.myDiagnosis")}
           searchPlaceholder={t("register.diagnosis.searchDiagnoses")}
           items={diagnoses}
+          onSearch={searchDiagnoses}
           selectedIds={diagnosisIds}
           onAdd={(id)    => addId("diagnosis", diagnosisIds, id)}
           onRemove={(id) => removeId("diagnosis", diagnosisIds, id)}

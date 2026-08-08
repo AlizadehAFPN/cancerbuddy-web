@@ -19,9 +19,14 @@ import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 import { raiseUserLambda } from "@/lib/aws/raiseUserLambda";
 import { getS3ImageUrl, type S3FileRef } from "@/lib/aws/s3Image";
 import {
+  normaliseAttachments,
+  type FeedMediaAttachment,
+} from "@/lib/groups/feedMedia";
+import {
   addReaction,
   deleteReaction,
   fetchEnrichedActivity,
+  fetchNextReactions,
   updateActivity,
   updateReaction,
   type FeedSession,
@@ -31,7 +36,6 @@ import type {
   FeedComment,
   FeedPage,
   FeedPost,
-  PostAttachment,
   PostAuthor,
 } from "@/lib/groups/types";
 
@@ -65,6 +69,7 @@ interface RawAuthor {
   userType?: string | null;
   ambassador?: boolean | null;
   groupHostId?: string | null;
+  isSnooze?: boolean | null;
   profilePic?: { file?: S3FileRef | null } | null;
   Goal?: { image?: { file?: S3FileRef | null } | null } | null;
 }
@@ -85,23 +90,19 @@ async function toAuthor(
     userType: raw.userType ?? null,
     ambassador: raw.ambassador === true,
     groupHostId: raw.groupHostId ?? null,
+    isSnooze: raw.isSnooze === true,
     profilePicUrl,
     goalImageUrl,
   };
 }
 
-function toAttachments(raw: unknown): PostAttachment[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((a): a is Record<string, unknown> => !!a && typeof a === "object")
-    .map((a) => ({
-      type: typeof a.type === "string" ? a.type : null,
-      url: typeof a.url === "string" ? a.url : null,
-      mimeType: typeof a.mimeType === "string" ? a.mimeType : null,
-      name: typeof a.name === "string" ? a.name : null,
-    }))
-    .filter((a) => !!a.url);
-}
+/**
+ * Mobile writes S3 object references with no `url` field, and this used to
+ * require one — so **every** mobile-authored attachment was filtered out before
+ * it reached the screen. `normaliseAttachments` requires `bucket` + `key`
+ * instead, which is what can actually be signed.
+ */
+const toAttachments = normaliseAttachments;
 
 interface RawPost {
   id: string;
@@ -194,6 +195,47 @@ export async function fetchGroupPosts(params: {
   };
 }
 
+/**
+ * The Lambda answers an empty page for a group that has posts, intermittently —
+ * a known backend hiccup both clients work around rather than showing "no posts
+ * yet" to a member looking at a busy group. Mobile retries up to three times,
+ * 1500 ms apart, and keeps its spinner up throughout
+ * (`screens/feeds/activities-feed.tsx:34,171-194`).
+ */
+export const EMPTY_FEED_RETRIES = 3;
+export const EMPTY_FEED_RETRY_DELAY_MS = 1500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * The first page, retried while it comes back empty.
+ *
+ * Only page 0: an empty *later* page is how paging ends, and retrying it would
+ * turn the end of a feed into three pointless round trips. Errors are not
+ * retried here either — they surface as the feed's error state, which offers a
+ * Retry button.
+ *
+ * The caller stays in its loading state for the whole run, so the empty state
+ * never flashes in between attempts.
+ */
+export async function fetchGroupPostsWithEmptyRetry(
+  params: { groupId: string; currentUserId: string },
+  options?: { retries?: number; delayMs?: number; wait?: (ms: number) => Promise<void> },
+): Promise<FeedPage> {
+  const retries = options?.retries ?? EMPTY_FEED_RETRIES;
+  const delayMs = options?.delayMs ?? EMPTY_FEED_RETRY_DELAY_MS;
+  const wait = options?.wait ?? sleep;
+
+  let page = await fetchGroupPosts({ ...params, offset: 0 });
+  for (let attempt = 0; attempt < retries && page.posts.length === 0; attempt += 1) {
+    await wait(delayMs);
+    page = await fetchGroupPosts({ ...params, offset: 0 });
+  }
+  return page;
+}
+
 /** Pinned first, then newest first. */
 export function sortPosts(posts: FeedPost[]): FeedPost[] {
   return [...posts].sort((a, b) => {
@@ -224,21 +266,11 @@ function reactionToComment(
   };
 }
 
-/**
- * A post's comment thread, with one level of replies (Stream calls them child
- * reactions) already inlined — the same depth the mobile thread view shows.
- */
-export async function fetchPostComments(
-  session: FeedSession,
-  activityId: string,
+/** Resolves every author appearing in a set of reactions, once each. */
+async function resolveThreadAuthors(
+  reactions: StreamReaction[],
   loadAuthor: (userId: string) => Promise<PostAuthor | undefined>,
-): Promise<{ comments: FeedComment[]; post: FeedPost | null }> {
-  const activity = await fetchEnrichedActivity(session, activityId);
-  if (!activity) return { comments: [], post: null };
-
-  const commentReactions = activity.latest_reactions?.comment ?? [];
-
-  // Resolve every author that appears in the thread once, in parallel.
+): Promise<Map<string, PostAuthor>> {
   const userIds = new Set<string>();
   const collect = (list: StreamReaction[]) => {
     for (const reaction of list) {
@@ -246,7 +278,7 @@ export async function fetchPostComments(
       collect(reaction.latest_children?.comment ?? []);
     }
   };
-  collect(commentReactions);
+  collect(reactions);
 
   const entries = await Promise.all(
     [...userIds].map(async (id) => [id, await loadAuthor(id)] as const),
@@ -255,6 +287,34 @@ export async function fetchPostComments(
   for (const [id, author] of entries) {
     if (author) authors.set(id, author);
   }
+  return authors;
+}
+
+export interface PostThreadPage {
+  comments: FeedComment[];
+  post: FeedPost | null;
+  /**
+   * Stream's cursor for the comments beyond the first page, or undefined when
+   * the thread ended. Opaque — pass it straight back to
+   * {@link fetchMoreComments}.
+   */
+  next?: string;
+}
+
+/**
+ * A post's comment thread, with one level of replies (Stream calls them child
+ * reactions) already inlined — the same depth the mobile thread view shows.
+ */
+export async function fetchPostComments(
+  session: FeedSession,
+  activityId: string,
+  loadAuthor: (userId: string) => Promise<PostAuthor | undefined>,
+): Promise<PostThreadPage> {
+  const activity = await fetchEnrichedActivity(session, activityId);
+  if (!activity) return { comments: [], post: null };
+
+  const commentReactions = activity.latest_reactions?.comment ?? [];
+  const authors = await resolveThreadAuthors(commentReactions, loadAuthor);
 
   const post = await toPost(
     activity as unknown as RawPost,
@@ -266,7 +326,70 @@ export async function fetchPostComments(
   return {
     comments: commentReactions.map((r) => reactionToComment(r, authors)),
     post,
+    next: activity.latest_reactions_extra?.comment?.next || undefined,
   };
+}
+
+/**
+ * The next page of comments.
+ *
+ * Replies come back on each comment exactly as they do on the first page, so a
+ * paged-in comment is fully formed and needs no second request.
+ */
+export async function fetchMoreComments(
+  session: FeedSession,
+  nextUrl: string,
+  loadAuthor: (userId: string) => Promise<PostAuthor | undefined>,
+): Promise<{ comments: FeedComment[]; next?: string }> {
+  const page = await fetchNextReactions(session, nextUrl);
+  const reactions = page?.results ?? [];
+  const authors = await resolveThreadAuthors(reactions, loadAuthor);
+  return {
+    comments: reactions.map((r) => reactionToComment(r, authors)),
+    next: page?.next || undefined,
+  };
+}
+
+/**
+ * Mobile waits 1.2 s before believing an empty thread response
+ * (`screens/feeds/PostDetails.tsx:112-125`), because the Lambda answers the same
+ * empty body for a deleted post and for its own transient failures against
+ * Stream. Web asks Stream directly, which fails in the same two ways.
+ */
+export const THREAD_RETRY_DELAY_MS = 1200;
+
+/**
+ * The thread, fetched twice before concluding the post is gone.
+ *
+ * Returns `post: null` only when **both** attempts came back with nothing. A
+ * rejection counts as nothing, which is one step past mobile — mobile's own
+ * `try` wraps both attempts, so a thrown first attempt skips its retry. On the
+ * web a single failed request is the commonest case of all, and retrying it is
+ * the whole point of the delay.
+ */
+export async function fetchPostCommentsWithRetry(
+  session: FeedSession,
+  activityId: string,
+  loadAuthor: (userId: string) => Promise<PostAuthor | undefined>,
+  options?: { delayMs?: number; wait?: (ms: number) => Promise<void> },
+): Promise<PostThreadPage> {
+  const wait = options?.wait ?? sleep;
+
+  try {
+    const first = await fetchPostComments(session, activityId, loadAuthor);
+    if (first.post) return first;
+  } catch (err) {
+    console.error("[groups] thread load failed, retrying:", err);
+  }
+
+  await wait(options?.delayMs ?? THREAD_RETRY_DELAY_MS);
+
+  try {
+    return await fetchPostComments(session, activityId, loadAuthor);
+  } catch (err) {
+    console.error("[groups] thread load failed on retry:", err);
+    return { comments: [], post: null };
+  }
 }
 
 /* ── Writing ────────────────────────────────────────────────────────────── */
@@ -286,11 +409,19 @@ const CREATE_GROUP_POST = /* GraphQL */ `
  * members' realtime subscriptions; if it fails the post still exists, so the
  * error is swallowed exactly as mobile does.
  */
+/**
+ * `attachments` is **required**, not optional.
+ *
+ * It used to be `attachments?: unknown[]` and nothing ever passed it, so the
+ * composer could not attach media and nobody noticed. Making it required and
+ * typed means a new call site has to decide, and an empty array is an explicit
+ * "no media" rather than an oversight.
+ */
 export async function createPost(params: {
   session: FeedSession;
   groupId: string;
   html: string;
-  attachments?: unknown[];
+  attachments: FeedMediaAttachment[];
 }): Promise<string | undefined> {
   const { session, groupId, html, attachments } = params;
 
@@ -320,11 +451,68 @@ export async function createPost(params: {
   return activityId;
 }
 
+/**
+ * The `deleteMessage` payload, shaped exactly as mobile sends it in
+ * `cancerbuddyapp/src/components/layouts/Groups/post-fragment/modals/ConfirmPost.modal.tsx:38-47`.
+ *
+ * `type` is repeated inside the body as well as being the envelope's verb — that
+ * is what the Lambda reads, so both are required.
+ *
+ * For a post, `postId` and `commentId` are both the activity id. For a comment or
+ * reply, `postId` is the *parent post* and `commentId` is the reaction being
+ * removed. `isPost` tells the Lambda which of the two to act on.
+ */
+export interface DeleteMessagePayload {
+  type: string;
+  feedId: string;
+  postId: string;
+  commentId: string;
+  isPost: boolean;
+}
+
+export function buildDeletePayload(
+  target:
+    | { kind: "post"; post: Pick<FeedPost, "id" | "feedId"> }
+    | { kind: "comment"; post: Pick<FeedPost, "id" | "feedId">; commentId: string },
+): DeleteMessagePayload {
+  const isPost = target.kind === "post";
+  return {
+    type: LambdaPayloadType.DELETE_MESSAGE,
+    feedId: target.post.feedId,
+    postId: target.post.id,
+    commentId: isPost ? target.post.id : target.commentId,
+    isPost,
+  };
+}
+
+/**
+ * The Lambda answers with a JSON string carrying `success`. Mobile reads the same
+ * field (`ConfirmPost.modal.tsx:49-52`) and only then updates its list — an
+ * unparseable or falsy response means nothing was deleted.
+ */
+function assertLambdaSucceeded(raw: unknown, what: string): void {
+  if (parseLambdaJson(raw)?.success !== true) {
+    throw new Error(`Could not delete the ${what}.`);
+  }
+}
+
+/**
+ * Deletes a post through the `deleteMessage` Lambda.
+ *
+ * Not `feed.removeActivity`: that addresses the *caller's own* feed, so a host
+ * removing another member's post got a success response and no deletion. The
+ * Lambda is the only path with the authority to remove someone else's activity,
+ * and it is what mobile uses for every delete including the author's own.
+ */
 export async function deletePost(
-  session: FeedSession,
-  activityId: string,
+  post: Pick<FeedPost, "id" | "feedId">,
 ): Promise<void> {
-  await session.userFeed.removeActivity(activityId);
+  const raw = await raiseUserLambda(
+    LambdaPayloadType.DELETE_MESSAGE,
+    usersLambdaName(),
+    { ...buildDeletePayload({ kind: "post", post }) },
+  );
+  assertLambdaSucceeded(raw, "post");
 }
 
 /** Edits keep the original `object` and store the new body alongside it. */
@@ -366,7 +554,7 @@ export async function addComment(params: {
   session: FeedSession;
   activityId: string;
   text: string;
-  attachments?: unknown[];
+  attachments: FeedMediaAttachment[];
 }): Promise<string> {
   const reaction = await addReaction(params.session, {
     user_id: params.session.userId,
@@ -374,7 +562,7 @@ export async function addComment(params: {
     activity_id: params.activityId,
     data: {
       text: params.text,
-      ...(params.attachments?.length ? { attachments: params.attachments } : {}),
+      ...(params.attachments.length ? { attachments: params.attachments } : {}),
     },
   });
   return reaction.id;
@@ -389,7 +577,7 @@ export async function addReply(params: {
   session: FeedSession;
   parentReactionId: string;
   text: string;
-  attachments?: unknown[];
+  attachments: FeedMediaAttachment[];
 }): Promise<string> {
   const reaction = await addReaction(params.session, {
     user_id: params.session.userId,
@@ -397,17 +585,30 @@ export async function addReply(params: {
     parent: params.parentReactionId,
     data: {
       text: params.text,
-      ...(params.attachments?.length ? { attachments: params.attachments } : {}),
+      ...(params.attachments.length ? { attachments: params.attachments } : {}),
     },
   });
   return reaction.id;
 }
 
-export function deleteComment(
-  session: FeedSession,
-  reactionId: string,
+/**
+ * Deletes a comment or reply through the same `deleteMessage` Lambda, for the same
+ * reason {@link deletePost} does: `deleteReaction` only carries the authority to
+ * remove the caller's own reaction, so moderation silently failed.
+ *
+ * `post` is the parent post the comment hangs off — mobile passes it as `postId`
+ * and the reaction id as `commentId`.
+ */
+export async function deleteComment(
+  post: Pick<FeedPost, "id" | "feedId">,
+  commentId: string,
 ): Promise<void> {
-  return deleteReaction(session, reactionId);
+  const raw = await raiseUserLambda(
+    LambdaPayloadType.DELETE_MESSAGE,
+    usersLambdaName(),
+    { ...buildDeletePayload({ kind: "comment", post, commentId }) },
+  );
+  assertLambdaSucceeded(raw, "comment");
 }
 
 export async function editComment(

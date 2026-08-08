@@ -8,10 +8,16 @@ export const loginSchema = z.object({
     .string()
     .min(1, t("validation.login.emailRequired"))
     .email(t("validation.login.emailInvalid")),
-  password: z
-    .string()
-    .min(1, t("validation.login.passwordRequired"))
-    .min(8, t("validation.login.passwordTooShort")),
+  /**
+   * Only non-empty — deliberately *not* the signup rules.
+   *
+   * Signup enforces a minimum length, but accounts created before that rule
+   * exist, and Cognito is the authority on whether a password is correct.
+   * Applying the signup minimum here meant a member with a legacy short password
+   * could not submit the form at all: no request was ever sent, so they were
+   * locked out of an account whose password was valid.
+   */
+  password: z.string().min(1, t("validation.login.passwordRequired")),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;

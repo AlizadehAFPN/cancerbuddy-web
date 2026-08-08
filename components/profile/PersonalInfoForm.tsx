@@ -21,7 +21,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Button, Textarea } from "@/components/ui";
@@ -58,6 +57,10 @@ import {
   type PersonalInfoValues,
 } from "@/lib/profile/personalInfo";
 import type { JoinRow } from "@/lib/profile/manyToMany";
+import {
+  useDirtyForm,
+  useUnsavedChanges,
+} from "@/lib/navigation/UnsavedChangesProvider";
 
 /** Bio is capped at 300 by the validation mobile runs before enabling Save. */
 const BIO_MAX = 300;
@@ -104,7 +107,7 @@ function Card({
 }
 
 export default function PersonalInfoForm() {
-  const router = useRouter();
+  const { guardedPush } = useUnsavedChanges();
   const { userId, user, refresh } = useProfile();
 
   const [values, setValues] = useState<PersonalInfoValues>(EMPTY);
@@ -280,13 +283,13 @@ export default function PersonalInfoForm() {
   const bioTooLong = values.bio.trim().length > BIO_MAX;
   const canSave = dirty && addressComplete && !bioTooLong && !saving;
 
-  /* Warn before losing edits, the web equivalent of mobile's back guard. */
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  /*
+   * Route-change guard. This was a `beforeunload` listener, which never fires on
+   * client-side navigation — so the back arrow, a sidebar link and browser back
+   * all discarded the form silently. The provider covers all three, and keeps
+   * `beforeunload` for the refresh and tab-close case.
+   */
+  useDirtyForm(dirty);
 
   /* ── Save ──────────────────────────────────────────────────────────── */
 
@@ -336,7 +339,7 @@ export default function PersonalInfoForm() {
         <p className="font-heading text-[18px] font-bold text-cb-black">
           {t("app.profile.loadError")}
         </p>
-        <Button variant="secondary" onClick={() => router.push("/profile")}>
+        <Button variant="secondary" onClick={() => void guardedPush("/profile")}>
           {t("app.profile.back")}
         </Button>
       </div>
@@ -348,7 +351,7 @@ export default function PersonalInfoForm() {
       <header className="mb-5 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => router.push("/profile")}
+          onClick={() => void guardedPush("/profile")}
           aria-label={t("app.profile.back")}
           className="-ml-1 flex h-9 w-9 items-center justify-center rounded-full text-cb-gray-600 transition-colors hover:bg-cb-gray-100 hover:text-cb-black"
         >

@@ -11,6 +11,12 @@ export interface ZipCodeResult {
   stateName: string; // state abbreviation (e.g. "NY")
 }
 
+const PICKLIST_PAGE_SIZE = 100;
+/** Backstop against a resolver that keeps handing back a token. */
+const PICKLIST_MAX_PAGES = 20;
+/** Matches mobile's `size: 100` on `findHospitals` / `findDiagnosis`. */
+const CATALOGUE_SEARCH_SIZE = 100;
+
 /* ── GraphQL queries ──────────────────────────────────────────────────── */
 
 const LIST_RELATIONSHIPS = /* GraphQL */ `
@@ -21,10 +27,29 @@ const LIST_RELATIONSHIPS = /* GraphQL */ `
   }
 `;
 
-const LIST_DIAGNOSES = /* GraphQL */ `
+/**
+ * The full diagnosis catalogue, paged.
+ *
+ * It used to be `listDiagnoses(limit: 1000)` with no token, which silently
+ * truncated: a diagnosis outside that slice could not be selected on the medical
+ * form, nor filtered on in buddy discovery. Typeaheads should prefer
+ * {@link searchDiagnoses} — this exists for the places that genuinely render the
+ * whole set, such as the buddy filter dropdowns.
+ */
+const LIST_DIAGNOSES = (nextToken?: string) => /* GraphQL */ `
   query getDiagnoses {
-    listDiagnoses(limit: 1000) {
+    listDiagnoses(limit: ${PICKLIST_PAGE_SIZE}${nextToken ? `, nextToken: "${nextToken}"` : ""}) {
       items { label: name, value: id }
+      nextToken
+    }
+  }
+`;
+
+/** Server-side diagnosis search — mobile's `findDiagnosis`. Note: singular. */
+const SEARCH_DIAGNOSES = (query: string, from: number, size: number) => /* GraphQL */ `
+  query findDiagnosis {
+    findDiagnosis(name: "${query}", from: ${from}, size: ${size}) {
+      items { value: id, label: name }
     }
   }
 `;
@@ -53,10 +78,21 @@ const LIST_DISABILITIES = /* GraphQL */ `
   }
 `;
 
-const LIST_HOSPITALS = /* GraphQL */ `
+/** The full hospital catalogue, paged. See {@link LIST_DIAGNOSES}. */
+const LIST_HOSPITALS = (nextToken?: string) => /* GraphQL */ `
   query getHospitals {
-    listHospitals(limit: 1000) {
+    listHospitals(limit: ${PICKLIST_PAGE_SIZE}${nextToken ? `, nextToken: "${nextToken}"` : ""}) {
       items { label: name, value: id }
+      nextToken
+    }
+  }
+`;
+
+/** Server-side hospital search — mobile's `findHospitals`. */
+const SEARCH_HOSPITALS = (query: string, from: number, size: number) => /* GraphQL */ `
+  query findHospitals {
+    findHospitals(name: "${query}", from: ${from}, size: ${size}) {
+      items { value: id, label: name }
     }
   }
 `;
@@ -133,24 +169,36 @@ const LIST_SEXUAL_ORIENTATIONS = /* GraphQL */ `
   }
 `;
 
-const SEARCH_CITIES_IN_STATE = (stateId: string, query: string) => /* GraphQL */ `
+/**
+ * Typeahead pages, and both of these select `nextToken` for that reason.
+ *
+ * `limit: 100` on its own silently truncated the result set: someone typing a
+ * common city prefix got the first hundred matches OpenSearch happened to return
+ * and no way to reach the rest, so a city outside that slice could not be
+ * selected at all. {@link fetchAllPicklistPages} follows the token.
+ */
+const SEARCH_CITIES_IN_STATE = (stateId: string, query: string, nextToken?: string) => /* GraphQL */ `
   query searchCitiesInState {
     searchCities(
       filter: { stateID: { eq: "${stateId}" }, name: { matchPhrasePrefix: "${query}" } },
-      limit: 100
+      limit: ${PICKLIST_PAGE_SIZE}${nextToken ? `,
+      nextToken: "${nextToken}"` : ""}
     ) {
       items { value: id, label: name }
+      nextToken
     }
   }
 `;
 
-const SEARCH_WORKPLACES = (query: string) => /* GraphQL */ `
+const SEARCH_WORKPLACES = (query: string, nextToken?: string) => /* GraphQL */ `
   query searchWorkplaces {
     searchWorkplaces(
       filter: { name: { matchPhrasePrefix: "${query}" } },
-      limit: 100
+      limit: ${PICKLIST_PAGE_SIZE}${nextToken ? `,
+      nextToken: "${nextToken}"` : ""}
     ) {
       items { value: id, label: name }
+      nextToken
     }
   }
 `;
@@ -183,6 +231,33 @@ const SEARCH_COLLEGES = (query: string) => /* GraphQL */ `
 
 /* ── Helper ───────────────────────────────────────────────────────────── */
 
+/**
+ * One server-side catalogue search, for the `find*` resolvers that take
+ * `(name, from, size)` rather than a filter + token.
+ *
+ * Returns `[]` for a blank term so a cleared input does not fire a request, and
+ * drops rows without an id for the same reason {@link fetchAllPicklistPages} does.
+ */
+async function searchCatalogue(
+  field: string,
+  buildQuery: (query: string, from: number, size: number) => string,
+  query: string,
+  size: number,
+): Promise<PicklistItem[]> {
+  const term = sanitizeSearchTerm(query);
+  if (!term) return [];
+  try {
+    const { data } = await executeAppSyncGraphql<
+      Record<string, { items?: (PicklistItem | null)[] | null } | null>
+    >({ query: buildQuery(term, 0, size), variables: {} });
+    return (data?.[field]?.items ?? []).filter(
+      (item): item is PicklistItem => !!item?.value,
+    );
+  } catch {
+    return [];
+  }
+}
+
 async function fetchList(query: string, listKey: string): Promise<PicklistItem[]> {
   try {
     const { data } = await executeAppSyncGraphql<
@@ -201,7 +276,22 @@ export function fetchRelationships(): Promise<PicklistItem[]> {
 }
 
 export function fetchDiagnoses(): Promise<PicklistItem[]> {
-  return fetchList(LIST_DIAGNOSES, "listDiagnoses");
+  return fetchAllPicklistPages("listDiagnoses", LIST_DIAGNOSES);
+}
+
+/**
+ * Search the diagnosis catalogue server-side, the way mobile does
+ * (`cancerbuddyapp/src/graphql/queries/diagnosis.ts:10-19`).
+ *
+ * Prefer this over {@link fetchDiagnoses} wherever the user types: the catalogue
+ * is larger than any client-side slice, so filtering a preloaded list cannot find
+ * everything.
+ */
+export function searchDiagnoses(
+  query: string,
+  size = CATALOGUE_SEARCH_SIZE,
+): Promise<PicklistItem[]> {
+  return searchCatalogue("findDiagnosis", SEARCH_DIAGNOSES, query, size);
 }
 
 export function fetchTreatments(): Promise<PicklistItem[]> {
@@ -217,7 +307,15 @@ export function fetchDisabilities(): Promise<PicklistItem[]> {
 }
 
 export function fetchHospitals(): Promise<PicklistItem[]> {
-  return fetchList(LIST_HOSPITALS, "listHospitals");
+  return fetchAllPicklistPages("listHospitals", LIST_HOSPITALS);
+}
+
+/** Search the hospital / medical-centre catalogue server-side. See {@link searchDiagnoses}. */
+export function searchHospitals(
+  query: string,
+  size = CATALOGUE_SEARCH_SIZE,
+): Promise<PicklistItem[]> {
+  return searchCatalogue("findHospitals", SEARCH_HOSPITALS, query, size);
 }
 
 export function fetchSupportOrganizations(): Promise<PicklistItem[]> {
@@ -283,6 +381,44 @@ export function fetchSexualOrientations(): Promise<PicklistItem[]> {
   return fetchList(LIST_SEXUAL_ORIENTATIONS, "listSexualOrientations");
 }
 
+interface PicklistPage {
+  items?: (PicklistItem | null)[] | null;
+  nextToken?: string | null;
+}
+
+/**
+ * Follows `nextToken` to exhaustion, so a typeahead is never silently truncated.
+ *
+ * `field` is the response key to read. Rows without a `value` are dropped: they
+ * cannot be selected, and letting them through means a picklist option that
+ * resolves to nothing on save.
+ */
+export async function fetchAllPicklistPages(
+  field: string,
+  buildQuery: (nextToken?: string) => string,
+): Promise<PicklistItem[]> {
+  const rows: PicklistItem[] = [];
+  let nextToken: string | undefined;
+  let pages = 0;
+
+  do {
+    const { data } = await executeAppSyncGraphql<Record<string, PicklistPage | null>>({
+      query: buildQuery(nextToken),
+      variables: {},
+    });
+
+    const page = data?.[field];
+    for (const item of page?.items ?? []) {
+      if (item?.value) rows.push(item);
+    }
+
+    nextToken = page?.nextToken ?? undefined;
+    pages += 1;
+  } while (nextToken && pages < PICKLIST_MAX_PAGES);
+
+  return rows;
+}
+
 /** Free-text city lookup scoped to one state — cities are far too many to list. */
 export async function fetchCitiesInState(
   stateId: string,
@@ -290,13 +426,11 @@ export async function fetchCitiesInState(
 ): Promise<PicklistItem[]> {
   if (!stateId || !query.trim()) return [];
   try {
-    const { data } = await executeAppSyncGraphql<{
-      searchCities: { items: PicklistItem[] } | null;
-    }>({
-      query: SEARCH_CITIES_IN_STATE(sanitizeSearchTerm(stateId), sanitizeSearchTerm(query)),
-      variables: {},
-    });
-    return data?.searchCities?.items ?? [];
+    const safeState = sanitizeSearchTerm(stateId);
+    const safeQuery = sanitizeSearchTerm(query);
+    return await fetchAllPicklistPages("searchCities", (nextToken) =>
+      SEARCH_CITIES_IN_STATE(safeState, safeQuery, nextToken),
+    );
   } catch {
     return [];
   }
@@ -305,10 +439,10 @@ export async function fetchCitiesInState(
 export async function fetchWorkplacesByName(query: string): Promise<PicklistItem[]> {
   if (!query.trim()) return [];
   try {
-    const { data } = await executeAppSyncGraphql<{
-      searchWorkplaces: { items: PicklistItem[] } | null;
-    }>({ query: SEARCH_WORKPLACES(sanitizeSearchTerm(query)), variables: {} });
-    return data?.searchWorkplaces?.items ?? [];
+    const safeQuery = sanitizeSearchTerm(query);
+    return await fetchAllPicklistPages("searchWorkplaces", (nextToken) =>
+      SEARCH_WORKPLACES(safeQuery, nextToken),
+    );
   } catch {
     return [];
   }

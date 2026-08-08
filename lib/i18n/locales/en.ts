@@ -16,6 +16,8 @@
  * already designed as an i18n source) and is re-exported by `lib/i18n`.
  */
 
+import { BMCF_CONTACT_EMAIL } from "@/lib/constants/contact";
+
 const en = {
   /* ── Cross-cutting, app-wide strings ───────────────────────────────── */
   common: {
@@ -49,7 +51,8 @@ const en = {
     terms: "Terms",
     childSafety: "Child Safety",
     needHelp: "Need help?",
-    supportEmail: "cancerbuddy@bonemarrow.org",
+    /** The address itself is a constant, not copy — see `lib/constants/contact.ts`. */
+    supportEmail: BMCF_CONTACT_EMAIL,
     openMenu: "Open menu",
     closeMenu: "Close menu",
     mainNavigation: "Main navigation",
@@ -312,6 +315,13 @@ const en = {
      email-OTP → phone → phone-OTP → verified splash. Phase 2+ adds the
      role-aware screens that follow phone verification on mobile. */
   register: {
+    /**
+     * Shown when sign-in bounced someone back into the wizard because their
+     * enrolment is unfinished. Without it, landing mid-wizard reads like the
+     * sign-in failed.
+     */
+    enrollmentIncomplete:
+      "Your sign-up isn't finished yet. Complete the remaining steps and you'll be signed in.",
     alreadyMember: "Already a member?",
     leftPanel: {
       eyebrow: "Create Your Account",
@@ -646,18 +656,15 @@ const en = {
     success: {
       heading: "Message sent",
       sub: "Thanks — we'll get back to you by email shortly.",
-      ticketIdLabel: "Ticket ID",
-      copyId: "Copy ID",
-      copied: "Copied!",
       sendAnother: "Send another",
       backHome: "Back to home",
     },
+    /** Mobile's five subject options, same wording. */
     categories: {
-      account: "Account & sign-in",
-      billing: "Billing",
-      content: "Content concern",
-      bug: "Bug report",
-      feature: "Feature request",
+      general: "General comments",
+      error: "Report an error",
+      improvement: "App improvement suggestions",
+      safety: "Community safety",
       other: "Other",
     },
   },
@@ -726,6 +733,84 @@ const en = {
       fundersTitle: "Our funders",
       fundersBody: "CancerBuddy is made possible by independent grants.",
     },
+    /* ── Settings: snooze, status changes, account deletion ─────────────── */
+    settings: {
+      cancel: "Cancel",
+
+      /** Snooze. Copy is mobile's, verbatim — the same state on both clients. */
+      snoozeTitle: "Snooze my profile",
+      snoozeBody:
+        "Hide your profile from new buddy searches and pause your conversations. You can turn this off whenever you like.",
+      snoozeOnToast: "Your profile is set to snooze.",
+      snoozeOffToast: "Your profile is active again.",
+      snoozeError: "We couldn't change that setting. Please try again.",
+      snoozeEmptyTitle: "Your profile is set to snooze",
+      snoozeEmptyBody:
+        "You won't receive any messages or updates from your buddies and groups.",
+      snoozeTurnOff: "Turn off snooze",
+
+      /** Change status. */
+      changeStatusTitle: "Change my status",
+      changeStatusBody:
+        "Switch between patient, survivor and caregiver as things change.",
+      statusHeading: "What's your new status?",
+      statusSub: "This change doesn't affect your current buddies or groups.",
+      statusNoOptions:
+        "There's no other status available for your account right now.",
+      statusPatient: "I've been diagnosed",
+      statusPatientSub: "I'm a patient, currently in treatment or about to start",
+      statusSurvivor: "I'm in remission",
+      statusSurvivorSub: "I've completed treatment, and I'm a survivor",
+      statusCaregiver: "I'm taking care of someone",
+      statusCaregiverSub: "I'm a caregiver for a family member or friend",
+      statusConfirmTitle: "Change my status",
+      statusConfirmBody:
+        "Are you sure you want to change your status to “{status}”?",
+      statusConfirmYes: "Yes, change status",
+      statusError: "We couldn't change your status. Please try again.",
+      statusDoneTitle: "Your status has been updated.",
+      statusDoneBody:
+        "To continue, log back in to your account. If you want to let your buddies know, go to your Buddies section.",
+      statusDoneGotIt: "Got it",
+
+      /** Path B — re-collecting the medical information the new role needs. */
+      statusReplaceTitle: "Info will be replaced",
+      statusReplaceToCaregiver:
+        "In order to update your status, your medical information as a Patient needs to be replaced. Do you agree?",
+      statusReplaceToPatient:
+        "In order to update your status, your medical information as a Caregiver needs to be replaced.",
+      statusReplaceConfirm: "Confirm",
+      statusUpdateHeading: "Almost there!",
+      statusUpdateBody: "Please complete your new status information",
+      statusUpdateCta: "Update my information",
+      statusStep: "Step {index} of {total}",
+      statusContinue: "Continue",
+      statusMaybeLater: "Maybe later",
+      statusReviewTitle: "Your current status",
+      statusReviewBody:
+        "Please log back in to your account to start making new connections.",
+      statusReviewCta: "I understand, continue",
+
+      /** Account deletion. */
+      deleteTitle: "Delete my account",
+      deleteBody: "Permanently remove your account and everything in it.",
+      deleteHeading: "Can you say more?",
+      deletePrompt:
+        "Help us improve by sharing more info. Your feedback is anonymous.",
+      deleteOtherPlaceholder: "Type your answer here",
+      deleteOtherHint: "(Maximum 1000 characters)",
+      deleteSubmit: "Delete my account",
+      deleteConfirmTitle: "Delete my account",
+      deleteConfirmBody:
+        "Are you sure you want to delete your account? None of your buddies, groups, conversations or info will be saved.",
+      deleteConfirmYes: "Yes, delete",
+      deleteError: "We couldn't delete your account. Please try again.",
+      deletedTitle: "Your CancerBuddy account has been deleted.",
+      deletedBody:
+        "All your info is safely removed. You're always welcome to rejoin the community with a new account.",
+      deletedGotIt: "Got it",
+    },
+
     push: {
       title: "Notifications",
       body: "Get notified about new messages and buddy requests, even when CancerBuddy isn't open in this browser.",
@@ -780,6 +865,16 @@ const en = {
       deleteConfirmTitle: "Delete message?",
       deleteConfirmBody: "This message will be permanently removed.",
       deleteError: "Couldn't delete the message. Please try again.",
+      sendError: "Couldn't send that. Please try again.",
+      removeError: "We couldn't remove that buddy. Please try again.",
+      /** Quoted group / post cards. Labels match mobile's, verbatim. */
+      takePhoto: "Take a photo",
+      unreadMessages: "Unread messages",
+      goToGroup: "Go to group",
+      goToComment: "Go to comment",
+      commentNotFound: "Comment not found",
+      contextGroup: "Group",
+      contextPost: "Post",
       messageActions: "Message actions",
       addReaction: "Add reaction",
       conversationMenu: "Conversation options",
@@ -812,6 +907,19 @@ const en = {
     },
 
     /* ── Buddies tab: incoming requests + discovery ─────────────────── */
+    /** Confirmation before leaving a form with unsaved edits. */
+    unsaved: {
+      title: "Unsaved changes",
+      body: "You have changes that haven't been saved. Leaving now will discard them.",
+      leave: "Yes, leave",
+    },
+    /** Ops kill switch and the offline notice. */
+    status: {
+      maintenanceTitle: "CancerBuddy is down for maintenance",
+      maintenanceBody:
+        "We're making some changes and will be back shortly. Thanks for your patience.",
+      offline: "You're offline. Some things won't work until your connection is back.",
+    },
     buddies: {
       journal: "Journal",
       journalEntryCount: "{count} shared entries",
@@ -857,6 +965,56 @@ const en = {
       pending: "Pending",
       connected: "Connected",
       ambassador: "Ambassador",
+
+      /* The persistent banner under a profile's name. Copy is mobile's
+         `TOAST_COPY_MESSAGES_SCANNER` verbatim — a member who scans a QR on one
+         client and opens the link on the other should read the same sentence. */
+      noticeSentInvite:
+        "You are waiting to connect with {name}. Meanwhile, you can search for new buddies!",
+      noticeAlreadyBuddies: "{name} and you are already Buddies!",
+      noticeAgeRule:
+        "You cannot connect with this Buddy due to our minor protection policy",
+      noticeSnoozeAccount: "The profile you are trying to reach is not available",
+
+      /* Pending state: mobile's two-step cancel. One mis-click should not
+         withdraw an invite the other person may be about to accept. */
+      pendingInfo: "Why is this pending?",
+      pendingModalTitle: "Connection request sent",
+      pendingModalBody: "You've already sent a connection request to this user.",
+      pendingGotIt: "Got it",
+      pendingCancelRequest: "Cancel request",
+      pendingCancelTitle: "Connection request",
+      pendingCancelBody: "Are you sure you want to cancel the connection request?",
+      pendingCancelYes: "Yes, cancel request",
+      requestCancelled: "Your request to {name} was cancelled.",
+
+      /* Declining an incoming request from the sender's own profile. */
+      maybeLaterFromProfile: "Maybe later",
+
+      /* The ambassador explainer, reached by tapping any AMBASSADOR badge. */
+      ambassadorTitle: "Ambassador",
+      ambassadorAbout:
+        "CancerBuddy Ambassadors promote the app by engaging with their communities on social media and collaborating with oncology teams to highlight peer support. Through personal storytelling and word-of-mouth referrals, they help create a strong network for those facing cancer.",
+      ambassadorThanks: "Thank you for the effort you make for CancerBuddy",
+      ambassadorBecome: "Become an ambassador",
+      ambassadorLearnMore: "Learn more",
+      ambassadorDismiss: "Dismiss",
+      ambassadorError:
+        "We couldn't start that conversation. Please try again.",
+
+      /* Photo gallery */
+      photoOf: "Photo of {name}",
+      photoViewer: "Photo",
+      photosUnavailable:
+        "{count} of {name}'s photos couldn't be loaded right now.",
+      photosUnavailableOne: "One of {name}'s photos couldn't be loaded right now.",
+
+      /* Sharing the app itself — a QR plus the real store link. */
+      shareQrTitle: "Invite a friend",
+      shareQrSub:
+        "Help us grow the community. Copy the link below and share it with friends, or invite them to scan this QR code:",
+      shareQrAlt: "QR code linking to the CancerBuddy app",
+      copyLink: "Copy link",
       hideAction: "Stop suggesting {name}",
       hideConfirm:
         "Stop suggesting {name}? You won't see them in your results again.",
@@ -991,6 +1149,9 @@ const en = {
 
       // Profile page
       profileUnavailable: "This profile isn't available.",
+      /** Shown when either side of the pair has blocked the other. */
+      profileBlocked: "This profile isn't available to you.",
+      chatUnavailable: "We couldn't open that conversation right now.",
       profileLoadError: "We couldn't load this profile.",
       backToBuddies: "Back to buddies",
       closeProfile: "Close profile",
@@ -1095,6 +1256,22 @@ const en = {
 
     /* ── Profile tab: the hub and its edit sections ──────────────────── */
     profile: {
+      /** Phone capture for accounts created before the number was collected. */
+      phoneHeading: "Add your phone number",
+      phoneBody:
+        "We use it to keep your account secure and to help you recover it. We'll text you a code to confirm.",
+      phonePlaceholder: "Phone number",
+      phoneSend: "Send code",
+      phoneLater: "Not now",
+      phoneInvalid: "That doesn't look like a valid number.",
+      phoneInUse: "That number is already on another account.",
+      phoneError: "We couldn't do that right now. Please try again.",
+      codeBody: "Enter the code we just texted you.",
+      codePlaceholder: "6-digit code",
+      codeVerify: "Verify",
+      phoneVerify: "Verify",
+      codeInvalid: "That code isn't right.",
+      codeExpired: "That code has expired. Send a new one.",
       heading: "Profile",
       tagline: "Update your profile for better matches.",
       loadError: "We couldn't load your profile",
@@ -1302,6 +1479,17 @@ const en = {
       liveWhen: "Date and time",
       liveDuration: "Duration",
       liveMinutes: "{count} min",
+      /** `1h`, `1.5h`, `2h` — the chip labels mobile uses. */
+      liveHours: "{count}h",
+      /** `1h 30m` — how a scheduled session's duration reads on its card. */
+      liveHoursMinutes: "{hours}h {minutes}m",
+      liveEndsAt: "Ends at {time}",
+      /** Once the session runs past midnight. */
+      liveEndsOn: "Ends {date} at {time}",
+      liveSchedulePast: "That time has already passed.",
+      liveScheduleTooFar: "Sessions can be scheduled up to a year ahead.",
+      liveScheduleOffGrid:
+        "Pick a time on a 15-minute mark — :00, :15, :30 or :45.",
       liveVisibleToMembers: "Visible to members",
       liveVisibleHint: "Turn off to hide it without deleting it.",
       liveNow: "Live now",
@@ -1362,8 +1550,14 @@ const en = {
       discoverHeading: "What support groups would you like to join?",
       discoverSub: "Browse every group on CancerBuddy and join the ones that fit.",
       discoverSearch: "Type keywords here",
-      discoverEmpty: "You've joined every group we have.",
-      discoverEmptySub: "New groups appear here as they open.",
+      /** Mobile's `NoSuggestedGroups` copy, verbatim — a member with nothing left
+       *  to join is told how to ask for a new group instead of hitting a wall. */
+      discoverEmpty: "We are working on creating new groups for you.",
+      discoverEmptySub:
+        "Got any ideas on groups you would like? Please send an email with the subject “New group” to the following address:",
+      copyMail: "Copy Mail",
+      mailCopied: "Email address copied.",
+      copyMailError: "We couldn't copy that. You can select it instead.",
       privateGroup: "Private group",
       joined: "Joined",
       join: "Join",
@@ -1376,6 +1570,10 @@ const en = {
       codePlaceholder: "Enter code",
       codeWrong: "That code doesn't match. Check it and try again.",
       codeSubmit: "Join group",
+      /** The way out of the code gate for someone who was never given a code. */
+      askTheHost: "Ask the host",
+      askTheHostSub: "No code? Send the host a message and ask for one.",
+      askTheHostError: "We couldn't message the host. Please try again.",
 
       // Group detail
       about: "About",
@@ -1383,6 +1581,8 @@ const en = {
       host: "Host",
       sponsoredBy: "Sponsored by",
       members: "Members",
+      /** Stand-in when an author record never resolved. */
+      member: "this member",
       leaveGroup: "Leave group",
       leaveGroupSub: "You won't be able to read or add group posts.",
       leaveConfirmTitle: "Leave {name}?",
@@ -1443,6 +1643,16 @@ const en = {
       commentCountOne: "{count} comment",
       postActions: "Post options",
       loadMore: "Load more",
+      /** Host / support direct message about a post, comment or reply. */
+      replyPrivately: "Reply privately",
+      replyPrivatelySub: "Send a direct message to {name}.",
+      replyPrivatelyError: "We couldn't open that conversation. Please try again.",
+      /** The group's own embedded page, shown as a second tab over the feed. */
+      widgetTabFeed: "Posts",
+      widgetTabExtra: "More",
+      /** Sidebar marker for a group with posts the member hasn't opened. */
+      newPosts: "New",
+      newPostsLabel: "New posts in {name}",
 
       // Comments
       commentPlaceholder: "Add a comment…",
@@ -1457,18 +1667,55 @@ const en = {
       commentAdded: "Comment added.",
       commentError: "We couldn't add that comment. Please try again.",
       editComment: "Edit comment",
+      /** Fallback name on a document card when the upload carried none. */
+      attachmentFile: "Attachment",
+      /** Composer toolbar — the three formats mobile's toolbar carries, plus links. */
+      formatBold: "Bold",
+      formatItalic: "Italic",
+      formatUnderline: "Underline",
+      addLink: "Add link",
+      addLinkPrompt: "Paste or type the link address",
+      attachMedia: "Attach",
+      removeAttachment: "Remove {name}",
+      attachmentTooLarge: "That file is over 20 MB. Please choose a smaller one.",
+      attachmentUploadFailed: "We couldn't upload that. Please try again.",
       deleteComment: "Delete comment",
       deleteCommentConfirm: "Delete this comment?",
       commentDeleted: "Comment deleted.",
+      /** The ⋯ menu on a comment or reply — mobile has one, web had none. */
+      commentActions: "Comment options",
+      replyActions: "Reply options",
+      editReply: "Edit reply",
+      deleteReply: "Delete reply",
+      deleteReplyConfirm: "Delete this reply?",
+      replyDeleted: "Reply deleted.",
+      commentUpdated: "Your comment was updated.",
+      editCommentError: "We couldn't save that change. Please try again.",
+      save: "Save",
+      /** Threads stopped at the first 25 comments with no way to see the rest. */
+      loadMoreComments: "Load more comments",
+      /** A post that is genuinely gone, as opposed to a request that failed. */
+      contentNotFound: "Content not found",
+      contentNotFoundSub: "This post may have been deleted.",
 
       // Reporting
       report: "Report post",
       reportSub: "Help keep the community safe.",
+      reportComment: "Report comment",
+      reportReply: "Report reply",
+      reportCommentSub: "This comment is problematic.",
+      reportReplySub: "This reply is problematic.",
       reportTitle: "Report this post",
+      reportTitleComment: "Report this comment",
+      reportTitleReply: "Report this reply",
       reportPrompt: "Why are you reporting it?",
       reportSubmit: "Submit report",
       reportThanks: "Thanks — our team will review it.",
       reportError: "We couldn't send that report. Please try again.",
+      /** "Other" is only a real option if you can say what happened. */
+      reportOtherLabel: "Tell us what happened",
+      reportOtherPlaceholder: "Type your answer here",
+      reportOtherHint: "(Maximum 1000 characters)",
 
       // Members + host detail
       membersError: "We couldn't load the member list.",
@@ -1485,8 +1732,13 @@ const en = {
       calendarMoreOptions: "More group options",
       calendarLive: "Live now",
       calendarUpcoming: "Upcoming",
+      /** A session that has already finished — mobile's grey ENDED pill. */
+      calendarEnded: "Ended",
       calendarError: "We couldn't load the live calendar.",
       joinLive: "Join live",
+      /** A scheduled session a member may open before it starts — a host uses
+       * this to begin their own session, which is what marks it live. */
+      openSession: "Open session",
       liveHappeningNow: "This session is happening right now.",
     },
 
@@ -1668,6 +1920,7 @@ const en = {
       uppercase: "One uppercase letter",
       lowercase: "One lowercase letter",
       number: "One number",
+      special: "One special character",
     },
     /** Password visibility toggle in Input.tsx. */
     showPassword: "Show password",

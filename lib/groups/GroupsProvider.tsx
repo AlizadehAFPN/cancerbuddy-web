@@ -24,7 +24,11 @@ import {
 } from "react";
 import { API, graphqlOperation } from "aws-amplify";
 import { getSignedInUserId } from "@/lib/buddies/currentUser";
-import { fetchSignedInFirstName } from "@/lib/aws/sessionAttributes";
+import {
+  fetchSignedInFirstName,
+  fetchSignedInRole,
+  type SignedInRole,
+} from "@/lib/aws/sessionAttributes";
 import {
   clearFeedSession,
   getFeedSession,
@@ -48,6 +52,12 @@ export type GroupsStatus = "loading" | "ready" | "error";
 interface GroupsContextValue {
   status: GroupsStatus;
   userId: string | null;
+  /**
+   * The signed-in account's role. `userType === "SUPPORT"` grants moderation in
+   * every group (see `lib/groups/moderation.ts`); `groupHostId` marks a host
+   * account. Null until the provider has loaded.
+   */
+  role: SignedInRole;
   joinedGroups: Group[];
   /** Fast membership test without scanning the array. */
   isMember: (groupId: string) => boolean;
@@ -68,9 +78,17 @@ interface GroupsContextValue {
   retry: () => void;
 }
 
+const EMPTY_ROLE: SignedInRole = {
+  userType: null,
+  groupHostId: null,
+  name: null,
+  birth: null,
+};
+
 const GroupsContext = createContext<GroupsContextValue>({
   status: "loading",
   userId: null,
+  role: EMPTY_ROLE,
   joinedGroups: [],
   isMember: () => false,
   liveGroupIds: new Set(),
@@ -90,6 +108,7 @@ export function useGroups(): GroupsContextValue {
 export default function GroupsProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<GroupsStatus>("loading");
   const [userId, setUserId] = useState<string | null>(null);
+  const [role, setRole] = useState<SignedInRole>(EMPTY_ROLE);
   const [joinedGroups, setJoinedGroups] = useState<Group[]>([]);
   const [liveGroups, setLiveGroups] = useState<LiveGroup[]>([]);
   const [attempt, setAttempt] = useState(0);
@@ -108,7 +127,13 @@ export default function GroupsProvider({ children }: { children: ReactNode }) {
     const id = await getSignedInUserId();
     if (!mountedRef.current) return;
     setUserId(id);
-    userNameRef.current = (await fetchSignedInFirstName()) ?? "";
+    const [firstName, signedInRole] = await Promise.all([
+      fetchSignedInFirstName(),
+      fetchSignedInRole(),
+    ]);
+    if (!mountedRef.current) return;
+    userNameRef.current = firstName ?? "";
+    setRole(signedInRole);
 
     const [groups, live] = await Promise.all([
       fetchJoinedGroups(id),
@@ -212,6 +237,9 @@ export default function GroupsProvider({ children }: { children: ReactNode }) {
     [joinedGroups],
   );
 
+  // `fetchLiveGroups` already filters to `inLive === true`, both server-side and
+  // again on the client. Repeating the test here would imply it might not have,
+  // which would be the more dangerous mistake — the source of truth is one place.
   const liveGroupIds = useMemo(
     () => new Set(liveGroups.filter((g) => g.groupId).map((g) => g.groupId)),
     [liveGroups],
@@ -241,6 +269,7 @@ export default function GroupsProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       userId,
+      role,
       joinedGroups,
       isMember,
       liveGroupIds,
@@ -255,6 +284,7 @@ export default function GroupsProvider({ children }: { children: ReactNode }) {
     [
       status,
       userId,
+      role,
       joinedGroups,
       isMember,
       liveGroupIds,

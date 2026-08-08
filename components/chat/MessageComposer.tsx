@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SendHorizontal, Paperclip, X } from "lucide-react";
+import { Camera, SendHorizontal, Paperclip, X } from "lucide-react";
 import { t } from "@/lib/i18n";
 
 /**
@@ -14,6 +14,7 @@ export default function MessageComposer({
   onSendFiles,
   onTyping,
   frozen,
+  initialText,
   editing,
   onCommitEdit,
   onCancelEdit,
@@ -22,13 +23,20 @@ export default function MessageComposer({
   onSendFiles: (files: File[], text: string) => void;
   onTyping: () => void;
   frozen?: boolean;
+  /**
+   * Seeds the field once, for the entry points that start a conversation about
+   * a group or a post. Applied on mount only, so it cannot reappear over
+   * something the member has since typed.
+   */
+  initialText?: string;
   editing?: { id: string; text: string } | null;
   onCommitEdit?: (text: string) => void;
   onCancelEdit?: () => void;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText ?? "");
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editing) {
@@ -108,7 +116,9 @@ export default function MessageComposer({
               ref={fileRef}
               type="file"
               multiple
-              accept="image/*,application/pdf,.doc,.docx,.txt"
+              // Video was absent, so a member could not send one at all while
+              // mobile could — and an incoming one had no counterpart to render.
+              accept="image/*,video/*,application/pdf,.doc,.docx,.txt"
               className="hidden"
               onChange={(e) => pickFiles(e.target.files)}
             />
@@ -119,6 +129,30 @@ export default function MessageComposer({
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cb-gray-500 transition-colors hover:bg-cb-gray-100 hover:text-cb-black"
             >
               <Paperclip className="h-5 w-5" />
+            </button>
+
+            {/*
+              A separate input, because `capture` cannot be toggled on the one
+              above without losing the file picker: on a phone a single input
+              carrying `capture` opens the camera and offers no way to choose an
+              existing photo. Mobile's sheet lists Photo and Camera separately
+              for the same reason.
+            */}
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => pickFiles(e.target.files)}
+            />
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              aria-label={t("app.chat.takePhoto")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cb-gray-500 transition-colors hover:bg-cb-gray-100 hover:text-cb-black pointer-fine:hidden"
+            >
+              <Camera className="h-5 w-5" />
             </button>
           </>
         )}
