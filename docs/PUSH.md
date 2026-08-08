@@ -264,38 +264,77 @@ So **no web write can select a phone row, and no mobile write can select a web
 row.** `reconcileDeviceToken` is a pure function precisely so this is testable,
 and a test asserts it refuses to emit a delete for any token but its own.
 
-### The one residual risk, and its blast radius
+### The sender was read, not guessed
 
-Rows are scoped to a single member, so a send is "notify user X" → read X's
-tokens → send. A web token can therefore only ever affect **that member's own**
-delivery — never anyone else's.
+The Lambda source settles what the client repos could not. `firebase-demo` is the
+sender (`sendMulticast` in `modules/notification.js`), fed by `users-demo`
+through the `firebase-topic-subscriptions-demo` SQS queue:
 
-Within that: if the sender iterates a member's tokens and *aborts* on the first
-failure rather than skipping, a failing web token could stop push reaching their
-own phone. Evidence that it does not: on the first page of `listUserDeviceTokens`,
-975 accounts hold 1000 rows and **19 of them hold 2–5 tokens**. Mobile only ever
-removes rows for the *same* token under other accounts, never its own older ones,
-so those extras are stale — and mobile push works today. The sender evidently
-tolerates dead tokens.
+```js
+tokenArray = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+…
+const {failureCount, responses, successCount} = await messaging().sendEach(messages);
+```
 
-"Evidently" is not "provably", and this is somebody's cancer-support app. Off.
+Three properties, all verified against the deployed package:
+
+1. **Null and empty tokens are filtered out** before anything is sent.
+2. **`sendEach` sends one independent message per token** and returns per-token
+   responses. A failure on one token cannot affect another — the sender **skips,
+   it does not abort.**
+3. **Invalid tokens are cleaned up automatically.** A response carrying
+   `registration-token-not-registered`, `invalid-registration-token` or
+   `invalid-argument` is collected and deleted from `UserDeviceToken` by
+   `removeFailedToken`, keyed by token.
+
+Rows are read per recipient (`isValidUser(userId).deviceTokens`), so a send is
+"notify user X → read X's tokens → send". **A web token could never affect another
+member, and cannot affect its own member's phone delivery either.**
+
+So registering would be *harmless*. It stays off because it would also be
+*useless*: a token from this project, handed to a sender holding the mobile
+project's credentials, fails with a mismatched-credential error — which is **not**
+in the auto-removal list above, so the row would linger and fail on every send
+forever. Nothing gained, one permanently failing row added.
 
 ### What unblocks it
 
 1. Add a `platform` column (`ios` | `android` | `web`) to `UserDeviceToken`.
-2. Give the sender this project's Firebase service account as a second credential.
-3. Have the sender pick credentials by `platform`, and **skip rather than abort**
-   on a token it cannot send to.
+2. Give the sender this project's Firebase service account as a second
+   credential. `firebase-demo/config/firebase.js` reads **one** set of
+   `FIREBASE_*` values from SSM and calls `admin.initializeApp` with them; it
+   already takes an app `name`, so a second named app is a small change.
+3. Have the sender pick the credential by `platform`.
+
+Step 3 is the only one with any subtlety, and it is smaller than it looks: the
+sender already loops per token and already tolerates per-token failure, so the
+change is choosing which `admin.app` to send each message through.
 
 Then set `NEXT_PUBLIC_PUSH_TOKEN_REGISTRATION=true`. The client half — dedupe,
 create, remove-on-logout — is already written and tested; only the extra field
 needs adding to the create input.
 
-> **Read `USERS_LAMBDA`'s `login` and `logout` verbs before enabling this.**
-> Mobile hands them its FCM token (`signup.ts:8-38`) *and* writes the row from
-> the client, so the Lambda may own it too and the two would double-write. Web's
-> `runLoginBootstrap` sends `token: undefined`, so it cannot be creating a row
-> today; whether it *deletes* on an undefined token is the open question.
+> **The `USERS_LAMBDA` `login`/`logout` question is answered**, from the deployed
+> package rather than inference:
+>
+> - **`login({userId, token})` never touches `UserDeviceToken`.** It subscribes the
+>   token to the member's group topics via SQS, and calls `setNewIdBuddyId` —
+>   `SHA256(userId)` sliced into `BI-xxxx-yyyy`, deterministic, so re-running it
+>   always writes the same value. No double-write to worry about, and web's
+>   `runLoginBootstrap` cannot create a row.
+> - **`logout({userId, token})` does** — `Delete { Key: { token } }`, keyed by the
+>   token alone. Web does not call that verb.
+>
+> One side effect web's call *does* have: `login` enqueues
+> `{type:'subscribeToTopic', tokens:[token], topic}` per group, and web sends
+> `token: undefined`, so the message carries `tokens:[null]`. The consumer guards
+> with `if (!tokens.length || !topic) return`, which `[null]` passes, so
+> `subscribeToTopic([null], …)` throws. The handler catches per message and
+> carries on — no retry, no dead-letter queue, no effect on any other member — so
+> the cost is log noise at sign-in for a member who is in at least one group. The
+> one-line backend fix is `tokens.filter(Boolean)` in
+> `firebase-demo/modules/subscription.js`, the same filter `sendMulticast` already
+> applies a few lines away.
 
 ---
 

@@ -818,21 +818,32 @@ the 300/1000 bio split — can ship immediately in whichever PR touches those fi
 >   token under other accounts). Mobile push works today, so whatever sends it
 >   already tolerates dead tokens in a member's list.
 >
-> **Why it still ships off.** FCM tokens are scoped to the project that minted
-> them, web push runs on this app's own Firebase project, and the sender holds the
-> *mobile* project's credentials — so a registered web token is answered with
-> `SENDER_ID_MISMATCH` and delivers **nothing**. Registering it today would buy
-> zero pushes while adding a token guaranteed to fail. The residual risk is narrow
-> and self-inflicted (if the sender aborts rather than skips on a bad token, that
-> *one* member's own phone push could stop; no other member is reachable), and
-> "evidently tolerates" is not "provably tolerates".
+> **The sender was then read too**, from the deployed `firebase-demo` package, and
+> it settles the last doubt: `sendMulticast` filters null/empty tokens, sends via
+> `messaging().sendEach` — one independent message per token — and auto-deletes
+> tokens that come back invalid. It **skips, it does not abort**. Tokens are read
+> per recipient, so a web row could never reach another member, and cannot harm
+> its own member's phone delivery either.
+>
+> **Why it still ships off.** Not risk — uselessness. FCM tokens are scoped to the
+> project that minted them; web push runs on this app's own Firebase project while
+> the sender holds the *mobile* project's credentials, so a registered web token
+> fails with a mismatched-credential error on every send. That code is **not** in
+> the auto-removal list, so the row would linger and fail forever. Zero pushes
+> gained, one permanently failing row added.
 >
 > `NEXT_PUBLIC_PUSH_TOKEN_REGISTRATION` is the switch, default off, and with it
-> off the module issues no GraphQL at all — asserted. Three backend changes
-> unblock it, listed in `lib/push/deviceToken.ts` and `docs/PUSH.md`: a `platform`
-> column, this project's service account as a second sender credential, and
-> skip-don't-abort on an unsendable token. **Read `USERS_LAMBDA`'s `login`/`logout`
-> verbs first** — mobile hands them its FCM token, so they may own the row.
+> off the module issues no GraphQL at all — asserted. Two backend changes now
+> unblock it (the third turned out to be already done): a `platform` column, and
+> this project's service account as a second credential in
+> `firebase-demo/config/firebase.js`, which already takes an app name.
+>
+> **`USERS_LAMBDA`'s `login` verb is also answered.** It never touches
+> `UserDeviceToken`; it subscribes to group topics and calls `setNewIdBuddyId`,
+> which is `SHA256(userId)` and therefore idempotent — Phase 7's login bootstrap
+> is safe. It does enqueue `tokens:[null]` for web, which throws in the
+> subscription consumer and is caught per message: log noise, no retry, no
+> dead-letter, no effect on anyone. One-line backend fix noted in `docs/PUSH.md`.
 >
 > Notes on the two that shipped:
 >
