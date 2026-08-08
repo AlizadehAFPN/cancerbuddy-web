@@ -14,9 +14,13 @@ vi.mock("@/lib/aws/amplifyConfigure", () => ({
 vi.mock("@/lib/aws/raiseUserLambda", () => ({
   raiseUserLambda: vi.fn(),
 }));
+vi.mock("@/lib/push/pushClient", () => ({
+  currentPushToken: vi.fn(() => null),
+}));
 
 import { Auth } from "aws-amplify";
 import { raiseUserLambda } from "@/lib/aws/raiseUserLambda";
+import { currentPushToken } from "@/lib/push/pushClient";
 import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 import { runLoginBootstrap } from "@/lib/login/loginBootstrap";
 import {
@@ -62,11 +66,14 @@ function sourceOf(path: string): string {
 describe("the login bootstrap", () => {
   beforeEach(() => {
     vi.mocked(raiseUserLambda).mockReset();
+    vi.mocked(currentPushToken).mockReset();
+    vi.mocked(currentPushToken).mockReturnValue("fcm-token-1");
     process.env.NEXT_PUBLIC_USERS_LAMBDA = "users-lambda";
   });
 
-  it("sends mobile's verb and payload, once", async () => {
+  it("sends mobile's verb and the real token, once", async () => {
     vi.mocked(raiseUserLambda).mockResolvedValue("{}");
+    vi.mocked(currentPushToken).mockReturnValue("fcm-token-1");
 
     await expect(runLoginBootstrap("cognito-sub-1")).resolves.toBe(true);
 
@@ -75,11 +82,25 @@ describe("the login bootstrap", () => {
     expect(verb).toBe(LambdaPayloadType.LOGIN);
     expect(verb).toBe("login");
     expect(name).toBe("users-lambda");
-    expect(payload).toEqual({ userId: "cognito-sub-1", token: undefined });
+    expect(payload).toEqual({ userId: "cognito-sub-1", token: "fcm-token-1" });
+  });
+
+  /**
+   * The verb enqueues `{subscribeToTopic, tokens:[token], topic}` per group, and
+   * the consumer's guard is `!tokens.length` — which `[null]` passes, so it
+   * throws. Nobody is affected, but it is a guaranteed failure we would be
+   * generating on every sign-in. With no token there is nothing to subscribe and
+   * the buddyId write is a no-op, so there is nothing to call for.
+   */
+  it("does not call the verb at all without a token to subscribe", async () => {
+    vi.mocked(currentPushToken).mockReturnValue(null);
+    await expect(runLoginBootstrap("cognito-sub-1")).resolves.toBe(false);
+    expect(raiseUserLambda).not.toHaveBeenCalled();
   });
 
   /** A Cognito session already exists by then; stranding the member is worse. */
   it("does not fail the sign-in when the lambda is down", async () => {
+    vi.mocked(currentPushToken).mockReturnValue("fcm-token-1");
     vi.mocked(raiseUserLambda).mockRejectedValue(new Error("boom"));
     await expect(runLoginBootstrap("cognito-sub-1")).resolves.toBe(false);
   });

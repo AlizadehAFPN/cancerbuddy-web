@@ -433,6 +433,16 @@ export function subscribePushData(
  *
  * A no-op wherever service workers are absent, which includes SSR.
  */
+/**
+ * The FCM token this browser currently holds, if any.
+ *
+ * Read by `lib/login/loginBootstrap.ts`, which must not call the
+ * `USERS_LAMBDA` `login` verb without one — see the note there.
+ */
+export function currentPushToken(): string | null {
+  return currentToken;
+}
+
 export async function clearPushNotices(scope: "badge" | "tray"): Promise<void> {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
     return;

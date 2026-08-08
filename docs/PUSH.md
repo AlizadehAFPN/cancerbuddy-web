@@ -325,16 +325,29 @@ needs adding to the create input.
 > - **`logout({userId, token})` does** — `Delete { Key: { token } }`, keyed by the
 >   token alone. Web does not call that verb.
 >
-> One side effect web's call *does* have: `login` enqueues
-> `{type:'subscribeToTopic', tokens:[token], topic}` per group, and web sends
-> `token: undefined`, so the message carries `tokens:[null]`. The consumer guards
+> One side effect web's call *used* to have: `login` enqueues
+> `{type:'subscribeToTopic', tokens:[token], topic}` per group, and web sent
+> `token: undefined`, so the message carried `tokens:[null]`. The consumer guards
 > with `if (!tokens.length || !topic) return`, which `[null]` passes, so
-> `subscribeToTopic([null], …)` throws. The handler catches per message and
-> carries on — no retry, no dead-letter queue, no effect on any other member — so
-> the cost is log noise at sign-in for a member who is in at least one group. The
-> one-line backend fix is `tokens.filter(Boolean)` in
-> `firebase-demo/modules/subscription.js`, the same filter `sendMulticast` already
-> applies a few lines away.
+> `subscribeToTopic([null], …)` threw. The handler catches per message and carries
+> on — no retry, no dead-letter queue, no effect on any other member — so the cost
+> was log noise at sign-in for a member who is in at least one group.
+>
+> **Fixed on the client**, in `lib/login/loginBootstrap.ts`: the verb is now
+> called with the real FCM token, and skipped entirely when this browser has
+> none. With no token there is nothing to subscribe, and the verb's other job —
+> `setNewIdBuddyId` — is deterministic and already done at registration, so
+> nothing is lost. Registration keeps calling with `undefined` on purpose: a new
+> member is in no groups, so the Lambda returns before reaching the queue.
+>
+> The backend could also guard it — `tokens.filter(Boolean)` in
+> `firebase-demo/modules/subscription.js`, the same filter `sendMulticast`
+> applies a few lines away — and probably should, since mobile could produce the
+> same shape. It is **not** deployed: the function's source is not in any repo
+> here, it carries an `Amplify Params — DO NOT EDIT` header (so the next
+> `amplify push` from a developer's machine would silently revert it), and the
+> function has no published versions to roll back to. That is a change to make
+> from the Amplify project, not by hand-patching a production zip.
 
 ---
 
