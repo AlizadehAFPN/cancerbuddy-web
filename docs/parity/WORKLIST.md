@@ -473,7 +473,39 @@ channel primitive for its learn-more chat.
 | `ambassador-explainer-and-cta` | Tappable ambassador badge → ambassador explainer, with its CTAs | A member can tap an ambassador badge anywhere (discovery card, request card, profile, own profile) to read what an ambassador is, open the "Become an ambassador" form, or start a support conversation about it | `modals` | m | TS: `CREATE_AMBASSADOR_MESSAGE: "ambassadorMessage"` added to `LambdaPayloadType` — the wire string is `ambassadorMessage`, matching `cancerbuddyapp/src/types/utils/lambda.ts:23`; assert the literal, because `createAmbassadorMessage` is rejected by the Lambda. Playwright: on `/buddies/<ambassadorId>` the AMBASSADOR pill is a `button` (today a static `span` at `BuddyProfileScreen.tsx:306-310` and `ProfileHub.tsx:226-230`) and opens a `[role="dialog"]` containing a link whose href is the exact Google Form URL plus a "learn more" button; learn more resolves the pair's 1:1 support channel, POSTs `type:'ambassadorMessage'` with `{userID,channelID,type}` to `NEXT_PUBLIC_USERS_LAMBDA`, and the URL becomes `/chat/<channelId>`. On your own profile the dialog shows DISMISS and no form link; with `ambassador:false` no button renders |
 | `app-store-share-qr` | Share the app download link (QR + correct URL + copy confirmation) | A member can show a friend a scannable code for the app, and copies the real app-store link rather than the current page origin, with confirmation that it copied | `none` | s | Unit: `getShareUrl()` returns `appStoreLinkCollection.items[0].appLink` from a stubbed proxy and falls back to the BMCF website URL when empty or on reject. Playwright: a `canvas`/`img`/`svg` QR whose encoded value equals the stubbed `appLink`; the copy control writes that same string via a stubbed clipboard and renders the confirmation; `navigator.share`, when present, is called with `{url: <appLink>}` — not `location.origin` |
 
-### Phase 5 — Profile and settings sweep
+### Phase 5 — Profile and settings sweep ✅ DONE
+
+> **Completed 2026-08-08.** All 18 items shipped; `npm test` (529 assertions),
+> `tsc --noEmit` and `next build` green. Notes worth carrying forward:
+>
+> - **`inRemissionSince` on Path A is *today*, not the last day of the month.**
+>   The acceptance text says last-day-of-month; `utils/dates.ts:167-170` formats
+>   `new Date()`. The source wins — mobile renders this value back to the member.
+>   (`monthYearToStoredDate`'s last-day rule is a different path: a *typed*
+>   `MM/YYYY` on the medical form, where mobile does round to month end.)
+> - **The under-18 caregiver ruling is implemented as the triage note directs**:
+>   mobile's age filter and role filter contradict each other there, and the
+>   by-role rule wins, so an under-18 caregiver is offered PATIENT only.
+> - **Deletion order corrected on both counts the triage note flagged**: the
+>   reason is recorded *first* (mobile records it after clearing the session, so
+>   it is lost), and the success screen is reached *only* on success (mobile
+>   navigates regardless). A Stream failure still does not skip either Lambda.
+> - **Chat is not snooze-gated.** Mobile gates seven navigators and chat is not
+>   one of them: the conversations are frozen, not hidden. Settings is not gated
+>   either — it is where the way out lives.
+> - **Path B is one page, not four screens.** Same fields, same validation, same
+>   payload; only the screen count differs, which is the collapse the register
+>   flow already makes on a wide screen.
+> - **A hidden Add button is not a cap.** The three-organisation limit also had
+>   to be enforced inside the picker sheet, which stays open while items are
+>   toggled.
+> - **The treatments-required rule was deliberately NOT ported** — the triage
+>   pass classified it `MOBILE_BUG_DONT_PORT` (mobile's two identical branches
+>   require treatments even for survivors and caregivers, who have no status
+>   field). The other three medical rules are in.
+> - **Nothing destructive was executed while building.** No snooze, delete or
+>   changeStatus Lambda was invoked against the live backend; AWS access stayed
+>   read-only introspection (used to confirm `CreateDeleteReasonInput`).
 
 **Rationale.** The largest single area, and the last one with no external dependency.
 Internal orderings that matter: `change-status-select-and-path-a` **before**
@@ -553,7 +585,58 @@ claimed the schedule field, so it is one item here.
 | `live-calendar-visibility-and-status` | Honour active / archived / ended on each session row | A host who hides a session stops it being advertised, and a member can see a session already finished instead of reading it as upcoming | `none` | s | Unit on the visibility predicate: `[{active:false},{archived:true},{active:true},{}]` reduces to the last two. TS: `active?: boolean\|null` and `archived?: boolean\|null` on `LiveCalendarEvent`, so the predicate fails `tsc --noEmit` if the fields are dropped again. Unit: `badgeFor({status:'ended'}) === 'ENDED'`, `({inLive:true}) === 'LIVE'`, `({}) === 'UPCOMING'`. Playwright: a seeded archived event's title appears on no card |
 | `live-schedule-guardrails` | Restore the scheduling guard rails on the live editor | A host cannot schedule a session in the past or more than a year out, picks times on a 15-minute grid, and sees when the session ends before saving | `none` | s | Unit: `scheduleBounds(now)` returns `{min: local-ISO of now, max: +1 year at 23:59, step: 900}`. Unit: `endsAtLabel('2026-03-17T19:30',60) === 'Ends at 8:30 PM'` and `('2026-03-17T23:45',30) === 'Ends Mar 18 at 12:15 AM'`. Unit: `formatDuration` 60/90/30 per the chosen label set. DOM: the datetime input carries matching `min`, `max` and `step="900"`, and the Ends-at node updates with duration. Assert the create branch initialises duration to 60 |
 
-### Phase 7 — Auth and registration sweep
+### Phase 7 — Auth and registration sweep ✅ DONE
+
+> **Completed 2026-08-08.** All 7 items shipped; `npm test` (565 assertions, 36 of
+> them new), `tsc --noEmit` and `next build` green. Notes worth carrying forward:
+>
+> - **The acceptance for `register-email-verification-resume-modal` is wrong about
+>   one detail.** It asks for the Resend control to be **enabled** on arrival.
+>   Mobile's `handleExistingUsername` calls `markCodeSent(username)` right after
+>   `resendSignUp` (`authUtils.ts:28-37`), and the OTP screen reads the same store
+>   through `useResendCooldown`, so on mobile Resend arrives *disabled* behind the
+>   countdown too — correctly, because a code was genuinely just sent. The real
+>   defect the item describes is right and is fixed: web started the countdown
+>   having sent nothing. Implemented as mobile behaves; the copy now says a fresh
+>   code was sent, because now one was.
+> - **The same omission was in the host flow**, at
+>   `cognitoHostSignupService.ts:301`. Both services now route every send through
+>   one `sendConfirmationCode`, and a test pins each file to a single
+>   `Auth.resendSignUp`.
+> - **The caregiver was not skipping a branch — mobile has no branch to skip.**
+>   `enrollmentPath` is one linear array with the caregiver pair immediately
+>   before the medical pair, and the only jump is at the role step, where
+>   `RedirectNextRoleConditionUtil` moves a *non*-caregiver forward by 3 to skip
+>   the caregiver screens. Web read that as "caregivers skip medical" and sent
+>   them straight to `address`, so every caregiver finished signup with no
+>   diagnosis and no hospital — the record their matches are built from.
+> - **`CAREGIVER` follows `PATIENT` on the diagnosis screen**, which is mobile's
+>   own rule: treatment status is gated on `userType !== SURVIVOR`
+>   (`PatientDiagnosisLayout.tsx:239`) and remission is SURVIVOR-only (`:290`).
+>   Every `=== "PATIENT"` in `StepDiagnosis` became `!== "SURVIVOR"`.
+> - **Back out of Diagnosis is role-dependent, and `address` no longer is.**
+>   Mobile's `BackDiagnosisCondition` reuses the same role calculator, so a
+>   caregiver steps back to patient age and everyone else to the role picker.
+> - **Both auth stub files were dead.** Nothing imported `lib/auth.ts` or
+>   `app/actions/auth.ts`; `loginAction` redirected to `/dashboard` and
+>   `createSession` was a comment. Deleted, along with the orphaned
+>   `forgotPasswordSchema` in `lib/validations.ts`.
+> - **`/forgot-password` splits mobile's single screen in two.** Mobile fires
+>   `sendForgotPasswordCode` on focus; a URL cannot do that without mailing a code
+>   on every refresh. Asking for the email first also makes the flow survive a
+>   reload. Everything after the reset is mobile's: sign in, then route by the
+>   same classification the login page uses.
+> - **An unknown email reaches the same screen as a known one.** Cognito
+>   distinguishes them; echoing that back would make the form an account-existence
+>   oracle for a cancer-support community. `UNKNOWN_EMAIL` never reaches the UI.
+> - **`register-progress-bar-scope` also changed the bar's shape.** Twenty-two
+>   segments are hairlines; it is one continuous fill now, with `aria-valuenow`
+>   carrying the percentage.
+>
+> No backend, schema or mobile-repo change. The worklist asks for Playwright on
+> five of the seven items; there is still no browser project, so each is asserted
+> on the pure layer plus a source assertion on the wiring — noted per test in
+> `lib/auth/authSweep.test.ts`. Full detail in `docs/AUTH.md`.
 
 **Rationale.** Independent of everything else — different directories (`app/(auth)`,
 `app/register`, `lib/login`) — so this phase can run in parallel with any other from Phase 2
@@ -573,7 +656,50 @@ the Phase 1 guard hook.
 | `register-progress-bar-scope` | Show registration progress on all 22 steps, not the first six | Someone signing up on the web can see how far through registration they are and how much is left on every step, instead of the indicator vanishing after phone verification | `none` | s | Unit: `USER_REGISTER_STEPS` (or whatever replaces it) covers every id in `USER_FLOW_ORDER` — a `Record<UserFlowStep, number>` exhaustiveness assertion fails to compile if a step is missing, and `progressFor('interests')` is strictly greater than `progressFor('userRole')`. Playwright: walk a PATIENT and a CAREGIVER registration and assert `[data-testid="register-progress"]` is present with a monotonically non-decreasing `aria-valuenow` on **every** step including `userRole`, `cgRelationship`, `cgPatientAge`, `diagnosis`, `medicalCenter`, `address`, `profilePic`, `about`, `interests`, `languages`, `photos`, `allSet`, `guardian` and `guardianOtp` — today the strip is absent on all fourteen (`RegisterShell.tsx:257`). Per-step `<h1>`s are out of scope; do not touch them |
 | `login-users-lambda-bootstrap` | Returning login re-runs the USERS_LAMBDA login bootstrap | A returning member's server-side login bootstrap runs on every sign-in, as on mobile, rather than only once at enrollment | `lambda-verbs` | xs | Playwright with the Lambda endpoint intercepted: a successful login produces exactly one invoke to `NEXT_PUBLIC_USERS_LAMBDA` whose payload parses to `{type:'login', userId:<cognito sub>}`. Assert zero such invokes today as a regression guard |
 
-### Phase 8 — Updates sweep
+### Phase 8 — Updates sweep ✅ DONE
+
+> **Completed 2026-08-08.** Both items shipped; `npm test` (582 assertions, 17 of
+> them new), `tsc --noEmit` and `next build` green. Notes worth carrying forward:
+>
+> - **`formatName` is a discovery-card convention that had leaked.** It keeps the
+>   first word only, so a notification from "Dr. Sarah Chen" said "Dr." — and the
+>   `HOST`/`SUPPORT` exemption did not help, because the row never passed
+>   `userType` at all. Mobile prints `props.name` verbatim for **every** user
+>   type (`ListNotification.tsx:60`), so the fix is a `senderName` sibling that
+>   prints what was saved, not a wider exemption list. A test pins the two
+>   helpers as opposites.
+> - **The push half shipped too, and did not need Phase 10.** The rationale below
+>   defers it to `push-backend-token-registration`, but that item is about
+>   *registering a token so pushes arrive*. Listening for a push that has already
+>   arrived needs none of it: `public/firebase-messaging-sw.js` has posted
+>   `cancerbuddy:push` and `cancerbuddy:push-data` to open tabs since the push
+>   work landed, and `lib/push/pushClient.ts` already had two subscribers. Both
+>   halves of `updates-live-refresh` are therefore in, and Phase 10 is one item
+>   lighter in practice.
+> - **Both worker messages count.** The focused tab receives `cancerbuddy:push`
+>   *and* `cancerbuddy:push-data` for one push; a background tab only the latter.
+>   Matching just the first — as the acceptance text suggests — would leave every
+>   unfocused tab's badge stale until it was looked at.
+> - **One coalescing gate, not two.** The overlap between "a push arrived" and
+>   "the member came back" is the common case, not a corner: the member taps the
+>   OS banner and the tab hears the worker *and* becomes visible in the same
+>   moment. `useLiveResync` composes `useVisibilityResync` with the push listener
+>   behind a single 1 s window, so that pair loads once and a push ten minutes
+>   before a return still loads twice — which is correct.
+> - **`browserCapable()` was the wrong guard for a listener.** It requires
+>   `Notification` and `PushManager`, which decide whether this browser can be
+>   *sent* a push; neither is needed to hear a message the worker posts.
+>   `subscribePushSignal` guards on `serviceWorker` alone.
+> - **The badge's subscription was never sufficient on its own.** Browsers suspend
+>   websockets in background tabs, and `onCreateConnectionByRecipientId` only
+>   fires for requests *created* — one accepted on a phone left the number too
+>   high with no event to correct it. Both gaps close with the same hook.
+> - **An automatic reload is silent.** Spinning the refresh button the member did
+>   not press would report activity they did not cause, and it is suppressed while
+>   the first page or a further page is in flight so a resync cannot drop rows
+>   out from under them.
+>
+> No backend, schema or mobile-repo change. Full detail in `docs/UPDATES.md`.
 
 **Rationale.** `updates-live-refresh` has a dependency choice made deliberately: mobile's
 mechanism is push-driven, so a faithful port waits on `push-backend-token-registration` in
@@ -586,7 +712,60 @@ after the token work.
 | `notifications-full-sender-name` | Print the notification sender's name in full | A member can tell who a notification is from — a row from "Dr. Sarah Chen" says "Dr. Sarah Chen", not "Dr." | `none` | xs | RTL: `NotificationRow` with `remitent.name = 'Dr. Sarah Chen'` and `userType:'PATIENT'` resolves `getByText('Dr. Sarah Chen')`; second case with `userType:'SUPPORT'` |
 | `updates-live-refresh` | Keep the Updates feed and its nav badge live | A new notification appears in the list, and registers on the navigation badge, without pressing refresh or reloading | `realtime` | s | Unit with a mocked `fetchNotifications`: a `cancerbuddy:push` `MessageEvent` on `navigator.serviceWorker` calls it a second time and `items` updates; same for `visibilitychange` → visible. Playwright: intercept the `searchNotifications` POST, post a `cancerbuddy:push` message from the page, assert a second matching request within 2 s |
 
-### Phase 9 — Cross-cutting finishers
+### Phase 9 — Cross-cutting finishers ✅ DONE
+
+> **Completed 2026-08-08.** All 5 items shipped; `npm test` (618 assertions, 36 of
+> them new), `tsc --noEmit` and `next build` green. Notes worth carrying forward:
+>
+> - **Web cannot reach mobile's GA4 property, and no measurement id is set.**
+>   Web push already runs on its *own* Firebase project because nobody on the
+>   team can open `cancerbuddy-demo` (`docs/PUSH.md`), and analytics inherits
+>   that. "The same funnel" therefore means the same event names and the same
+>   parameter shapes, joined at the reporting end — not one property. The
+>   transport resolves `window.__cbAnalytics` → Firebase (when
+>   `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` exists) → a debug logger, which is the
+>   posture `lib/push` already takes: report, never throw. **Setting that env var
+>   is the one remaining step, and it is the only thing standing between this
+>   code and live data.**
+> - **The latch is per account, and that is the whole point.** Mobile writes bare
+>   `AsyncStorage` keys — `joinFirstGroup`, `post` — with no account in them. On a
+>   phone that is nearly the same thing; in a browser it means the second member
+>   to sign in on a shared machine has their firsts silently swallowed. Every key
+>   here carries the Cognito sub, and a test asserts two accounts do not share.
+> - **Mobile's `post` branch reads the *comment* flag.** `case 'post'` calls
+>   `AsyncStorage.getItem(localStorageAnalytics.comment)` and then writes
+>   `localStorageAnalytics.post`, so anyone who comments before posting can never
+>   emit `post` at all. Not carried; each milestone reads and writes its own key.
+> - **`timestamp` means two different things on mobile**, and mixing them would
+>   put epoch milliseconds into a field the reports read as a duration. The five
+>   milestones pass the *account's age*
+>   (`diffMillisecondsDateToNow(getCreatedAt(id))`); `timeToSendMessage` and
+>   `bmcf_enrollment` pass a clock reading. Separate entry points here —
+>   `trackMilestone` versus `trackTimeToSendMessage` / `trackEnrollmentComplete`.
+> - **`connectWithFirstBuddy` is timed to the earliest channel, not to now**, so a
+>   member who made a buddy on day one still reports one day a year later. Mobile's
+>   `Math.min` over channels is reproduced exactly.
+> - **Account age is fetched once per account per tab.** Mobile re-queries
+>   `getUser { createdAt }` on every single emit. A failed lookup resolves to
+>   `null` and the event is skipped — sending `timestamp: 0` would read as "did
+>   this the instant they signed up" and poison the average.
+> - **Events are emitted from the actions, not the buttons.** Mobile emits from
+>   its screen handlers, so a second route into joining or posting would be
+>   unmeasured. `joinGroup`, `createPost` and `addComment` carry their own events,
+>   which also puts them after the write rather than before it — mobile counts a
+>   chat message that failed to leave the device.
+> - **A placeholder was already in the tree and had to go.** `userEnrollmentFinalize`
+>   wrote the five bare key names set to `"false"` — mobile's key names without its
+>   semantics, and exactly the cross-account collision the account-scoped latch
+>   exists to prevent. Removed; absence already means "not fired".
+> - **`age-and-limit-constant-alignment` shipped its safe half only**, as the
+>   rationale directs. `MAX_AGE` 120→130 (mobile's bound in all three places it
+>   appears) and one `BIO_MAX_LENGTH = 300` shared by registration and the profile
+>   editor — mobile applies 300 in both, and web's 1000-at-registration meant a bio
+>   written during signup arrived at the editor already over its own limit. The
+>   under-8 half stays in Phase 10 pending the product ruling.
+>
+> No backend, schema or mobile-repo change. Full detail in `docs/ANALYTICS.md`.
 
 **Rationale.** Analytics is last among the unblocked work for one reason: it is the only
 layer with **no** consumer that can be tested without it, and every consumer is a one-line
@@ -606,7 +785,74 @@ the 300/1000 bio split — can ship immediately in whichever PR touches those fi
 | `register-login-analytics-events` | Enrollment and login analytics parity | Web-originated registrations and logins appear in the product funnel and first-action metrics | `analytics` | s | Unit with the emitter injected: `finalizeUserEnrollment` calls it once with `'bmcf_enrollment'`; the login success handler sets all 5 first-action storage keys to `'true'` |
 | `age-and-limit-constant-alignment` | Align registration age bounds and the bio limit | A registrant aged up to 130 is accepted, and a bio written at web registration can be re-saved from the web profile editor | `age-rules` | xs | Unit on the signup schemas: a birth year giving age 125 passes; and the invariant `profileBioSchema.safeParse(x).success === registrationBioSchema.safeParse(x).success` for lengths 299/301/999. The under-8 half ships only after the product ruling in Phase 10 |
 
-### Phase 10 — Blocked on backend or a product decision
+### Phase 10 — Blocked on backend or a product decision 🔶 2 of 3 SHIPPED
+
+> **2026-08-08.** `buddy-id-qr-scanner` and `push-badge-and-tray-hygiene` are
+> **done** — neither was actually blocked, and neither can touch the mobile app.
+> `push-backend-token-registration` is built but **deliberately inert**; see
+> below. `npm test` (642 assertions, 24 of them new), `tsc --noEmit` and
+> `next build` green.
+>
+> **The mobile-safety question was answered against the live backend, not
+> reasoned about.** Introspecting the production AppSync endpoint:
+>
+> ```
+> type UserDeviceToken { token: String!  userID: ID!  createdAt  updatedAt }
+> CreateUserDeviceTokenInput { token: String!  userID: ID! }
+> DeleteUserDeviceTokenInput { token: String! }
+> ```
+>
+> - **Four fields. No platform/provider column** — the rationale below is
+>   correct, and nothing reading that table can tell a browser token from a phone
+>   one.
+> - **The primary key is the token string**, so one token is one row. A web token
+>   and a phone token are different strings from different Firebase projects and
+>   can never collide. Mobile's dedupe selects `token == mine AND userID != me`
+>   (`useAuth.ts:82-115`); its logout selects `token == mine AND userID == me`
+>   (`:161-200`). **Neither can select a web row, and no web write can select a
+>   phone row.** A unit test pins the reducer to that property.
+> - **`listUserDeviceTokens` first page: 975 accounts, 19 of them holding 2–5
+>   tokens** (mobile never removes its own stale rows, only rows for the same
+>   token under other accounts). Mobile push works today, so whatever sends it
+>   already tolerates dead tokens in a member's list.
+>
+> **Why it still ships off.** FCM tokens are scoped to the project that minted
+> them, web push runs on this app's own Firebase project, and the sender holds the
+> *mobile* project's credentials — so a registered web token is answered with
+> `SENDER_ID_MISMATCH` and delivers **nothing**. Registering it today would buy
+> zero pushes while adding a token guaranteed to fail. The residual risk is narrow
+> and self-inflicted (if the sender aborts rather than skips on a bad token, that
+> *one* member's own phone push could stop; no other member is reachable), and
+> "evidently tolerates" is not "provably tolerates".
+>
+> `NEXT_PUBLIC_PUSH_TOKEN_REGISTRATION` is the switch, default off, and with it
+> off the module issues no GraphQL at all — asserted. Three backend changes
+> unblock it, listed in `lib/push/deviceToken.ts` and `docs/PUSH.md`: a `platform`
+> column, this project's service account as a second sender credential, and
+> skip-don't-abort on an unsendable token. **Read `USERS_LAMBDA`'s `login`/`logout`
+> verbs first** — mobile hands them its FCM token, so they may own the row.
+>
+> Notes on the two that shipped:
+>
+> - **The QR decoder is the browser's own.** `BarcodeDetector` is native in
+>   Chrome, Edge and Android WebView — no library, no WASM, no bundle weight.
+>   Safari and Firefox do not implement it, so the entry is simply absent there
+>   and the typed field beside it does the same job.
+> - **Scanning is stricter than typing, on purpose.** The typed field accepts a
+>   bare eight-character body; the scanner requires the `BI` prefix and refuses
+>   any URL that is not one of ours. A scanner decodes seven times a second, so
+>   anything it accepts becomes seven lookups a second — mobile passes a foreign
+>   URL through as an id and lets the lookup fail, which is fine for one press and
+>   not for a loop. A test pins `https://example.com`, which the first draft
+>   happily decoded as `BI-EXAM-PLEC`.
+> - **A scanned id runs the same guard ladder as a typed one.** That is the point
+>   of the item; a QR code must not be a laxer route into a profile.
+> - **The badge and tray live in the service worker**, because a push arriving
+>   with no tab open has no page to run in. Mobile's rules are transcribed exactly,
+>   including the one its own comment explains: tapping a buddy request sweeps the
+>   other buddy requests but leaves chat and live notifications alone.
+>
+> Full detail in `docs/PUSH.md`.
 
 **Rationale.** None of this can be completed by this team alone, so it must not sit in a
 sprint pretending to be actionable. `push-backend-token-registration` is the largest single

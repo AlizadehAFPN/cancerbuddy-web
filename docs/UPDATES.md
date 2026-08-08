@@ -112,6 +112,8 @@ Each of these is a deliberate decision, not an oversight.
 | 5 | Requests live only under Updates | Also on `/buddies` | The web already shipped them there. Both render the same `RequestCard` through the same `useRequests` hook. |
 | 6 | Opens `PostDetail`, a dedicated screen | Opens the `PostThread` sheet over the group feed | Same content — one post and its comments. The web already had the sheet; a second route would have duplicated it. |
 
+| 7 | Refreshes on push only | Push **and** return-to-tab | A phone has no tab left open for hours behind a websocket the browser suspended. The push half is mobile's; the other half covers a case mobile does not have. |
+
 Everything else matches, including the quirks:
 
 - **"Just Now" covers two minutes.** The check is `minutes > 1`, so 0 and 1
@@ -138,6 +140,8 @@ Everything else matches, including the quirks:
 | `components/notifications/RequestsPanel.tsx` | The requests tab |
 | `app/(app)/notifications/layout.tsx` | Scoped `BuddiesProvider` |
 | `lib/buddies/usePendingRequestCount.ts` | The nav badge |
+| `lib/hooks/useLiveResync.ts` | Reload on return-to-tab or push, coalesced |
+| `lib/notifications/updatesSweep.test.tsx` | Phase 8 acceptance checks |
 
 `BuddiesProvider` is scoped to this route rather than hoisted to the app
 layout: it pages through the user's whole connection map, and Chat, Groups and
@@ -146,7 +150,57 @@ instance and refetch on entry.
 
 ---
 
-## 5. Deep links into a group
+## 5. Staying current
+
+Two things keep the screen honest without the member pressing anything, and both
+run through one hook — `lib/hooks/useLiveResync.ts`:
+
+| Source | Reaches | Mobile has it? |
+|---|---|---|
+| A push arriving | every open tab | yes — its push handler re-reads the list |
+| Returning to the tab | that tab | no — a phone has no equivalent |
+
+**Both worker messages count.** `public/firebase-messaging-sw.js` posts
+`cancerbuddy:push` to the *focused* tab (which drives the in-app toast) and
+`cancerbuddy:push-data` to *every* tab. A focused tab receives both for a single
+push; a background tab only the second. Matching just the first would leave every
+unfocused tab's badge stale until it was looked at, so `subscribePushSignal`
+matches either and the caller coalesces.
+
+**One gate, not two.** The overlap is the common case: a push lands, the member
+taps the OS banner, and the tab hears the worker *and* becomes visible in the
+same moment. `useLiveResync` puts `useVisibilityResync` and the push listener
+behind a single 1-second window, so that pair loads once — while a push ten
+minutes before a return still loads twice, which is correct. More may have
+happened in between.
+
+**No filtering by push type.** A list of "things that happened to you" cannot know
+which payloads belong in it without reimplementing the server's routing, and
+re-reading one page of 20 is cheap next to getting that wrong. Callers that need
+the payload itself have `subscribePushData`.
+
+**The reload is silent.** It does not spin the refresh button — that would report
+activity the member did not cause, and on a busy account it would never stop —
+and it is suppressed while the first page or a further page is in flight, so a
+resync cannot replace the list under someone who is reading it.
+
+### The badge needed this too
+
+`usePendingRequestCount` has been live on `onCreateConnectionByRecipientId` since
+the requests work landed, and that was never sufficient on its own. Browsers
+suspend websockets in background tabs and drop them when a laptop sleeps, so a
+tab left open overnight wakes with yesterday's number and no event to correct it.
+The subscription also only hears about requests **created** — one *accepted* on a
+phone left the count too high indefinitely. Both close with the same hook.
+
+> The worklist deferred this item's push half to Phase 10's
+> `push-backend-token-registration`. That item is about registering a token so
+> pushes *arrive*; listening for one that already has needs none of it. Both
+> halves shipped in Phase 8.
+
+---
+
+## 6. Deep links into a group
 
 Clicking a post notification opens `/groups/{id}?post=…&feed=…&reaction=…`.
 `GroupFeed` reads those and opens the post's thread; `reaction` expands and
@@ -161,10 +215,16 @@ path is built for parity but unexercised.
 
 ---
 
-## 6. Tests
+## 7. Tests
 
-Written per step, run against live production data. They live in the session
-scratchpad rather than the repo — there is no test runner here yet.
+`lib/notifications/updatesSweep.test.tsx` holds the Phase 8 acceptance checks and
+runs under `npm test`: the sender-name pair, and the live-refresh behaviour
+driven by a real React root with a stubbed `navigator.serviceWorker`.
+
+The original build was verified per step against live production data, before
+this repo had a test runner. Those runs are recorded here because their coverage
+— hundreds of thousands of real ages, a thousand live rows — is not something the
+unit tests reproduce:
 
 | Step | Coverage | Result |
 |---|---|---|
@@ -176,12 +236,15 @@ scratchpad rather than the repo — there is no test runner here yet.
 
 ---
 
-## 7. Known gaps
+## 8. Known gaps
 
-- **`next build` cannot run** while `lib/live/` and `components/live/`
-  reference 123 `app.live.*` i18n keys that don't exist in
-  `lib/i18n/locales/en.ts`. Unrelated to this feature; `tsc` and ESLint are
-  clean across every file here.
-- **Not verified in a browser.** No browser automation is available in this
-  environment, so the screen has been type-checked, linted and tested at the
-  data layer, but not seen rendering.
+- **There is still no unread state**, and there cannot be one until the
+  `readNotifications` Lambda is fixed — see §2. The nav badge counts pending
+  buddy requests, which is the one thing on this tab that *can* be counted.
+- **Not verified in a browser.** There is no browser automation in this
+  environment, so the screen is type-checked, linted and unit-tested — including
+  a real React root for the live-refresh path — but has not been seen rendering.
+  The worker message is dispatched onto a stub rather than by an actual push.
+
+> The earlier note here about `next build` failing on missing `app.live.*` i18n
+> keys is resolved; the build is green.

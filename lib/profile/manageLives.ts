@@ -253,3 +253,19 @@ export function formatSessionWhen(session: LiveSession): string {
   const length = formatDuration(session.duration);
   return length ? `${date} · ${time} · ${length}` : `${date} · ${time}`;
 }
+
+/**
+ * A stored timestamp as a host reads it: `4 Jan 2026`.
+ *
+ * Deliberately date-only and built by hand. `toLocaleString` with a time part
+ * is not stable across runtimes — ICU 72+ emits U+202F before AM/PM — and the
+ * question a host is asking here is "which of these did I touch last", which a
+ * date answers.
+ */
+export function formatTimestamp(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}

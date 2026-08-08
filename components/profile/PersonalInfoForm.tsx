@@ -22,7 +22,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { FieldHint } from "@/components/ui/FieldHint";
 import { t } from "@/lib/i18n";
+import { BIO_MAX_LENGTH } from "@/lib/signup/constants";
 import { Button, Textarea } from "@/components/ui";
 import { Sheet } from "@/components/ui/Sheet";
 import {
@@ -62,8 +64,11 @@ import {
   useUnsavedChanges,
 } from "@/lib/navigation/UnsavedChangesProvider";
 
-/** Bio is capped at 300 by the validation mobile runs before enabling Save. */
-const BIO_MAX = 300;
+/**
+ * Shared with registration, so a bio written during signup can be re-saved
+ * here. They used to disagree — 1000 there, 300 here.
+ */
+const BIO_MAX = BIO_MAX_LENGTH;
 
 const EMPTY: PersonalInfoValues = {
   bio: "",
@@ -471,6 +476,7 @@ export default function PersonalInfoForm() {
                 {workplaceLabel || t("app.profile.workplacePlaceholder")}
               </span>
             </button>
+            <FieldHint>{t("app.profile.hintWorkplace")}</FieldHint>
           </div>
         </Card>
 
@@ -565,6 +571,7 @@ export default function PersonalInfoForm() {
                       {collegeLabel || t("app.profile.collegePlaceholder")}
                     </span>
                   </button>
+            <FieldHint>{t("app.profile.hintCollege")}</FieldHint>
                 </div>
               )}
             </div>

@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui";
 import { MonthYearPicker } from "@/components/auth";
 import type { UserRegisterFormValues } from "@/lib/user-signup/validation";
+import { WhyWeAsk } from "@/components/ui/FieldHint";
 import { t } from "@/lib/i18n";
 
 interface Props {
@@ -50,6 +51,7 @@ export function StepCGPatientAge({ onContinue, onSkip }: Props) {
             });
           }}
         />
+        <WhyWeAsk>{t("app.profile.whyWeAskAge")}</WhyWeAsk>
       </div>
 
       <Button

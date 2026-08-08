@@ -56,6 +56,14 @@ export function maskBuddyId(raw: string): string {
   return `${raw.slice(0, 2)}-${raw.slice(2, 6)}-${raw.slice(6)}`;
 }
 
+/**
+ * Why a lookup refused. The sheet only needs the message, but the
+ * `/buddyId/[buddyId]` landing route has to *act* differently per reason —
+ * your own id sends you to your own profile, an unknown one renders a
+ * not-found node — so the reason travels alongside the copy.
+ */
+export type LookupRefusal = "notFound" | "self" | "snoozed" | "viewerUnknown";
+
 export type LookupOutcome =
   | { kind: "found"; userId: string }
   /**
@@ -65,7 +73,20 @@ export type LookupOutcome =
    * with an error and no idea who they just looked up.
    */
   | { kind: "notice"; userId: string; notice: ProfileNotice }
-  | { kind: "error"; message: string };
+  | { kind: "error"; reason: LookupRefusal; message: string };
+
+/** The four-way answer, for callers that branch on the reason alone. */
+export type BuddyIdGuard = "ok" | LookupRefusal | "ageRule";
+
+export function buddyIdGuard(
+  match: Parameters<typeof evaluateBuddyIdMatch>[0],
+  viewer: LookupViewer | null,
+): BuddyIdGuard {
+  const outcome = evaluateBuddyIdMatch(match, viewer);
+  if (outcome.kind === "error") return outcome.reason;
+  if (outcome.kind === "notice") return "ageRule";
+  return "ok";
+}
 
 /**
  * The guard ladder, as a pure function so both entry points and the tests share
@@ -90,13 +111,33 @@ export function evaluateBuddyIdMatch(
   } | null,
   viewer: LookupViewer | null,
 ): LookupOutcome {
-  if (!match) return { kind: "error", message: t("app.buddies.buddyIdNotFound") };
-  if (!viewer) return { kind: "error", message: t("app.buddies.buddyIdError") };
+  if (!match) {
+    return {
+      kind: "error",
+      reason: "notFound",
+      message: t("app.buddies.buddyIdNotFound"),
+    };
+  }
+  if (!viewer) {
+    return {
+      kind: "error",
+      reason: "viewerUnknown",
+      message: t("app.buddies.buddyIdError"),
+    };
+  }
   if (match.id === viewer.id) {
-    return { kind: "error", message: t("app.buddies.buddyIdSelf") };
+    return {
+      kind: "error",
+      reason: "self",
+      message: t("app.buddies.buddyIdSelf"),
+    };
   }
   if (match.isSnooze) {
-    return { kind: "error", message: t("app.buddies.buddyIdSnoozed") };
+    return {
+      kind: "error",
+      reason: "snoozed",
+      message: t("app.buddies.buddyIdSnoozed"),
+    };
   }
   /**
    * The age rule is the one guard mobile does **not** stop on: it opens the

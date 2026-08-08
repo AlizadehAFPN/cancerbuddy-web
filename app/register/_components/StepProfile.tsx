@@ -5,6 +5,7 @@ import { Button, Input } from "@/components/ui";
 import { MonthYearPicker, PronounPicker } from "@/components/auth";
 import type { UserRegisterFormValues } from "@/lib/user-signup/validation";
 import { t, tList } from "@/lib/i18n";
+import { WhyWeAsk } from "@/components/ui/FieldHint";
 
 interface Props {
   onBack: () => void;
@@ -97,6 +98,7 @@ export function StepProfile({ onBack, onContinue }: Props) {
               : undefined
           }
         />
+        <WhyWeAsk>{t("app.profile.whyWeAskAge")}</WhyWeAsk>
 
         <PronounPicker
           className="!mb-0"

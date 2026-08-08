@@ -9,10 +9,9 @@
  *
  * Two deliberate differences from mobile, both forced by web scope:
  *
- *  1. The primary button is **Read more** (opens the partner's URL in a new
- *     tab) rather than mobile's "MORE RESOURCES", which opens the Partners
- *     list. `/partners` is still a placeholder on web, so sending people there
- *     would be a dead end. Swap it back when that screen ships.
+ *  1. The primary button is **More resources**, opening the Partners list, as
+ *     on mobile. It pointed at the partner's own site while `/partners` was a
+ *     placeholder; that site is now the secondary action.
  *  2. "Read more" opens a new tab instead of an in-app WebView — mobile has no
  *     browser to hand off to, web does.
  *
@@ -24,6 +23,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { t } from "@/lib/i18n";
+import Link from "next/link";
 import { Button } from "@/components/ui";
 import { ArrowLeftIcon, ExternalLinkIcon, StarIcon } from "@/components/ui/icons";
 import RichText from "@/components/contentful/RichText";
@@ -273,21 +273,35 @@ export default function AdScreen({
         style={{ backgroundColor: background }}
       >
         <div className="mx-auto flex max-w-2xl items-center gap-3">
+          {/*
+            Primary is **More resources** → the Partners list, which is what
+            mobile's interstitial does. Web pointed it at the partner's own site
+            because `/partners` was a placeholder; now that the list is real, the
+            member gets the whole catalogue from here and the single partner's
+            site stays reachable as a secondary action.
+
+            An anchor, not <Button> in an <a> — a button inside a link is invalid
+            HTML and breaks keyboard activation. Styled to match Button's
+            primary / md variant.
+          */}
+          <Link
+            href="/partners"
+            className="inline-flex h-11 flex-1 select-none items-center justify-center gap-2 rounded-full border-2 border-cb-black bg-cb-black px-5 font-heading text-sm font-medium text-white transition-colors duration-150 ease-in-out hover:bg-cb-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 active:bg-cb-gray-700"
+          >
+            {t("app.partners.moreResources")}
+          </Link>
           {ad.url && (
-            /* An anchor, not <Button> in an <a> — a button inside a link is
-               invalid HTML and breaks keyboard activation. Styled to match
-               Button's primary / md variant. */
             <a
               href={ad.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 flex-1 select-none items-center justify-center gap-2 rounded-full border-2 border-cb-black bg-cb-black px-5 font-heading text-sm font-medium text-white transition-colors duration-150 ease-in-out hover:bg-cb-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2 active:bg-cb-gray-700"
+              className="inline-flex h-11 shrink-0 select-none items-center justify-center gap-2 rounded-full border-2 border-cb-black px-5 font-heading text-sm font-medium text-cb-black transition-colors duration-150 ease-in-out hover:bg-cb-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black focus-visible:ring-offset-2"
             >
               {t("app.ads.readMore")}
             </a>
           )}
-          <div className={ad.url ? "shrink-0" : "flex-1"}>
-            <Button variant="secondary" fullWidth={!ad.url} onClick={skip}>
+          <div className="shrink-0">
+            <Button variant="secondary" onClick={skip}>
               {t("app.ads.skip")}
             </Button>
           </div>

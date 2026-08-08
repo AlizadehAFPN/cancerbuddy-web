@@ -10,11 +10,19 @@
  * Independent of `BuddiesProvider` on purpose. The badge renders on every
  * authenticated page, and the provider pages through the full connection map —
  * far more work than a number is worth. This asks for ids and counts them.
+ *
+ * The subscription is not enough on its own. Browsers suspend websockets in
+ * background tabs and close them outright when a laptop sleeps, so a tab left
+ * open overnight wakes with a number from yesterday and no event to correct it.
+ * `useLiveResync` re-counts on return to the tab and on a push, which is also
+ * what catches a request *accepted* elsewhere — the subscription only hears
+ * about ones created.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API, graphqlOperation } from "aws-amplify";
 import { fetchPendingRequestCount } from "@/lib/buddies/connections";
+import { useLiveResync } from "@/lib/hooks/useLiveResync";
 
 const ON_CREATE_CONNECTION = /* GraphQL */ `
   subscription GetPendingConnections($userId: ID!) {
@@ -77,6 +85,8 @@ export function usePendingRequestCount(userId: string | null): number {
 
     return () => subscription?.unsubscribe();
   }, [userId, load]);
+
+  useLiveResync(load, { enabled: Boolean(userId) });
 
   // Gated on `userId` rather than cleared in an effect: signing out should hide
   // the badge on the same render, not one render later.

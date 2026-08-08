@@ -65,7 +65,10 @@ import { StepVerifiedSuccessfully } from "./_components/StepVerifiedSuccessfully
 import { StepUserRole } from "./_components/StepUserRole";
 import { StepCGRelationship } from "./_components/StepCGRelationship";
 import { StepCGPatientAge } from "./_components/StepCGPatientAge";
-import { StepDiagnosis } from "./_components/StepDiagnosis";
+import {
+  StepDiagnosis,
+  diagnosisRole,
+} from "./_components/StepDiagnosis";
 import { StepMedicalCenter } from "./_components/StepMedicalCenter";
 import { StepAddress } from "./_components/StepAddress";
 import { StepCreateProfileWelcome } from "./_components/StepCreateProfileWelcome";
@@ -518,14 +521,16 @@ function RegisterController() {
       }
       return;
     }
-    // Role-dependent back target for address step
-    if (step === "address") {
+    /**
+     * Back out of Diagnosis by the route you came in on — mobile's
+     * `BackDiagnosisCondition`, which reuses `RedirectNextRoleConditionUtil` so
+     * a caregiver steps back 1 (to patient age) and everyone else 3 (to the role
+     * picker). `address` needs no special case now that both roles reach it
+     * through `medicalCenter`.
+     */
+    if (step === "diagnosis") {
       const role = methods.getValues("userType");
-      if (role === "CAREGIVER") {
-        goToStep("cgPatientAge");
-      } else {
-        goToStep("medicalCenter");
-      }
+      goToStep(role === "CAREGIVER" ? "cgPatientAge" : "userRole");
       return;
     }
     const target = userStepBack.resolve(step);
@@ -919,8 +924,20 @@ function RegisterController() {
     if (ok) goToStep("cgPatientAge");
   }, [validateStep, goToStep]);
 
+  /**
+   * Caregivers walk the medical branch too.
+   *
+   * Mobile's path is one linear array — `profileSetupCareGiverGroup` (relationship,
+   * patient age) sits immediately before `profileSetupGroup` (diagnosis, medical
+   * centre, address) in `EnrollmentProvider.utils.tsx:25-32`, and the only branch
+   * is at the role step, where `RedirectNextRoleConditionUtil` jumps a
+   * non-caregiver forward by 3 to *skip* the caregiver pair. Nobody skips the
+   * medical pair. Web sent caregivers straight to `address`, so they finished
+   * signup with no diagnosis and no hospital — the record their matches are
+   * built from.
+   */
   const handleCGPatientAgeContinue = useCallback(() => {
-    goToStep("address");
+    goToStep("diagnosis");
   }, [goToStep]);
 
   const handleDiagnosisContinue = useCallback(async () => {
@@ -1129,9 +1146,7 @@ function RegisterController() {
 
         {step === "diagnosis" ? (
           <StepDiagnosis
-            userType={
-              methods.getValues("userType") === "SURVIVOR" ? "SURVIVOR" : "PATIENT"
-            }
+            userType={diagnosisRole(methods.getValues("userType"))}
             onContinue={handleDiagnosisContinue}
           />
         ) : null}

@@ -28,6 +28,7 @@ import {
   type ProfileSections,
   type ProfileUser,
 } from "@/lib/profile/types";
+import { useVisibilityResync } from "@/lib/hooks/useVisibilityResync";
 
 export type ProfileStatus = "loading" | "ready" | "error" | "forbidden";
 
@@ -138,6 +139,20 @@ export default function ProfileProvider({ children }: { children: ReactNode }) {
       console.error("[profile] gallery refresh failed:", err);
     }
   }, [userId]);
+
+  /**
+   * Coming back to the tab re-reads the profile and the gallery.
+   *
+   * Mobile refetches both on every focus (`HomeProfile.tsx`'s `useFocusEffect`),
+   * which matters because the same account is usually open on a phone as well:
+   * a photo added there, or a name changed there, appeared here only after a
+   * hard reload.
+   */
+  useVisibilityResync(
+    useCallback(() => {
+      void Promise.all([refresh(), refreshGallery()]);
+    }, [refresh, refreshGallery]),
+  );
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 

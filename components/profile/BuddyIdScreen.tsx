@@ -7,9 +7,14 @@
  * (`https://cancerbuddy.bonemarrow.org/buddyId/<id>`), so a code shown here
  * scans correctly in the phone app.
  *
- * Scanning *with* the web is deliberately not offered — it would need camera
- * permission and a decoder for a flow where typing a short id is just as quick.
- * The lookup field covers the same need.
+ * Scanning is offered where the browser can do it natively — `BarcodeDetector`
+ * is built into Chrome, Edge and Android WebView, so it costs no bundle weight.
+ * Safari and Firefox do not implement it; there the entry is simply absent and
+ * the field below does the same job. Shipping a WASM decoder to everyone so a
+ * minority can avoid typing ten characters is the wrong trade for this screen.
+ *
+ * A scanned id goes through the same `useBuddyIdLookup` ladder a typed one does.
+ * A QR code must not be a laxer route into a profile.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,7 +27,8 @@ import { ArrowLeftIcon } from "@/components/ui/icons";
 import { FieldLabel } from "@/components/ui/form";
 import { useProfile } from "@/lib/profile/ProfileProvider";
 import { useBuddyIdLookup } from "@/lib/buddies/useBuddyIdLookup";
-import { findUserByBuddyId } from "@/lib/buddies/profileDetail";
+import { qrScanningSupported } from "@/lib/buddies/scanBuddyId";
+import BuddyIdScanner from "@/components/profile/BuddyIdScanner";
 
 /** Must match mobile's `formatBuddyIdURL`. */
 const UNIVERSAL_DEEP_LINK = "https://cancerbuddy.bonemarrow.org";
@@ -37,7 +43,6 @@ export default function BuddyIdScreen() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [lookup, setLookup] = useState("");
-  const [searching, setSearching] = useState(false);
   const buddyIdLookup = useBuddyIdLookup(
     user?.id ? { id: user.id, birth: user.birth ?? null } : null,
   );
@@ -94,10 +99,37 @@ export default function BuddyIdScreen() {
    */
   const search = useCallback(async () => {
     const value = lookup.trim();
-    if (!value || searching) return;
+    if (!value || buddyIdLookup.searching) return;
     const userId = await buddyIdLookup.lookup(value);
     if (userId) router.push(`/buddies/${userId}`);
-  }, [lookup, searching, buddyIdLookup, router]);
+  }, [lookup, buddyIdLookup, router]);
+
+  const [scanning, setScanning] = useState(false);
+  /**
+   * Read once on mount rather than during render: `BarcodeDetector` does not
+   * exist on the server, so a render-time check would disagree between the
+   * server's HTML and the client's first paint.
+   */
+  const [canScan, setCanScan] = useState(false);
+  // Feature detection is exactly what this rule exempts in spirit: there is no
+  // render-time value to derive it from without breaking hydration.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setCanScan(qrScanningSupported()), []);
+
+  /**
+   * The same ladder the typed field runs — the scanner decodes, it does not
+   * decide. The id is shown in the field too, so a refusal ("that account is
+   * paused") is attached to something the member can see.
+   */
+  const handleScan = useCallback(
+    async (scanned: string) => {
+      setScanning(false);
+      setLookup(scanned);
+      const userId = await buddyIdLookup.lookup(scanned);
+      if (userId) router.push(`/buddies/${userId}`);
+    },
+    [buddyIdLookup, router],
+  );
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
@@ -152,6 +184,25 @@ export default function BuddyIdScreen() {
         <p className="mt-1.5 font-body text-[13.5px] leading-snug text-cb-gray-500">
           {t("app.profile.findByIdHint")}
         </p>
+
+        {canScan && (
+          <div className="mt-4">
+            {scanning ? (
+              <BuddyIdScanner
+                onScan={handleScan}
+                onClose={() => setScanning(false)}
+              />
+            ) : (
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => setScanning(true)}
+              >
+                {t("app.profile.scanCta")}
+              </Button>
+            )}
+          </div>
+        )}
 
         <div className="mt-4">
           <FieldLabel>{t("app.profile.buddyId")}</FieldLabel>

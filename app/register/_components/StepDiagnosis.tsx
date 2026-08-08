@@ -25,8 +25,34 @@ import {
 } from "./picker";
 
 interface Props {
-  userType: "PATIENT" | "SURVIVOR";
+  /**
+   * The member's actual role. A caregiver used to be coerced to `"PATIENT"` at
+   * the call site because they never reached this step — which is exactly the
+   * bug: they were routed past the whole medical branch and finished signup
+   * with an empty medical record. Typed as the form's own union so the coercion
+   * cannot come back without failing `tsc --noEmit`.
+   */
+  userType: DiagnosisRole;
   onContinue: () => void;
+}
+
+/**
+ * `CAREGIVER` behaves as `PATIENT` here, which is mobile's own rule: the
+ * treatment-status section is gated on `userType !== SURVIVOR`
+ * (`PatientDiagnosisLayout.tsx:239`) and the remission field is SURVIVOR-only
+ * (`:290`). Mobile varies some placeholder copy for caregivers; that is
+ * presentation, and out of scope here.
+ */
+export type DiagnosisRole = "PATIENT" | "SURVIVOR" | "CAREGIVER";
+
+/**
+ * The form's `userType` also admits `""` (nobody has chosen yet), which cannot
+ * reach this step — the role picker gates it. Narrowing here rather than at the
+ * call site keeps the mapping in one place, and keeps `CAREGIVER` intact: a
+ * `=== "SURVIVOR" ? … : "PATIENT"` at the call site is what erased it before.
+ */
+export function diagnosisRole(value: string): DiagnosisRole {
+  return value === "SURVIVOR" || value === "CAREGIVER" ? value : "PATIENT";
 }
 
 /* ── Skeleton ───────────────────────────────────────────────────────────── */
@@ -91,7 +117,7 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
       fetchTreatments().then((d)   => { if (!cancelled) setTreatments(sortAlpha(d)); }),
       fetchDisabilities().then((d) => { if (!cancelled) setDisabilities(sortAlpha(d)); }),
     ];
-    if (userType === "PATIENT") {
+    if (userType !== "SURVIVOR") {
       loads.push(
         fetchTreatmentStatuses().then((d) => { if (!cancelled) setTreatmentStatuses(sortAlpha(d)); }),
       );
@@ -149,9 +175,9 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
 
   const canContinue =
     diagnosisIds.length > 0 &&
-    (userType === "PATIENT"
-      ? treatmentStatus.trim() !== ""
-      : (inRemissionMonth ?? "") !== "" && (inRemissionYear ?? "") !== "") &&
+    (userType === "SURVIVOR"
+      ? (inRemissionMonth ?? "") !== "" && (inRemissionYear ?? "") !== ""
+      : treatmentStatus.trim() !== "") &&
     // My treatment is required whenever the section is unlocked. It stays
     // locked (and thus not required) for PATIENTs in "Pre-treatment", who by
     // definition have no treatment to report yet.
@@ -207,8 +233,8 @@ export function StepDiagnosis({ userType, onContinue }: Props) {
           required
         />
 
-        {/* 2a ── Currently I'm — REQUIRED (PATIENT) */}
-        {userType === "PATIENT" && (
+        {/* 2a ── Currently I'm — REQUIRED (PATIENT and CAREGIVER) */}
+        {userType !== "SURVIVOR" && (
           <SingleSection
             sectionLabel={t("register.diagnosis.currentlyIm")}
             selectLabel={t("register.diagnosis.selectStatus")}

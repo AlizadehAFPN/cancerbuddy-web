@@ -22,14 +22,7 @@ export const loginSchema = z.object({
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 
-/* ── Forgot password ── */
-
-export const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .min(1, t("validation.login.emailRequired"))
-    .email(t("validation.login.emailInvalid")),
-});
-
-export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+/* Password reset has its own rules — see `lib/password-reset/validation.ts`.
+   The schema that used to sit here was written for the deleted stub action and
+   had no consumer. */
 

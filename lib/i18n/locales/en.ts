@@ -108,6 +108,46 @@ const en = {
     hostInviteCta: "Register as a host →",
   },
 
+  /* ── Password reset (/forgot-password) ───────────────────────────── */
+  passwordReset: {
+    backToLogin: "\u2190 Back to sign in",
+
+    /* Step 1 — ask for the email */
+    requestHeading: "Reset your password",
+    requestSub:
+      "Enter the email you signed up with and we'll send you a code to set a new password.",
+    emailLabel: "Email address",
+    emailPlaceholder: "you@example.com",
+    requestSubmit: "Send code",
+
+    /* Step 2 — code + new password */
+    resetHeading: "Choose a new password",
+    resetSub: "We sent a {length}-digit code to {email}.",
+    codeLabel: "Verification code",
+    passwordLabel: "New password",
+    passwordPlaceholder: "Create a password",
+    confirmLabel: "Confirm new password",
+    confirmPlaceholder: "Re-enter your password",
+    resetSubmit: "Set new password",
+    changeEmail: "\u2190 Use a different email",
+    resendCode: "Resend code",
+    resendIn: "Resend in {seconds}s",
+    resent: "A new code is on its way.",
+
+    /* Outcomes */
+    done: "Password updated. Signing you in\u2026",
+    unconfirmedTitle: "Finish registering first",
+    unconfirmedBody:
+      "This account never confirmed its email, so there's no verified address to send a reset code to. Pick up where you left off and we'll get you in.",
+    unconfirmedCta: "Continue registration \u2192",
+    rateLimited:
+      "Too many attempts. Please wait a few minutes before trying again.",
+    codeMismatch: "That code isn't right. Check it and try again.",
+    codeExpired: "That code has expired. Send yourself a new one.",
+    signInFailed:
+      "Your password was changed, but we couldn't sign you in automatically. Please sign in with your new password.",
+  },
+
   /* ── Login (/login) ───────────────────────────────────────────────── */
   login: {
     tagline: "Your support community\nawaits.",
@@ -224,7 +264,7 @@ const en = {
       heading: "Confirm your email",
       sub: "We sent a {length}-digit code to {email}.",
       resumeHint:
-        "You already started registration with this email. Enter the verification code we sent you, or tap Resend code.",
+        "You already started registration with this email. We've just sent you a fresh verification code \u2014 enter it below.",
       changeEmail: "← Change email",
       resendIn: "Resend in {seconds}s",
       resendCode: "Resend code",
@@ -433,7 +473,7 @@ const en = {
       heading: "Confirm your email",
       sub: "We sent a {length}-digit code to {email}.",
       resumeHint:
-        "You already started signing up with this email. Enter the verification code we sent you, or tap Resend code.",
+        "You already started signing up with this email. We've just sent you a fresh verification code \u2014 enter it below.",
       changeEmail: "← Change email",
       resendIn: "Resend in {seconds}s",
       resendCode: "Resend code",
@@ -454,8 +494,10 @@ const en = {
     verifiedSuccessfully: {
       eyebrow: "Phone verified",
       heading: "You're verified, {name}!",
-      body: "Phone number confirmed. Next we'll set up your profile so we can match you with the right buddies.",
+      body: "Next we'll set up your profile so we can match you with the right buddies.",
       continueCta: "Continue",
+      /** Screen-reader label for the echoed number; sighted users see the digits alone, as on mobile. */
+      phoneLabel: "Verified number",
     },
     userRole: {
       eyebrow: "Your status",
@@ -790,6 +832,17 @@ const en = {
       statusReviewBody:
         "Please log back in to your account to start making new connections.",
       statusReviewCta: "I understand, continue",
+      statusRelationship: "Relationship to the patient",
+      statusPatientBirth: "When were they born?",
+      statusDiagnosis: "Diagnosis",
+      statusTreatmentStatus: "Currently",
+      statusTreatments: "Treatment",
+      statusMedicalCenter: "Medical center",
+      statusSelectOne: "Select one",
+      statusSearch: "Type to search",
+      statusNoMatches: "Nothing matches that search.",
+      statusPreTreatment:
+        "Nothing to record yet — you can add treatments once they start.",
 
       /** Account deletion. */
       deleteTitle: "Delete my account",
@@ -809,6 +862,20 @@ const en = {
       deletedBody:
         "All your info is safely removed. You're always welcome to rejoin the community with a new account.",
       deletedGotIt: "Got it",
+    },
+
+    /* ── Partners and funders (the account-menu resources) ─────────────── */
+    partners: {
+      favorites: "Favorites",
+      empty: "No partner resources to show yet.",
+      loadError: "We couldn't load the partner resources. Please try again.",
+      /** The interstitial's primary action, restored to mobile's destination. */
+      moreResources: "More resources",
+      readMore: "Read more",
+    },
+    funders: {
+      empty: "No funders to show yet.",
+      loadError: "We couldn't load our funders. Please try again.",
     },
 
     push: {
@@ -1134,6 +1201,12 @@ const en = {
         "{name} is in a different age group, so you can't connect on CancerBuddy.",
       buddyIdError: "Something went wrong looking that up. Please try again.",
 
+      // Shared-link landing (/buddyId/:buddyId)
+      buddyIdLandingLoading: "Opening that profile\u2026",
+      buddyIdLandingRefusedTitle: "We can't open that profile",
+      buddyIdLandingBackToBuddies: "Browse buddies",
+      buddyIdLandingYourCode: "Your Buddy ID",
+
       // Empty state
       emptyFiltered: "No buddies match these filters.",
       emptyFilteredSub:
@@ -1284,6 +1357,17 @@ const en = {
       noBuddyId: "You don't have a Buddy ID yet",
       viewCode: "View code",
       buddyIdCopied: "Buddy ID copied.",
+
+      // Scanning someone else's code (/profile/buddy-id)
+      scanCta: "Scan a code",
+      scanHint: "Point your camera at a CancerBuddy QR code.",
+      scanClose: "Close",
+      scanDenied:
+        "Camera access was blocked. Allow it in your browser settings, or type the Buddy ID below instead.",
+      scanUnavailable:
+        "We couldn't start your camera. Type the Buddy ID below instead.",
+      scanUnsupported:
+        "This browser can't scan QR codes. Type the Buddy ID below instead.",
       buddyIdShare: "Share your Buddy ID so someone can find you.",
 
       // Sections
@@ -1381,6 +1465,28 @@ const en = {
       remissionSince: "In remission since",
       remissionHint: "Month and year, e.g. 03/2024.",
       remissionRequired: "Tell us when you went into remission.",
+      /* ── Per-field explanatory text (mobile's `FORMS_COPY_RES`) ──────── */
+      /** The expander label mobile puts under age and catalogue fields. */
+      liveCreatedAt: "Created",
+      liveUpdatedAt: "Last updated",
+      whyWeAsk: "Why do we ask this?",
+      /** `PersonalInfoLayout.tsx:171-178` and `AgeLayout.tsx:101-108`, verbatim. */
+      whyWeAskAge:
+        "Your age qualifies you to use this app and helps find buddies close to your age.",
+      hintDiagnosis:
+        "Start typing the name, and a list will appear — then tap on your diagnosis. This info helps match you with buddies.",
+      hintMedicalCenter:
+        "Start typing the name, and a list will appear — then tap on your medical center. This info helps match you with buddies.",
+      hintSupportOrganization:
+        "If you are part of an organization that supports cancer patients, survivors or caregivers you can add it.",
+      hintSideEffects:
+        "If there are any side effects related to the cancer diagnosis, please add them.",
+      hintWorkplace:
+        "Start typing the name, and a list will appear — then click on your workplace. This info helps match you with buddies.",
+      hintCollege:
+        "Start typing the name, and a list will appear — then tap on your University / College. This info helps match you with buddies.",
+      remissionBeforeBirth:
+        "That's before your date of birth. Please check the month and year.",
       remissionInvalid: "Enter the date as MM/YYYY.",
       careTeamSection: "Care team",
       careTeamHint: "Where you're treated and who supports you.",

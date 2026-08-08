@@ -11,6 +11,7 @@
 import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 import { raiseUserLambda } from "@/lib/aws/raiseUserLambda";
 import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
+import { trackMilestone } from "@/lib/analytics";
 import type { FeedSession } from "@/lib/groups/feedClient";
 import type { ReportTargetTypeValue } from "@/lib/groups/reporting";
 
@@ -29,6 +30,11 @@ export async function joinGroup(params: {
     userId: params.session.userId,
     groupId: params.groupId,
   });
+
+  /* After both writes, so a join that half-failed is not counted. Mobile emits
+     from its button handler (`ConnectionGroup.tsx:95`); here it sits with the
+     action itself, so every route into joining is measured, not just one. */
+  trackMilestone("joinFirstGroup", params.session.userId);
 }
 
 export async function leaveGroup(params: {

@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { WhyWeAsk } from "@/components/ui/FieldHint";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
 import { FieldLabel, SelectField } from "@/components/ui/form";
@@ -246,6 +247,7 @@ export default function PatientInfoForm() {
             <p className="mt-1.5 font-body text-[12.5px] text-cb-gray-400">
               {t("app.profile.patientBirthHint")}
             </p>
+            <WhyWeAsk>{t("app.profile.whyWeAskAge")}</WhyWeAsk>
           </div>
 
           <SelectField

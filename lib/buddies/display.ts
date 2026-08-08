@@ -20,6 +20,22 @@ export function formatName(name?: string | null, userType?: string): string {
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
+/**
+ * The name exactly as it was saved, for surfaces that name a *sender*.
+ *
+ * The opposite of {@link formatName}, and deliberately so. Discovery is a wall
+ * of strangers, where a first name is the whole convention; a notification is
+ * one person telling you they did something, and "Dr. Sarah Chen" reduced to
+ * "Dr." identifies nobody. Mobile's row prints `props.name` verbatim for every
+ * user type (`ListNotification.tsx:60`).
+ *
+ * The empty fallback is a space rather than "" so a missing name still occupies
+ * its line and the row does not reflow around it — same trick `formatName` uses.
+ */
+export function senderName(name?: string | null): string {
+  return name?.trim() || " ";
+}
+
 /** `"Brooklyn, NY"` — falls back gracefully when either half is missing. */
 export function formatLocation(
   city?: string | null,

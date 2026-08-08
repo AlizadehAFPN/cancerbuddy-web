@@ -10,9 +10,14 @@
  * Lambda on every render where `notifications` changes. That Lambda writes to a
  * key the Notifications table doesn't have, so every call fails silently; the
  * web doesn't call it rather than pretending to. See `docs/UPDATES.md`.
+ *
+ * The list also reloads itself when the member returns to the tab or a push
+ * lands — `useLiveResync`. Mobile has the push half only; the tab half is a case
+ * a phone does not have.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLiveResync } from "@/lib/hooks/useLiveResync";
 import {
   fetchNotifications,
   mergeNotifications,
@@ -133,27 +138,47 @@ export function useNotifications(userId: string | null): NotificationsResult {
       });
   }, [userId, setNextToken]);
 
-  const refresh = useCallback(async () => {
-    if (!userId) return;
-    setRefreshing(true);
-    try {
-      const page = await fetchNotifications(userId, {
-        limit: NOTIFICATIONS_PAGE_SIZE,
-      });
-      if (!mountedRef.current) return;
-      // Replaces rather than merges: a refresh is the user asking for the top
-      // of the list, and keeping older pages under a fresh first page would
-      // leave a gap wherever the feed moved on.
-      setItems(page.items);
-      setNextToken(page.nextToken);
-      setFetchedAt(Date.now());
-      setError(null);
-    } catch (err) {
-      console.error("[updates] refresh failed:", err);
-    } finally {
-      if (mountedRef.current) setRefreshing(false);
-    }
-  }, [userId, setNextToken]);
+  /**
+   * `silent` is the difference between the member asking and the tab noticing.
+   * An automatic reload that spun the refresh button would report activity the
+   * member did not cause, and on a busy account it would never stop spinning.
+   */
+  const reload = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!userId) return;
+      const silent = options?.silent ?? false;
+      if (!silent) setRefreshing(true);
+      try {
+        const page = await fetchNotifications(userId, {
+          limit: NOTIFICATIONS_PAGE_SIZE,
+        });
+        if (!mountedRef.current) return;
+        // Replaces rather than merges: a refresh is the user asking for the top
+        // of the list, and keeping older pages under a fresh first page would
+        // leave a gap wherever the feed moved on.
+        setItems(page.items);
+        setNextToken(page.nextToken);
+        setFetchedAt(Date.now());
+        setError(null);
+      } catch (err) {
+        console.error("[updates] refresh failed:", err);
+      } finally {
+        if (!silent && mountedRef.current) setRefreshing(false);
+      }
+    },
+    [userId, setNextToken],
+  );
+
+  const refresh = useCallback(() => reload(), [reload]);
+
+  /**
+   * Not while the first page is still loading, and not while a further page is
+   * in flight — replacing the list under either would drop rows the member is
+   * looking at, or race the page that is about to land.
+   */
+  const canResync = Boolean(userId) && !loading && !loadingMore;
+  const resync = useCallback(() => void reload({ silent: true }), [reload]);
+  useLiveResync(resync, { enabled: canResync });
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 

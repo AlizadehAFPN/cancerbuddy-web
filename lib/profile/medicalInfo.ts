@@ -309,3 +309,75 @@ export function medicalRulesFor(
     aboutPatient: isCaregiver,
   };
 }
+
+/* ── Data rules web dropped ─────────────────────────────────────────────── */
+
+/** Mobile's `limit: 3` on the support-organisation picker (`dropdown-multiple.tsx:30`). */
+export const MAX_SUPPORT_ORGANIZATIONS = 3;
+
+/**
+ * Choosing a treatment status also decides which treatments may stand.
+ *
+ * Mobile's `updateTreatment` (`PatientDiagnosisLayout.tsx:132-148`) empties the
+ * treatments **and deletes their join rows** in two cases: the status is
+ * cleared, and the status is "Pre-treatment". Web left them in place and merely
+ * greyed the field, so a member who cleared their status was holding treatments
+ * they could no longer edit — and which still described them to everyone else.
+ *
+ * Returns the treatment ids that should survive. The caller's save then deletes
+ * whatever is no longer in the list, which the existing join-table diff already
+ * does for free.
+ */
+export function applyTreatmentStatus(
+  values: Pick<MedicalInfoValues, "treatmentIds">,
+  nextStatusId: string,
+  statuses: ReadonlyArray<{ value: string; label: string }> = [],
+): { treatmentStatusId: string; treatmentIds: string[] } {
+  const label = statuses.find((s) => s.value === nextStatusId)?.label ?? "";
+  const clears = !nextStatusId || label === "Pre-treatment";
+  return {
+    treatmentStatusId: nextStatusId,
+    treatmentIds: clears ? [] : values.treatmentIds,
+  };
+}
+
+/**
+ * A remission date cannot predate the member's own birth.
+ *
+ * Mobile cross-checks the two (`validateRemissionDate`, `utils/dates.ts:172-203`)
+ * and web validated only format, future and 130-years — so "03/1985" on an
+ * account born in 1990 saved happily and then displayed as a fact about them.
+ *
+ * Returns an error key, or null when the pair is coherent. Missing or
+ * unparseable values return null: the format validator owns those.
+ */
+export function validateRemissionAgainstBirth(
+  birth: string | null | undefined,
+  remission: string | null | undefined,
+): "remissionBeforeBirth" | null {
+  const parse = (value: string | null | undefined): Date | null => {
+    const raw = (value ?? "").trim();
+    if (!raw) return null;
+    const mmYyyy = /^(\d{1,2})\/(\d{4})$/.exec(raw);
+    if (mmYyyy) return new Date(Number(mmYyyy[2]), Number(mmYyyy[1]) - 1, 1);
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+    if (ymd) return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
+    const fallback = new Date(raw);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  };
+
+  const birthDate = parse(birth);
+  const remissionDate = parse(remission);
+  if (!birthDate || !remissionDate) return null;
+
+  /*
+   * Month granularity: a birth of `1990-05-31` and a remission of `05/1990`
+   * parse to the 31st and the 1st, and mobile compares the raw dates — which
+   * would reject a member who went into remission the month they were born.
+   * That case cannot occur in practice; comparing months keeps the two clients
+   * agreeing on every case that can.
+   */
+  const birthMonth = birthDate.getFullYear() * 12 + birthDate.getMonth();
+  const remissionMonth = remissionDate.getFullYear() * 12 + remissionDate.getMonth();
+  return remissionMonth < birthMonth ? "remissionBeforeBirth" : null;
+}

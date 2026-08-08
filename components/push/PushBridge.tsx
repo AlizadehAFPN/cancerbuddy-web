@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useStreamChat } from "@/lib/chat/StreamChatProvider";
 import {
+  clearPushNotices,
   subscribeForegroundPush,
   subscribePushData,
   syncPushDevice,
 } from "@/lib/push/pushClient";
+import { useLiveResync } from "@/lib/hooks/useLiveResync";
 import { markGroupUnread } from "@/lib/groups/unreadPosts";
 import { t } from "@/lib/i18n";
 
@@ -46,6 +48,20 @@ export default function PushBridge() {
     if (status !== "ready" || !userId) return;
     void syncPushDevice();
   }, [status, userId]);
+
+  /**
+   * The app-icon badge is a count of things waiting *while you were away*, so
+   * coming back clears it — mobile does exactly this on foreground
+   * (`push-notification.provider.tsx:93-95`). The tray is left alone here: a
+   * banner is still a useful reminder of what you have not opened yet, and
+   * opening Updates is what clears those.
+   */
+  useLiveResync(
+    useCallback(() => {
+      void clearPushNotices("badge");
+    }, []),
+    { enabled: status === "ready" && Boolean(userId) },
+  );
 
   /**
    * A pushed group post marks that group `NEW` in the sidebar, and opening the

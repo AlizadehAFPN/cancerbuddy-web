@@ -6,6 +6,7 @@ import {
   otpSchema as emailOtpSchema,
 } from "@/lib/signup/validation";
 import {
+  BIO_MAX_LENGTH,
   MIN_BIRTH_YEAR,
 } from "@/lib/signup/constants";
 import {
@@ -147,7 +148,27 @@ export const addressSchema = z.object({
 });
 
 export const aboutSchema = z.object({
-  bio: z.string().min(1, "Please write something about yourself.").max(1000, "Bio must be 1000 characters or less."),
+  bio: z
+    .string()
+    .min(1, "Please write something about yourself.")
+    .max(
+      BIO_MAX_LENGTH,
+      `Bio must be ${BIO_MAX_LENGTH} characters or less.`,
+    ),
+});
+
+/**
+ * The same rule the profile editor enforces, exported so the invariant can be
+ * asserted rather than hoped for: what registration accepts, the editor accepts.
+ */
+export const profileBioSchema = z.object({
+  bio: z
+    .string()
+    .min(1, "Please write something about yourself.")
+    .max(
+      BIO_MAX_LENGTH,
+      `Bio must be ${BIO_MAX_LENGTH} characters or less.`,
+    ),
 });
 
 /** Zod schema for the guardian consent step (StepGuardian). */

@@ -17,6 +17,8 @@ import {
   userRowHasVerifiedPhone,
   type AppSyncUserResumeRow,
 } from "@/lib/aws/appsyncUserQueries";
+import { markAllFired, ONCE_ONLY_EVENTS } from "@/lib/analytics";
+import { runLoginBootstrap } from "./loginBootstrap";
 import type { LoginInput, LoginResult } from "./types";
 import type { LoginService } from "./service";
 
@@ -134,6 +136,32 @@ export const cognitoLoginService: LoginService = {
       return { status: "RESUME_PHONE" };
     }
 
-    return classifyRow(row);
+    const result = classifyRow(row);
+
+    /**
+     * Only for a member who is actually through onboarding. Mobile guards it the
+     * same way — `useAuth.logIn:207-225` diverts anyone without a `userType` to
+     * the signup stack and never reaches `LoginInLambdaUtil`. The half-finished
+     * registrations that `RESUME_*` represents run it at the end of the flow,
+     * from `userEnrollmentFinalize`.
+     */
+    if (result.status === "DONE") {
+      await runLoginBootstrap(cognitoUserId);
+
+      /**
+       * A returning member has, by definition, already had their first group,
+       * first post and first conversation — whether or not this browser was
+       * there to see it. Marking all five closes the milestone window rather
+       * than re-reporting an old account's firsts as if they were new.
+       *
+       * Mobile does exactly this in `Login.tsx:41-57`, writing the same five
+       * flags before it navigates. The difference is that its keys are
+       * device-wide, so on a shared device it also silences the *next* member;
+       * these are keyed to this account only.
+       */
+      markAllFired(cognitoUserId, ONCE_ONLY_EVENTS);
+    }
+
+    return result;
   },
 };

@@ -3,10 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import {
-  USER_REGISTER_STEPS,
-  type UserRegisterStep,
-} from "@/lib/user-signup/constants";
+import type { UserRegisterStep } from "@/lib/user-signup/constants";
+import { hasProgress, progressFor } from "@/lib/user-signup/progress";
 import { t, type MessageKey } from "@/lib/i18n";
 import { HelpDialog } from "@/components/auth";
 
@@ -85,12 +83,8 @@ export function RegisterShell({
   children,
   onFlowBack,
 }: Props) {
-  const visibleSteps = USER_REGISTER_STEPS;
-  const isVisibleStep = (visibleSteps as readonly string[]).includes(step);
-  const stepIndex = isVisibleStep
-    ? visibleSteps.indexOf(step as (typeof visibleSteps)[number])
-    : 0;
-  const total = visibleSteps.length;
+  const isVisibleStep = hasProgress(step);
+  const { current, total, percent } = progressFor(step);
   const titleKey = USER_STEP_TITLE_KEYS[step];
   const heading = isVisibleStep && titleKey ? t(titleKey) : "";
 
@@ -259,13 +253,10 @@ export function RegisterShell({
                 <div className="mb-1.5 flex items-baseline justify-between gap-2 sm:mb-2">
                   <p className="font-body text-sm font-medium text-cb-gray-500">
                     <span className="sr-only">
-                      {t("signup.stepOfTotal", {
-                        current: stepIndex + 1,
-                        total,
-                      })}{" "}
+                      {t("signup.stepOfTotal", { current, total })}{" "}
                     </span>
                     <span aria-hidden className="tabular-nums text-cb-black">
-                      {stepIndex + 1}
+                      {current}
                     </span>
                     <span aria-hidden className="text-cb-gray-300">
                       {" "}
@@ -279,24 +270,24 @@ export function RegisterShell({
                     {heading}
                   </p>
                 </div>
-                <div className="flex h-1.5 gap-1" aria-hidden>
-                  {visibleSteps.map((s, i) => {
-                    const done = i < stepIndex;
-                    const current = i === stepIndex;
-                    return (
-                      <div
-                        key={s}
-                        className={[
-                          "h-full min-w-0 flex-1 rounded-full transition-all duration-300",
-                          done
-                            ? "bg-cb-black"
-                            : current
-                              ? "bg-cb-black shadow-[0_0_0_1px_rgba(0,0,0,0.08)]"
-                              : "bg-cb-gray-200",
-                        ].join(" ")}
-                      />
-                    );
-                  })}
+                {/*
+                  One continuous bar rather than a segment per step. At six
+                  steps a segmented strip read as a checklist; at twenty-two the
+                  segments are hairlines and the shape stops carrying meaning.
+                */}
+                <div
+                  data-testid="register-progress"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent}
+                  aria-label={t("signup.stepOfTotal", { current, total })}
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-cb-gray-200"
+                >
+                  <div
+                    className="h-full rounded-full bg-cb-black transition-[width] duration-300"
+                    style={{ width: `${percent}%` }}
+                  />
                 </div>
               </div>
             ) : null}

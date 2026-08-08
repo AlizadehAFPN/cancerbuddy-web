@@ -14,7 +14,11 @@
  * every visitor — the ad list changes a few times a year.
  */
 
-import { GET_ADS, GET_APP_STORE_LINK } from "@/lib/contentful/queries";
+import {
+  GET_ADS,
+  GET_APP_STORE_LINK,
+  GET_FUNDERS,
+} from "@/lib/contentful/queries";
 import { normalizeAds, type ContentfulAd, type RawAdCollection } from "@/lib/contentful/types";
 
 /** Ads are marketing copy, not live data — an hour stale is fine. */
@@ -128,4 +132,49 @@ export async function fetchAppStoreLink(): Promise<string | null> {
   );
   const link = data.appStoreLinkCollection?.items?.[0]?.appLink?.trim();
   return link || null;
+}
+
+/* ── Funders ────────────────────────────────────────────────────────────── */
+
+export interface Funder {
+  name: string;
+  description: string;
+}
+
+interface RawFunders {
+  fundersCollection?: {
+    items?: ({ name?: string | null; description?: string | null } | null)[] | null;
+  } | null;
+}
+
+/** Alphabetical, case-insensitively — mobile sorts the same way. */
+export function sortFunders(funders: ReadonlyArray<Funder>): Funder[] {
+  return [...funders].sort((a, b) =>
+    a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
+  );
+}
+
+/**
+ * The funder list, sorted, or `[]` when Contentful is unreachable.
+ *
+ * Never throws: a funding credit failing to load should not take the page down,
+ * and an empty list is also the signal that hides the menu row.
+ */
+export async function fetchFunders(): Promise<Funder[]> {
+  try {
+    const data = await runContentfulQuery<RawFunders>(
+      GET_FUNDERS,
+      ADS_REVALIDATE_SECONDS,
+    );
+    const funders = (data.fundersCollection?.items ?? [])
+      .map((item) => ({
+        name: item?.name?.trim() ?? "",
+        description: item?.description?.trim() ?? "",
+      }))
+      .filter((f) => f.name);
+    return sortFunders(funders);
+  } catch (err) {
+    console.error("[contentful] funders load failed:", err);
+    return [];
+  }
 }

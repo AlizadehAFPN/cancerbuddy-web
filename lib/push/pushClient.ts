@@ -31,6 +31,7 @@
 
 import type { StreamChat } from "stream-chat";
 import { getActiveStreamClient } from "@/lib/chat/streamClient";
+import { registerDeviceToken, unregisterDeviceToken } from "./deviceToken";
 import {
   getPushConfig,
   getStreamPushProviderName,
@@ -74,6 +75,14 @@ const OPT_OUT_KEY = "cb.push.optOut";
 let currentToken: string | null = null;
 
 /* ── Environment probes ───────────────────────────────────────────────── */
+
+/**
+ * The two messages `public/firebase-messaging-sw.js` posts to the page. The
+ * worker is a plain script outside the module graph, so it carries its own
+ * copies at `:145` and `:154` — change these together.
+ */
+const FOREGROUND_MESSAGE = "cancerbuddy:push";
+const DATA_MESSAGE = "cancerbuddy:push-data";
 
 function browserCapable(): boolean {
   return (
@@ -320,6 +329,12 @@ export async function syncPushDevice(): Promise<void> {
 
   try {
     await registerPushDevice(cfg);
+    /* The backend half. Inert until `NEXT_PUBLIC_PUSH_TOKEN_REGISTRATION` is
+       set — read `lib/push/deviceToken.ts` before setting it. */
+    const active = connectedClient();
+    if (currentToken && active) {
+      await registerDeviceToken({ token: currentToken, userID: active.userId });
+    }
   } catch (error) {
     console.warn("[push] token sync failed:", error);
   }
@@ -341,6 +356,11 @@ export async function unregisterPushDevice(): Promise<void> {
   } catch (error) {
     console.warn("[push] removeDevice on logout failed:", error);
   }
+
+  /* Same switch, same reasoning — and it runs *after* Stream, so a failure
+     here cannot leave the member still registered with the sender that
+     actually delivers today. */
+  await unregisterDeviceToken({ token: currentToken, userID: active.userId });
 }
 
 /**
@@ -362,7 +382,7 @@ export function subscribeForegroundPush(
 
   const handler = (event: MessageEvent) => {
     const data = event.data;
-    if (!data || data.type !== "cancerbuddy:push") return;
+    if (!data || data.type !== FOREGROUND_MESSAGE) return;
     onPush({
       title: data.title ?? "CancerBuddy",
       body: data.body ?? "",
@@ -390,8 +410,68 @@ export function subscribePushData(
 
   const handler = (event: MessageEvent) => {
     const message = event.data;
-    if (!message || message.type !== "cancerbuddy:push-data") return;
+    if (!message || message.type !== DATA_MESSAGE) return;
     onData(message.data ?? {});
+  };
+
+  navigator.serviceWorker.addEventListener("message", handler);
+  return () => navigator.serviceWorker.removeEventListener("message", handler);
+}
+
+/* ── Badge and tray ───────────────────────────────────────────────────── */
+
+/**
+ * Ask the worker to tidy the app-icon badge and the OS notification tray.
+ *
+ * Both live on the worker — it owns the count, and only it can enumerate the
+ * tray — so the page asks rather than does. The two callers mirror mobile:
+ *
+ *  - `"badge"` when the app comes to the foreground
+ *    (`push-notification.provider.tsx:93-95`)
+ *  - `"tray"` when the member opens Updates, which clears the banners *and* the
+ *    badge (`HomeNotifications.tsx:110-115`, `notifee.cancelAllNotifications`)
+ *
+ * A no-op wherever service workers are absent, which includes SSR.
+ */
+export async function clearPushNotices(scope: "badge" | "tray"): Promise<void> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    registration.active?.postMessage({
+      type: scope === "tray" ? "cancerbuddy:clear-tray" : "cancerbuddy:clear-badge",
+    });
+  } catch (err) {
+    /* No worker registered yet — nothing has been shown, nothing to clear. */
+    console.debug("[push] clearPushNotices skipped:", err);
+  }
+}
+
+/**
+ * *That* a push arrived, without caring what it said.
+ *
+ * Both worker messages count, because a screen refreshing itself wants to know
+ * about the push, not to be told twice about the same one: the focused tab
+ * receives `cancerbuddy:push` **and** `cancerbuddy:push-data` for a single push,
+ * a background tab only the latter. Callers coalesce — see
+ * `lib/hooks/useLiveResync.ts`.
+ *
+ * Guarded on `serviceWorker` alone rather than {@link browserCapable}, which
+ * additionally requires `Notification` and `PushManager`. Those two decide
+ * whether this browser can be *sent* a push; neither is needed to hear a message
+ * the worker posts, and requiring them would silently disable this listener in
+ * environments that can receive worker messages perfectly well.
+ */
+export function subscribePushSignal(onSignal: () => void): () => void {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return () => {};
+  }
+
+  const handler = (event: MessageEvent) => {
+    const type = event.data?.type;
+    if (type !== FOREGROUND_MESSAGE && type !== DATA_MESSAGE) return;
+    onSignal();
   };
 
   navigator.serviceWorker.addEventListener("message", handler);

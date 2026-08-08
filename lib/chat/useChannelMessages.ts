@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Channel, Event } from "stream-chat";
 import { t } from "@/lib/i18n";
+import { trackMilestone, trackTimeToSendMessage } from "@/lib/analytics";
 import { useStreamChat } from "./StreamChatProvider";
 import { withRetry } from "./retry";
 import {
@@ -324,6 +325,18 @@ export function useChannelMessages(channelId: string | null) {
           ...(context ? { attachments: [context] } : {}),
         });
         setPending((p) => p.filter((m) => m.id !== id));
+
+        /**
+         * Both events mobile emits on send (`ChatMessagesInput.tsx:134-141`).
+         * `chatWithFirstBuddy` is once per account and times the account's age;
+         * `timeToSendMessage` fires on every send and carries a wall-clock
+         * reading, which is mobile's shape — see `trackTimeToSendMessage`.
+         *
+         * After the send resolves, not before: mobile emits first and would
+         * count a message that failed to leave the device.
+         */
+        trackMilestone("chatWithFirstBuddy", userId);
+        trackTimeToSendMessage(userId);
       } catch {
         setPending((p) => p.map((m) => (m.id === id ? { ...m, status: "failed" } : m)));
       }

@@ -170,6 +170,7 @@ misdeploy is diagnosable without a debugger.
 | File | Role |
 | --- | --- |
 | `lib/push/config.ts` | Reads + validates the five env vars |
+| `lib/push/deviceToken.ts` | `UserDeviceToken` registration — **off**, see below |
 | `lib/push/pushClient.ts` | Permission, token, `addDevice`/`removeDevice`, foreground listener, state store |
 | `public/firebase-messaging-sw.js` | Displays background notifications, routes clicks |
 | `components/push/PushBridge.tsx` | Mounted in the authenticated layout: token sync + foreground toasts |
@@ -214,6 +215,117 @@ rule — that is about never persisting registration data.)
 cleared, the worker is unregistered, or an install sits idle for a long time.
 `PushBridge` re-registers once chat is connected, which is why it waits for
 Stream `status === "ready"` — `addDevice` needs a connected user.
+
+## Why the web token is not registered
+
+`UserDeviceToken` is the table the app's own notifications read to decide where
+to send. Mobile writes its FCM token there on login and removes it on logout.
+**Web does not**, and `lib/push/deviceToken.ts` — which implements the whole
+thing — ships with its switch off.
+
+This is a decision with a reason, not an unfinished edge.
+
+### What the table actually is
+
+Introspected against the production AppSync endpoint, 2026-08-08:
+
+```graphql
+type UserDeviceToken { token: String!  userID: ID!  createdAt  updatedAt }
+
+input CreateUserDeviceTokenInput { token: String!  userID: ID! }
+input DeleteUserDeviceTokenInput { token: String! }
+```
+
+Four fields. **No platform, provider or device column.** Nothing reading that
+table can tell a browser token from a phone one.
+
+### Why registering would deliver nothing
+
+An FCM token is scoped to the Firebase project that minted it. Web push runs on
+**this app's own** Firebase project, because nobody on the team can open the
+mobile one (see [Who owns the Firebase project](#who-owns-the-firebase-project)).
+Whatever sends these notifications holds the *mobile* project's credentials, so a
+web token handed to it is answered with `SENDER_ID_MISMATCH`.
+
+Registering it today buys **zero** pushes and adds a token guaranteed to fail.
+
+### Why it cannot hurt the mobile app
+
+Verified rather than assumed:
+
+| Fact | Source |
+|---|---|
+| The primary key is the token string — one token, one row | `DeleteUserDeviceTokenInput { token: String! }` |
+| Web and phone tokens are different strings from different projects | FCM scopes tokens per project |
+| Mobile's dedupe deletes `token == mine AND userID != me` | `cancerbuddyapp/src/context/auth/useAuth.ts:82-115` |
+| Mobile's logout deletes `token == mine AND userID == me` | `useAuth.ts:161-200` |
+
+So **no web write can select a phone row, and no mobile write can select a web
+row.** `reconcileDeviceToken` is a pure function precisely so this is testable,
+and a test asserts it refuses to emit a delete for any token but its own.
+
+### The one residual risk, and its blast radius
+
+Rows are scoped to a single member, so a send is "notify user X" → read X's
+tokens → send. A web token can therefore only ever affect **that member's own**
+delivery — never anyone else's.
+
+Within that: if the sender iterates a member's tokens and *aborts* on the first
+failure rather than skipping, a failing web token could stop push reaching their
+own phone. Evidence that it does not: on the first page of `listUserDeviceTokens`,
+975 accounts hold 1000 rows and **19 of them hold 2–5 tokens**. Mobile only ever
+removes rows for the *same* token under other accounts, never its own older ones,
+so those extras are stale — and mobile push works today. The sender evidently
+tolerates dead tokens.
+
+"Evidently" is not "provably", and this is somebody's cancer-support app. Off.
+
+### What unblocks it
+
+1. Add a `platform` column (`ios` | `android` | `web`) to `UserDeviceToken`.
+2. Give the sender this project's Firebase service account as a second credential.
+3. Have the sender pick credentials by `platform`, and **skip rather than abort**
+   on a token it cannot send to.
+
+Then set `NEXT_PUBLIC_PUSH_TOKEN_REGISTRATION=true`. The client half — dedupe,
+create, remove-on-logout — is already written and tested; only the extra field
+needs adding to the create input.
+
+> **Read `USERS_LAMBDA`'s `login` and `logout` verbs before enabling this.**
+> Mobile hands them its FCM token (`signup.ts:8-38`) *and* writes the row from
+> the client, so the Lambda may own it too and the two would double-write. Web's
+> `runLoginBootstrap` sends `token: undefined`, so it cannot be creating a row
+> today; whether it *deletes* on an undefined token is the open question.
+
+---
+
+## Badge and tray
+
+The app-icon badge and the OS notification tray are kept tidy by the service
+worker, because a push arriving with no tab open has no page to run in.
+
+| Moment | What happens | Mobile's equivalent |
+|---|---|---|
+| A push is shown | badge count +1 | notifee auto-badge |
+| The member returns to the tab | badge cleared, tray left alone | `push-notification.provider.tsx:93-95` |
+| They open `/notifications` | tray **and** badge cleared | `HomeNotifications.tsx:110-115` |
+| They tap a *connect* notification | badge cleared, sibling connect banners swept | `cancelConnectNotifications:117-146` |
+| They tap anything else | badge cleared, that one closed | `cancelSingleNotification:149-155` |
+
+Two rules worth keeping:
+
+* **Tapping a buddy request must not sweep chat or live banners.** They point
+  somewhere else entirely. Mobile's own comment says so, and `isConnectLike()` in
+  the worker is a transcription of its filter.
+* **The count is held on the worker, not read back from the tray.** A banner the
+  member swiped away is gone from `getNotifications()`, and a badge that silently
+  decremented on a swipe would disagree with the list the app is about to show.
+
+Firefox and Safari-on-macOS have no Badging API; the calls are optional-chained
+and the notification still arrives. The icon is only *visible* in an installed
+PWA.
+
+---
 
 ## Divergences from mobile
 

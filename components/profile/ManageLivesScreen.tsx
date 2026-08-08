@@ -25,11 +25,14 @@ import LiveScheduleField from "@/components/profile/LiveScheduleField";
 import { hasSessionEnded } from "@/lib/live/session";
 import { useProfile } from "@/lib/profile/ProfileProvider";
 import { UserType } from "@/lib/profile/types";
+import { useVisibilityResync } from "@/lib/hooks/useVisibilityResync";
 import {
   createLiveSession,
   deleteLiveSession,
   fetchHostGroupId,
+  fetchLiveSession,
   fetchLiveSessions,
+  formatTimestamp,
   formatSessionWhen,
   isoToLocalInput,
   localInputToIso,
@@ -86,6 +89,13 @@ export default function ManageLivesScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  /**
+   * What the editor opened with. The guard rails describe a time the host is
+   * *choosing*; a session already in the past, or one an admin created off the
+   * 15-minute grid, must still be editable — otherwise renaming it becomes
+   * impossible without rescheduling it.
+   */
+  const [openedWith, setOpenedWith] = useState("");
   const [duration, setDuration] = useState(DEFAULT_DURATION_CREATE);
   const [active, setActive] = useState(true);
 
@@ -131,6 +141,10 @@ export default function ManageLivesScreen() {
     void load();
   }, [load]);
 
+  /* A session going live is flipped server-side by the first join, so a list
+     left open all afternoon disagrees with reality. Re-read on return. */
+  useVisibilityResync(load);
+
   const visible = useMemo(
     () =>
       sessions.filter((s) =>
@@ -152,19 +166,43 @@ export default function ManageLivesScreen() {
     setTitle("");
     setDescription("");
     setScheduledAt("");
+    setOpenedWith("");
     setDuration(DEFAULT_DURATION_CREATE);
     setActive(true);
   }, []);
 
-  const openEdit = useCallback((session: LiveSession) => {
-    setNow(new Date());
+  const applySession = useCallback((session: LiveSession) => {
     setEditing({ mode: "edit", session });
     setTitle(session.title ?? "");
     setDescription(session.description ?? "");
     setScheduledAt(isoToLocalInput(session.scheduledAt));
+    setOpenedWith(isoToLocalInput(session.scheduledAt));
     setDuration(Number(session.duration) || DEFAULT_DURATION_EDIT);
     setActive(session.active !== false);
   }, []);
+
+  /**
+   * Opens the editor on the row, then re-reads the session.
+   *
+   * The list can be minutes old — a co-host may have renamed the session, or it
+   * may have gone live since — and editing a stale copy saves the stale values
+   * back over the fresh ones. The row is shown immediately so the form is never
+   * blank; the fetch replaces it when it lands.
+   */
+  const openEdit = useCallback(
+    (session: LiveSession) => {
+      setNow(new Date());
+      applySession(session);
+      void fetchLiveSession(session.id)
+        .then((fresh) => {
+          if (fresh && mountedRef.current) applySession(fresh);
+        })
+        .catch((err) =>
+          console.error("[profile] live session refetch failed:", err),
+        );
+    },
+    [applySession],
+  );
 
   /**
    * `min` / `max` / `step` on the input are advisory outside a submitted form,
@@ -173,8 +211,11 @@ export default function ManageLivesScreen() {
    */
   const bounds = useMemo(() => (now ? scheduleBounds(now) : null), [now]);
   const problem = useMemo(
-    () => (now ? scheduleProblem(scheduledAt, now) : null),
-    [scheduledAt, now],
+    () =>
+      now && scheduledAt !== openedWith
+        ? scheduleProblem(scheduledAt, now)
+        : null,
+    [scheduledAt, openedWith, now],
   );
 
   const canSubmit =
@@ -416,6 +457,28 @@ export default function ManageLivesScreen() {
                     : "app.profile.editLive",
                 )}
               </h2>
+
+              {/*
+                When the session was created and last changed. A host with
+                several similar sessions has no other way to tell which one they
+                edited last, and mobile prints both on its detail screen.
+              */}
+              {editing.mode === "edit" && (
+                <dl className="mt-2 space-y-0.5 font-body text-[12px] text-cb-gray-500">
+                  {editing.session.createdAt && (
+                    <div className="flex gap-1.5">
+                      <dt>{t("app.profile.liveCreatedAt")}</dt>
+                      <dd>{formatTimestamp(editing.session.createdAt)}</dd>
+                    </div>
+                  )}
+                  {editing.session.updatedAt && (
+                    <div className="flex gap-1.5">
+                      <dt>{t("app.profile.liveUpdatedAt")}</dt>
+                      <dd>{formatTimestamp(editing.session.updatedAt)}</dd>
+                    </div>
+                  )}
+                </dl>
+              )}
 
               <div className="mt-4 space-y-4">
                 <div>

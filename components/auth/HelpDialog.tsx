@@ -245,7 +245,17 @@ function MenuCard({
 
 /* ── Types & constants ──────────────────────────────────────────────────────── */
 
-type View = "menu" | "cant-create-account" | "personal-info" | "other";
+/**
+ * `medical-info` is the signed-in variant: it is opened from the medical form
+ * with the member's own email already known, so it has no contact step. Mobile's
+ * `ModalMedicalInformation` is the same two-radio form for the same subject.
+ */
+type View =
+  | "menu"
+  | "cant-create-account"
+  | "personal-info"
+  | "medical-info"
+  | "other";
 type Step = 1 | 2;
 
 interface Fields {
@@ -283,6 +293,12 @@ const PERSONAL_INFO_REASONS = [
   "I can’t find my Zip Code",
 ];
 
+/** `HELP_BUTTON_MEDICAL_INFORMATION` — mobile's two options for this form. */
+const MEDICAL_INFO_REASONS = [
+  "I can’t find my Diagnosis, Treatment or Side Effects",
+  "I can’t find my Medical Center or Support Organization",
+];
+
 const MEDICAL_CENTER_REASON =
   "I can’t find my Medical Center or Support Organization";
 
@@ -292,12 +308,15 @@ const DIALOG_TITLE: Record<View, string> = {
   menu: "How can we help?",
   "cant-create-account": "I can’t create an account",
   "personal-info": "Personal information",
+  "medical-info": "Medical Information",
   other: "Other problems",
 };
 
 const SUBJECT: Record<Exclude<View, "menu">, string> = {
   "cant-create-account": "I can't create an account",
   "personal-info": "Personal information",
+  /** The literal the support inbox files on — mobile sends the same string. */
+  "medical-info": "Medical Information",
   other: "Other",
 };
 
@@ -305,6 +324,8 @@ const STEP1_SUB: Record<Exclude<View, "menu" | "other">, string> = {
   "cant-create-account":
     "We can help create your account. We just need some feedback on what’s the issue.",
   "personal-info":
+    "Tell us more about what information you can’t find on the provided lists.",
+  "medical-info":
     "Tell us more about what information you can’t find on the provided lists.",
 };
 
@@ -319,9 +340,25 @@ const FOCUSABLE =
    the full help dialog. No props required — drop it anywhere in the layout.
    ─────────────────────────────────────────────────────────────────────────── */
 
-export function HelpDialog() {
+export function HelpDialog({
+  view: fixedView,
+  signedInEmail,
+  signedInName,
+  triggerLabel,
+}: {
+  /**
+   * Opens straight into one view and hides the menu — the medical form asks a
+   * single question, so a member should not have to pick "Personal information"
+   * from a list to ask it.
+   */
+  view?: Exclude<View, "menu">;
+  /** Known for a signed-in member, so the contact step is skipped entirely. */
+  signedInEmail?: string | null;
+  signedInName?: string | null;
+  triggerLabel?: string;
+} = {}) {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<View>("menu");
+  const [view, setView] = useState<View>(fixedView ?? "menu");
   const [step, setStep] = useState<Step>(1);
   const [fields, setFields] = useState<Fields>(INITIAL_FIELDS);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -385,7 +422,7 @@ export function HelpDialog() {
 
   function doOpen() {
     setOpen(true);
-    setView("menu");
+    setView(fixedView ?? "menu");
     setStep(1);
     setFields(INITIAL_FIELDS);
     setErrors({});
@@ -412,9 +449,14 @@ export function HelpDialog() {
     if (step === 2) {
       setErrors({});
       setStep(1);
-    } else {
-      goTo("menu");
+      return;
     }
+    // Opened into a single view there is no menu to go back to; close instead.
+    if (fixedView) {
+      doClose();
+      return;
+    }
+    goTo("menu");
   }
 
   /* ── Validation ── */
@@ -424,7 +466,7 @@ export function HelpDialog() {
     if (!fields.option) {
       errs.option = "Please select an option.";
     } else if (
-      view === "personal-info" &&
+      (view === "personal-info" || view === "medical-info") &&
       fields.option === MEDICAL_CENTER_REASON &&
       !fields.reason.trim()
     ) {
@@ -473,7 +515,12 @@ export function HelpDialog() {
 
   async function handleSubmit() {
     if (view === "menu") return;
-    const valid = view === "other" ? validateOther() : validateContact();
+    const valid =
+      view === "medical-info"
+        ? validateStep1()
+        : view === "other"
+          ? validateOther()
+          : validateContact();
     if (!valid) return;
 
     const lambdaFn = process.env.NEXT_PUBLIC_USERS_LAMBDA?.trim();
@@ -488,8 +535,8 @@ export function HelpDialog() {
         LambdaPayloadType.SEND_HELP_EMAIL,
         lambdaFn,
         {
-          email: fields.helpEmail.trim(),
-          name: fields.helpFullName.trim(),
+          email: (signedInEmail ?? fields.helpEmail).trim(),
+          name: (signedInName ?? fields.helpFullName).trim(),
           textIfAdded:
             view === "other" ? fields.helpOtherProblem.trim() : fields.option,
           reason: fields.reason.trim() || " ",
@@ -513,6 +560,8 @@ export function HelpDialog() {
   /* ── Derived state ── */
   const isTwoStepView =
     view === "cant-create-account" || view === "personal-info";
+  /** One step: the radios are the whole form when we already know who is asking. */
+  const isRadioView = isTwoStepView || view === "medical-info";
   const isStep1 = isTwoStepView && step === 1;
   const progressPct = step === 1 ? 50 : 100;
 
@@ -529,7 +578,7 @@ export function HelpDialog() {
       className="inline-flex h-8 items-center gap-1.5 rounded-full border border-cb-gray-300 px-3 font-body text-[11px] font-bold uppercase tracking-[0.09em] text-cb-gray-600 transition-colors hover:border-cb-gray-600 hover:text-cb-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-black"
     >
       <LifeBuoyIcon className="h-3.5 w-3.5" />
-      Help
+      {triggerLabel ?? "Help"}
     </button>
   );
 
@@ -624,11 +673,13 @@ export function HelpDialog() {
           )}
 
           {/* ─── Step 1: radio selection ─── */}
-          {isTwoStepView && step === 1 && (
+          {isRadioView && step === 1 && (
             <div className="flex flex-col gap-3 pb-2">
               {(view === "cant-create-account"
                 ? CANT_CREATE_REASONS
-                : PERSONAL_INFO_REASONS
+                : view === "medical-info"
+                  ? MEDICAL_INFO_REASONS
+                  : PERSONAL_INFO_REASONS
               ).map((reason) => (
                 <RadioOption
                   key={reason}
@@ -641,7 +692,7 @@ export function HelpDialog() {
               ))}
 
               {/* Conditional detail textarea — personal-info / medical center only */}
-              {view === "personal-info" &&
+              {(view === "personal-info" || view === "medical-info") &&
                 fields.option === MEDICAL_CENTER_REASON && (
                   <Textarea
                     label="More details"

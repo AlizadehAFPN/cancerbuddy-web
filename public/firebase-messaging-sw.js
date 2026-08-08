@@ -153,6 +153,72 @@ const FOREGROUND_MESSAGE = "cancerbuddy:push";
  */
 const PUSH_DATA_MESSAGE = "cancerbuddy:push-data";
 
+/* ── BADGE + TRAY ──────────────────────────────────────────────────────────
+
+   Mobile keeps the app-icon badge and the OS tray tidy through notifee
+   (`push-notification.provider.tsx`). The web equivalents are the Badging API
+   and `registration.getNotifications()`, and both must live in here because a
+   push that arrives with no tab open has no page to run in.
+
+   The count is held on the worker rather than read back from the tray: a
+   notification the member has already swiped away is gone from
+   `getNotifications()`, and a badge that silently decremented on a swipe would
+   disagree with the list the app is about to show them.                       */
+
+let badgeCount = 0;
+
+async function bumpBadge() {
+  badgeCount += 1;
+  try {
+    await self.navigator?.setAppBadge?.(badgeCount);
+  } catch (error) {
+    /* Firefox and Safari-on-macOS have no Badging API. Nothing to do — the
+       notification itself still arrives. */
+    console.debug("[push-sw] setAppBadge unavailable:", error);
+  }
+}
+
+async function resetBadge() {
+  badgeCount = 0;
+  try {
+    await self.navigator?.clearAppBadge?.();
+  } catch {
+    /* as above */
+  }
+}
+
+/**
+ * Which tray notifications a click on `data` should sweep away with it.
+ *
+ * Mobile's rule, transcribed from `cancelConnectNotifications`
+ * (`push-notification.provider.tsx:117-146`): tapping a *connect* notification
+ * clears every other connect notification, because they are all answered by the
+ * same screen — but explicitly **not** chat or live ones, which point somewhere
+ * else entirely. Its own comment says so: "otherwise tapping a buddy request
+ * wipes them too."
+ *
+ * Any other notification clears only itself.
+ */
+function isConnectLike(data) {
+  if (!data) return false;
+  if (data.notificationType === "connect") return true;
+  return Boolean(
+    data.type &&
+      data.type !== "CHAT_MESSAGE" &&
+      data.type !== "LIVE_NOTIFY" &&
+      !data.channel &&
+      !data.channel_id &&
+      !data.channelId &&
+      !data.activityId,
+  );
+}
+
+/** Everything currently in the tray, cleared. Mobile does this on Updates. */
+async function clearTray() {
+  const shown = await self.registration.getNotifications();
+  for (const notification of shown) notification.close();
+}
+
 self.addEventListener("push", (event) => {
   /* A push that arrives but fails to display and a push that never arrives look
      identical from the page, and the difference decides whether to debug the
@@ -196,6 +262,9 @@ self.addEventListener("push", (event) => {
 
       try {
         await self.registration.showNotification(title, options);
+        /* Only for a notification the member has to come back to. One handed to
+           a focused tab is already in front of them and returns above. */
+        await bumpBadge();
       } catch (error) {
         console.error("[push-sw] showNotification failed:", error);
       }
@@ -203,13 +272,42 @@ self.addEventListener("push", (event) => {
   );
 });
 
+/**
+ * The page asking the worker to tidy up.
+ *
+ * `cancerbuddy:clear-badge` on foreground, `cancerbuddy:clear-tray` when the
+ * member opens Updates — the two moments mobile clears in
+ * (`push-notification.provider.tsx:93-95` and `HomeNotifications.tsx:110-115`).
+ * Both have to run here: only the worker owns the tray and the badge count.
+ */
+self.addEventListener("message", (event) => {
+  const type = event.data?.type;
+  if (type === "cancerbuddy:clear-badge") {
+    event.waitUntil(resetBadge());
+  } else if (type === "cancerbuddy:clear-tray") {
+    event.waitUntil(Promise.all([clearTray(), resetBadge()]));
+  }
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const path = targetPath(event.notification.data || {});
+  const data = event.notification.data || {};
+  const path = targetPath(data);
   const url = new URL(path, self.location.origin).href;
 
   event.waitUntil(
     (async () => {
+      /* Mobile resets the badge on *any* tap, whatever the type
+         (`push-notification.provider.tsx:367-368`). */
+      await resetBadge();
+
+      if (isConnectLike(data)) {
+        const shown = await self.registration.getNotifications();
+        for (const notification of shown) {
+          if (isConnectLike(notification.data)) notification.close();
+        }
+      }
+
       const clientList = await self.clients.matchAll({
         type: "window",
         includeUncontrolled: true,

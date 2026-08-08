@@ -230,6 +230,17 @@ describe("the create branch starts at an hour", () => {
       /const canSubmit =[\s\S]*?!problem/,
     );
   });
+
+  /**
+   * The rails describe a time the host is *choosing*. A session already in the
+   * past — or one the admin dashboard created off the grid — has to stay
+   * editable, or renaming it would require rescheduling it.
+   */
+  it("leaves an untouched value alone", () => {
+    const source = sourceOf("components/profile/ManageLivesScreen.tsx");
+    expect(source).toMatch(/scheduledAt !== openedWith[\s\S]*?scheduleProblem/);
+    expect(source).toContain("setOpenedWith(isoToLocalInput(session.scheduledAt))");
+  });
 });
 
 /**

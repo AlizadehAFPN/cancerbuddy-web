@@ -21,6 +21,9 @@ import { toast } from "sonner";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui";
 import { FieldLabel, MultiSelectField, SelectField } from "@/components/ui/form";
+import { FieldHint } from "@/components/ui/FieldHint";
+import { HelpDialog } from "@/components/auth/HelpDialog";
+import { fetchSignedInEmail } from "@/lib/aws/sessionAttributes";
 import { ArrowLeftIcon } from "@/components/ui/icons";
 import {
   fetchDiagnoses,
@@ -39,9 +42,12 @@ import {
   useUnsavedChanges,
 } from "@/lib/navigation/UnsavedChangesProvider";
 import {
+  MAX_SUPPORT_ORGANIZATIONS,
+  applyTreatmentStatus,
   fetchMedicalInfo,
   medicalRulesFor,
   saveMedicalInfo,
+  validateRemissionAgainstBirth,
   type MedicalInfoRows,
   type MedicalInfoValues,
 } from "@/lib/profile/medicalInfo";
@@ -98,6 +104,12 @@ const fromCsv = (v: string) => v.split(",").filter((s) => s.trim() !== "");
 export default function MedicalInfoForm() {
   const { guardedPush } = useUnsavedChanges();
   const { userId, user, refresh } = useProfile();
+
+  /** The help form sends the member's own address rather than asking for it. */
+  const [email, setEmail] = useState<string | null>(null);
+  useEffect(() => {
+    void fetchSignedInEmail().then(setEmail);
+  }, []);
 
   const [values, setValues] = useState<MedicalInfoValues>(EMPTY);
   const [initial, setInitial] = useState<MedicalInfoValues>(EMPTY);
@@ -204,8 +216,12 @@ export default function MedicalInfoForm() {
     }
     if (dateError === "future") return t("app.profile.dateFuture");
     if (dateError === "too-old") return t("app.profile.dateTooOld");
+    // A date before the member was born is well-formed and still impossible.
+    if (validateRemissionAgainstBirth(user?.birth, values.inRemissionSince)) {
+      return t("app.profile.remissionBeforeBirth");
+    }
     return null;
-  }, [rules, values]);
+  }, [rules, values, user?.birth]);
 
   const canSave = dirty && !validationError && !saving;
 
@@ -285,6 +301,21 @@ export default function MedicalInfoForm() {
               : "app.profile.medicalTitle",
           )}
         </h1>
+
+        {/*
+          Mobile puts a life-buoy in this header opening "I can't find my
+          medical information" (`MedicalInformation.tsx:74-90`). Web had no help
+          affordance here at all, so a member stuck on a catalogue that does not
+          list their diagnosis had nowhere to go. Same dialog as the signup
+          flow, one new view — not a second help component.
+        */}
+        <div className="ml-auto">
+          <HelpDialog
+            view="medical-info"
+            signedInEmail={email}
+            signedInName={user?.name ?? undefined}
+          />
+        </div>
       </header>
 
       <div className="space-y-4 pb-28">
@@ -305,6 +336,7 @@ export default function MedicalInfoForm() {
             searchPlaceholder={t("app.profile.searchDiagnoses")}
             onChange={(next) => patch({ diagnosisIds: fromCsv(next) })}
           />
+            <FieldHint>{t("app.profile.hintDiagnosis")}</FieldHint>
 
           {rules.showTreatmentStatus && (
             <SelectField
@@ -312,7 +344,18 @@ export default function MedicalInfoForm() {
               value={values.userTreatmentStatusId}
               options={catalogs.statuses}
               placeholder={t("app.profile.selectOne")}
-              onChange={(v) => patch({ userTreatmentStatusId: v })}
+              onChange={(v) =>
+                /*
+                  Changing the status decides which treatments may stand:
+                  clearing it, or choosing "Pre-treatment", empties them. Web
+                  used to leave them in place and merely grey the field, so a
+                  member was left holding treatments they could not edit and
+                  which still described them to everyone else.
+                */
+                patch(
+                  applyTreatmentStatus(values, v, catalogs.statuses),
+                )
+              }
             />
           )}
 
@@ -376,14 +419,24 @@ export default function MedicalInfoForm() {
             searchPlaceholder={t("app.profile.searchHospitals")}
             onChange={(next) => patch({ hospitalIds: fromCsv(next) })}
           />
+            <FieldHint>{t("app.profile.hintMedicalCenter")}</FieldHint>
+          {/* Mobile's picker stops offering Add at three (`limit: 3`); web
+              enforced no maximum, so a record could carry more than the phone
+              can display. */}
           <MultiSelectField
             label={t("app.profile.supportOrganizations")}
             catalogItems={catalogs.supportOrgs}
             value={csv(values.supportOrgIds)}
             addLabel={t("app.profile.addSupportOrganization")}
             searchPlaceholder={t("app.profile.searchSupportOrganizations")}
-            onChange={(next) => patch({ supportOrgIds: fromCsv(next) })}
+            maxItems={MAX_SUPPORT_ORGANIZATIONS}
+            onChange={(next) =>
+              patch({
+                supportOrgIds: fromCsv(next).slice(0, MAX_SUPPORT_ORGANIZATIONS),
+              })
+            }
           />
+            <FieldHint>{t("app.profile.hintSupportOrganization")}</FieldHint>
         </Card>
 
         <Card
@@ -398,6 +451,7 @@ export default function MedicalInfoForm() {
             searchPlaceholder={t("app.profile.searchDisabilities")}
             onChange={(next) => patch({ disabilityIds: fromCsv(next) })}
           />
+            <FieldHint>{t("app.profile.hintSideEffects")}</FieldHint>
         </Card>
       </div>
 

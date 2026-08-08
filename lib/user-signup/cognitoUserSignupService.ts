@@ -144,6 +144,17 @@ async function trySilentSignOut(): Promise<void> {
   }
 }
 
+/**
+ * Mint a fresh email confirmation code.
+ *
+ * One definition shared by the Resend control and by the resume-unconfirmed
+ * branch, so the two can never drift into sending different things — the drift
+ * being precisely what was wrong before: only one of them sent at all.
+ */
+async function sendConfirmationCode(email: string): Promise<void> {
+  await Auth.resendSignUp(resolveUserPoolUsername(email));
+}
+
 function resolveCognitoUsernameFromSignInResult(
   signedIn: unknown,
   emailFallback: string,
@@ -313,6 +324,20 @@ async function resumeAfterUsernameCollision(
   } catch (signInErr) {
     const c = cognitoErrorCode(signInErr);
     if (c === "UserNotConfirmedException") {
+      /**
+       * Send before offering the choice, exactly as mobile does.
+       *
+       * `handleExistingUsername` (`cancerbuddyapp/src/context/auth/authUtils.ts:28-37`)
+       * calls `Auth.resendSignUp` and only then hands control to the OTP screen,
+       * so the member always holds a code less than a minute old. Web used to
+       * return this branch having sent nothing, while the screen said "enter the
+       * code we sent you" — any code from the abandoned attempt expires in 24h,
+       * and Resend arrived locked behind a 60-second countdown.
+       *
+       * A failure here is not fatal: the member still reaches the OTP step, and
+       * Resend is the escape hatch.
+       */
+      await sendConfirmationCode(email);
       return { status: "RESUME_UNCONFIRMED", nextStep: "CONFIRM_EMAIL" };
     }
     if (
@@ -413,7 +438,7 @@ export const cognitoUserSignupService: UserSignupService = {
   ): Promise<ResendEmailCodeResult> {
     ensureAmplifyConfigured();
     const email = input.email.trim().toLowerCase();
-    await Auth.resendSignUp(resolveUserPoolUsername(email));
+    await sendConfirmationCode(email);
     return { ok: true };
   },
 

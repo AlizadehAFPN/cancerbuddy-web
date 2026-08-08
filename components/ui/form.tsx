@@ -572,6 +572,7 @@ export function MultiSelectField({
   searchPlaceholder,
   loading,
   onSearch,
+  maxItems,
 }: {
   label: string;
   catalogItems: PicklistItem[];
@@ -582,6 +583,11 @@ export function MultiSelectField({
   loading?: boolean;
   /** See {@link CatalogPicker}'s `onSearch`. */
   onSearch?: (query: string) => Promise<PicklistItem[]>;
+  /**
+   * Hides Add once this many are chosen — mobile's `limit` on the same picker.
+   * Removing one brings it back, so the cap guides rather than traps.
+   */
+  maxItems?: number;
 }) {
   const [open, setOpen] = useState(false);
   const ids = useMemo(
@@ -595,12 +601,14 @@ export function MultiSelectField({
 
   const toggle = useCallback(
     (id: string) => {
-      const next = ids.includes(id)
-        ? ids.filter((v) => v !== id)
-        : [...ids, id];
+      const removing = ids.includes(id);
+      // Hiding Add is not a cap on its own: the sheet stays open while items are
+      // toggled, so the limit has to hold here too.
+      if (!removing && maxItems !== undefined && ids.length >= maxItems) return;
+      const next = removing ? ids.filter((v) => v !== id) : [...ids, id];
       onChange(next.join(","));
     },
-    [ids, onChange],
+    [ids, onChange, maxItems],
   );
 
   return (
@@ -629,6 +637,7 @@ export function MultiSelectField({
         </ul>
       )}
 
+      {!(maxItems !== undefined && ids.length >= maxItems) && (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -641,6 +650,7 @@ export function MultiSelectField({
           <ChevronRightIcon />
         </span>
       </button>
+      )}
 
       <Sheet open={open} title={label} onClose={() => setOpen(false)}>
         <div className="h-[min(60vh,520px)]">

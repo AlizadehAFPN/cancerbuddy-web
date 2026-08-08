@@ -27,6 +27,7 @@ import NotificationRow from "@/components/notifications/NotificationRow";
 import RequestsPanel from "@/components/notifications/RequestsPanel";
 import { useBuddies } from "@/lib/buddies/BuddiesProvider";
 import { useRequests } from "@/lib/buddies/useRequests";
+import { clearPushNotices } from "@/lib/push/pushClient";
 import { groupNotifications, type NotificationBucket } from "@/lib/notifications/grouping";
 import { useNotifications } from "@/lib/notifications/useNotifications";
 import type { MessageKey } from "@/lib/i18n";
@@ -102,6 +103,19 @@ export default function UpdatesScreen() {
   const requests = useRequests();
 
   const [tab, setTab] = useState<Tab>("all");
+
+  /**
+   * Opening Updates clears the OS notification tray and the badge.
+   *
+   * Mobile does this unconditionally on mount
+   * (`HomeNotifications.tsx:110-115` → `notifee.cancelAllNotifications()`), and
+   * the reasoning carries: every banner is a pointer to this screen, and the
+   * member is now looking at it. Once per mount, not per render — a stale
+   * banner is not worth re-clearing while they scroll.
+   */
+  useEffect(() => {
+    void clearPushNotices("tray");
+  }, []);
 
   // Ages are measured from when the rows were read, not from the clock, so a
   // list can't say "1h" at the top and "2h" further down for two notifications

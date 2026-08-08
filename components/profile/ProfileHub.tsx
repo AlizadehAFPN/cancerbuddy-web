@@ -36,9 +36,13 @@ import {
 import {
   ROLE_BADGE_CLASS,
   ROLE_LABELS,
+  formatLocation,
   formatName,
 } from "@/lib/buddies/display";
+import { ageSuffix } from "@/lib/buddies/age";
+import { identityFactsFor } from "@/lib/profile/identityFacts";
 import { removeProfilePicture, setProfilePicture } from "@/lib/profile/photos";
+import { PhotoCropper } from "@/components/auth/PhotoCropper";
 
 function SectionCard({
   href,
@@ -121,13 +125,34 @@ function ActionCard({
 export default function ProfileHub() {
   const { status, user, gallery, sections, retry, userId, refresh } = useProfile();
 
+  /** Age, location and pronouns — the line mobile prints under your name. */
+  const identityFacts = identityFactsFor(user, { ageSuffix, formatLocation });
+
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
   /** Mobile offers this from an action sheet on the avatar; same place here. */
+  /**
+   * Mobile crops to a circle before uploading (`useImagePicker.ts:48-79`,
+   * `cropperCircleOverlay: true`); web sent the raw file and let CSS centre-crop
+   * it, so a wide photo lost whatever was not in the middle — usually the face.
+   * The signup flow already has the cropper; this is the same component.
+   */
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+
   const changeAvatar = useCallback(
     async (file: File | undefined) => {
       if (!file || !userId) return;
+      setPendingPhoto(file);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    },
+    [userId],
+  );
+
+  const uploadAvatar = useCallback(
+    async (file: File) => {
+      if (!userId) return;
+      setPendingPhoto(null);
       setAvatarBusy(true);
       try {
         await setProfilePicture({ userId, file });
@@ -138,7 +163,6 @@ export default function ProfileHub() {
         toast.error(t("app.profile.photoUploadError"));
       } finally {
         setAvatarBusy(false);
-        if (avatarInputRef.current) avatarInputRef.current.value = "";
       }
     },
     [userId, refresh],
@@ -239,6 +263,21 @@ export default function ProfileHub() {
                 </span>
               )}
             </div>
+            {/*
+              The three facts mobile prints under the name
+              (`AvatarProfile.tsx` → `AvatarInfoLayout`): age, location and
+              pronouns. Web queried all three and rendered none of them, so the
+              hub showed less about you than another member's profile did.
+
+              "I rather not disclose" is stored like any other pronoun and never
+              shown — the same suppression `displayablePronoun` applies on the
+              buddy profile.
+            */}
+            {identityFacts.length > 0 && (
+              <p className="mt-0.5 font-body text-[13.5px] text-cb-gray-500">
+                {identityFacts.join(" · ")}
+              </p>
+            )}
             {user.goal?.name && (
               <p className="mt-0.5 font-body text-[13.5px] text-cb-gray-500">
                 {user.goal.name}
@@ -434,6 +473,14 @@ export default function ProfileHub() {
           />
         </div>
       </section>
+      {/* Circular crop before upload — the member chooses what the avatar shows. */}
+      {pendingPhoto && (
+        <PhotoCropper
+          source={pendingPhoto}
+          onApply={(cropped) => void uploadAvatar(cropped)}
+          onCancel={() => setPendingPhoto(null)}
+        />
+      )}
     </div>
   );
 }

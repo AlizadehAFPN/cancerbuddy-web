@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Channel, ChannelFilters, ChannelSort, Event } from "stream-chat";
 import { channelSortTs } from "./helpers";
+import { trackConnectWithFirstBuddy } from "@/lib/analytics";
 import { useStreamChat } from "./StreamChatProvider";
 
 const PAGE = 30;
@@ -64,7 +65,18 @@ export function useChannelList() {
     pagesLoadedRef.current = 1;
     setChannels(out);
     setHasMore(page.length === PAGE);
-  }, [fetchPage]);
+
+    /**
+     * Mobile's `counterChatChannels` (`StreamProvider.tsx:99-116`) emits here —
+     * the first load that returns any channel means this member has connected
+     * with somebody. Latched once per account, so the later pages and every
+     * subsequent reload cost nothing.
+     */
+    trackConnectWithFirstBuddy(
+      out.map((ch) => ch.data?.created_at as string | undefined),
+      userId,
+    );
+  }, [fetchPage, userId]);
 
   const loadMore = useCallback(async () => {
     if (loadingMoreRef.current || !hasMore) return;

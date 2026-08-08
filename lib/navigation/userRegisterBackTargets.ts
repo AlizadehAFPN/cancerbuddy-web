@@ -22,9 +22,9 @@ export const USER_REGISTER_BACK_FALLBACK: Partial<
   phone: "credentials",
   cgRelationship: "userRole",
   cgPatientAge: "cgRelationship",
-  diagnosis: "userRole",
+  // diagnosis back is role-dependent — handled in page.tsx goBackInUserFlow
   medicalCenter: "diagnosis",
-  // address back is role-dependent — handled in page.tsx goBackInUserFlow
+  address: "medicalCenter",
   profilePic: "createProfile",
   about: "profilePic",
   interests: "about",

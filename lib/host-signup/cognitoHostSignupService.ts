@@ -136,6 +136,11 @@ async function trySilentSignOut(): Promise<void> {
   }
 }
 
+/** One definition for both senders — see the member service for the rationale. */
+async function sendConfirmationCode(email: string): Promise<void> {
+  await Auth.resendSignUp(resolveHostPoolUsername(email));
+}
+
 /**
  * Prefer the pool's canonical username (often a UUID-style id); fall back to
  * email when the client returns only the sign-in alias.
@@ -299,6 +304,9 @@ async function resumeAfterUsernameCollision(
   } catch (signInErr) {
     const c = cognitoErrorCode(signInErr);
     if (c === "UserNotConfirmedException") {
+      /* Identical omission to the member flow — see the note in
+         `lib/user-signup/cognitoUserSignupService.ts`. */
+      await sendConfirmationCode(email);
       return { status: "RESUME_UNCONFIRMED", nextStep: "CONFIRM_EMAIL" };
     }
     if (
@@ -407,7 +415,7 @@ export const cognitoHostSignupService: HostSignupService = {
   ): Promise<ResendEmailCodeResult> {
     ensureAmplifyConfigured();
     const email = input.email.trim().toLowerCase();
-    await Auth.resendSignUp(resolveHostPoolUsername(email));
+    await sendConfirmationCode(email);
     return { ok: true };
   },
 

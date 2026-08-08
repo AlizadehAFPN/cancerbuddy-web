@@ -48,3 +48,21 @@ query appLink{
   }
 }
 `;
+
+/**
+ * Who funds CancerBuddy.
+ *
+ * Mobile's Funders screen reads the same collection and lists it alphabetically.
+ * Web never queried it, so `/funders` — a row in the account menu — was a
+ * placeholder promising a page that did not exist.
+ */
+export const GET_FUNDERS = `
+query funders{
+	fundersCollection{
+   	items{
+      name
+      description
+    }
+  }
+}
+`;

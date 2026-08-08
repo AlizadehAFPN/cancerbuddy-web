@@ -14,6 +14,7 @@
  */
 
 import { API, graphqlOperation } from "aws-amplify";
+import { trackMilestone, trackNewPost } from "@/lib/analytics";
 import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
 import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 import { raiseUserLambda } from "@/lib/aws/raiseUserLambda";
@@ -448,6 +449,18 @@ export async function createPost(params: {
       /* the post is live regardless — this only powers realtime fan-out */
     }
   }
+
+  /**
+   * Both events mobile emits for a publish, in its order
+   * (`NewPostScreen.tsx:188-198`): the once-only `post` milestone, then the
+   * per-word `new_post` fan-out that feeds the content search report.
+   *
+   * The body is passed as written — `emitEvent` strips the markup, which is
+   * where mobile's `changeHTMLEntities` runs too.
+   */
+  trackMilestone("post", session.userId);
+  trackNewPost(html, session.userId);
+
   return activityId;
 }
 
@@ -565,6 +578,9 @@ export async function addComment(params: {
       ...(params.attachments.length ? { attachments: params.attachments } : {}),
     },
   });
+
+  trackMilestone("comment", params.session.userId);
+
   return reaction.id;
 }
 

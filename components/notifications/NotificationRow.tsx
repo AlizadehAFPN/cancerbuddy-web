@@ -3,12 +3,14 @@
 /**
  * One row of the Updates feed — mobile's `ListNotification`.
  *
- * Same four pieces in the same order: avatar, the sender's name with their
+ * Same four pieces in the same order: avatar, the sender's full name with their
  * verification badges and the age of the notification, the server-composed
- * sentence, and the group it happened in. The sentence is never assembled
- * here; `typeNotification` arrives ready-made and both apps print it verbatim,
- * which is why "Posted in" reads as a fragment until the group name lands
- * underneath it.
+ * sentence, and the group it happened in. The name is printed as saved, not
+ * shortened to a first name the way discovery cards do — see `senderName`.
+ *
+ * The sentence is never assembled here; `typeNotification` arrives ready-made
+ * and both apps print it verbatim, which is why "Posted in" reads as a fragment
+ * until the group name lands underneath it.
  *
  * A row with nothing to open renders as a plain block rather than a button, so
  * the pointer never promises a destination that doesn't exist.
@@ -17,7 +19,7 @@
 import Link from "next/link";
 import { t } from "@/lib/i18n";
 import BuddyAvatar from "@/components/buddies/BuddyAvatar";
-import { formatName } from "@/lib/buddies/display";
+import { senderName } from "@/lib/buddies/display";
 import { relativeTime } from "@/lib/notifications/grouping";
 import { notificationTarget } from "@/lib/notifications/routing";
 import type { AppNotification } from "@/lib/notifications/types";
@@ -49,7 +51,7 @@ function RowBody({ notification, now }: { notification: AppNotification; now: nu
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="font-heading text-[15px] font-bold leading-tight text-cb-black">
-            {formatName(remitent.name)}
+            {senderName(remitent.name)}
           </span>
 
           {remitent.userType === "SUPPORT" && (

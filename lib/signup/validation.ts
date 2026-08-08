@@ -63,7 +63,7 @@ export const profileSchema = z
 
 /* Strict RFC 5322-compliant email regex — catches the most common mistakes
    (missing @, invalid TLD, spaces) while giving a clear example in the message. */
-const EMAIL_REGEX =
+export const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
 
 /**

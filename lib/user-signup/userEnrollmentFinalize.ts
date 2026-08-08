@@ -16,6 +16,7 @@
 
 import { Auth } from "aws-amplify";
 import { ensureAmplifyConfigured } from "@/lib/aws/amplifyConfigure";
+import { trackEnrollmentComplete } from "@/lib/analytics";
 import { executeAppSyncGraphql } from "@/lib/aws/appsyncGraphql";
 import { LambdaPayloadType } from "@/lib/aws/lambdaPayload";
 import { raiseUserLambda } from "@/lib/aws/raiseUserLambda";
@@ -86,14 +87,6 @@ const UPDATE_PICTURE_AS_GALLERY = /* GraphQL */ `
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
 const PENDING_SUPPORT_CHANNEL_KEY = "pendingSupportChannel";
-
-const ENROLLMENT_ANALYTICS_KEYS = [
-  "chatWithFirstBuddy",
-  "connectWithFirstBuddy",
-  "joinFirstGroup",
-  "comment",
-  "post",
-] as const;
 
 function usersLambdaName(): string {
   const v = process.env.NEXT_PUBLIC_USERS_LAMBDA?.trim();
@@ -348,7 +341,21 @@ export async function finalizeUserEnrollment(
     supportWired = false;
   }
 
-  /* ── 7. Analytics seed + localStorage flags ──────────────────────────── */
+  /* ── 7. Analytics + the support-channel marker ────────────────────────── */
+
+  /**
+   * A finished registration is the funnel's terminal event, and the account id
+   * exists by now — everything before this point is a half-account.
+   *
+   * The five milestone latches are deliberately *not* seeded here. An earlier
+   * draft wrote them as bare keys set to `"false"`, copying mobile's key names
+   * without its semantics; absence already means "not fired", and the real
+   * latch is account-scoped (`lib/analytics/latch.ts`). Writing the bare keys
+   * only risked colliding with a second account on the same browser — the exact
+   * failure the account-scoped scheme exists to prevent.
+   */
+  trackEnrollmentComplete(cognitoUserId);
+
 
   try {
     if (typeof window !== "undefined" && window.localStorage) {
@@ -365,9 +372,6 @@ export async function finalizeUserEnrollment(
          * member simply had no Support conversation.
          */
         window.localStorage.setItem(PENDING_SUPPORT_CHANNEL_KEY, "true");
-      }
-      for (const k of ENROLLMENT_ANALYTICS_KEYS) {
-        window.localStorage.setItem(k, "false");
       }
     }
   } catch {
